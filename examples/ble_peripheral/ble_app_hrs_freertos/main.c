@@ -910,21 +910,31 @@ static void logger_thread(void * arg)
 #if NRF_LOG_ENABLED && NRF_LOG_DEFERRED
  void log_pending_hook( void )
  {
-     BaseType_t result = pdFAIL;
+//     BaseType_t result = pdFAIL;
 
+//    if ( __get_IPSR() != 0 )
+//    {
+//        BaseType_t higherPriorityTaskWoken = pdFALSE;
+//        result = xTaskNotifyFromISR( m_logger_thread, 0, eSetValueWithoutOverwrite, &higherPriorityTaskWoken );
+
+//        if ( pdFAIL != result )
+//        {
+//        portYIELD_FROM_ISR( higherPriorityTaskWoken );
+//        }
+//    }
+//    else
+//    {
+//        UNUSED_RETURN_VALUE(xTaskNotify( m_logger_thread, 0, eSetValueWithoutOverwrite ));
+//    }
+    BaseType_t YieldRequired = pdFAIL;
     if ( __get_IPSR() != 0 )
     {
-        BaseType_t higherPriorityTaskWoken = pdFALSE;
-        result = xTaskNotifyFromISR( m_logger_thread, 0, eSetValueWithoutOverwrite, &higherPriorityTaskWoken );
-
-        if ( pdFAIL != result )
-        {
-        portYIELD_FROM_ISR( higherPriorityTaskWoken );
-        }
+        YieldRequired = xTaskResumeFromISR( m_logger_thread );
+        portYIELD_FROM_ISR( YieldRequired );
     }
     else
     {
-        UNUSED_RETURN_VALUE(xTaskNotify( m_logger_thread, 0, eSetValueWithoutOverwrite ));
+        UNUSED_RETURN_VALUE(vTaskResume(m_logger_thread));
     }
  }
 #endif
