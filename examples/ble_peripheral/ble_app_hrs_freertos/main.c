@@ -991,6 +991,8 @@ int main(void)
     // The task will run advertising_start() before entering its loop.
     nrf_sdh_freertos_init(advertising_start, &erase_bonds);
 
+    app_m601z_freertos_init();
+
     NRF_LOG_INFO("HRS FreeRTOS example started.");
     // Start FreeRTOS scheduler.
     vTaskStartScheduler();
