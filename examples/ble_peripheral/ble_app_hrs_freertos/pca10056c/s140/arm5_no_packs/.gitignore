@@ -2,3 +2,4 @@ RTE/
 _build/
 *.uvguix.*
 JLink*
+*.scvd
