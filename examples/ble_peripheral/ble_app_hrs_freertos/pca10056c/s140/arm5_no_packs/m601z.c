@@ -13,6 +13,9 @@ static TaskHandle_t m_m601z_thread = NULL;
 void m601z_task(void * pvParameters)
 {
   NRF_LOG_INFO("m601z task starts");
+
+  uint32_t elapsed = 0;
+
   for (;;)
   {
     // In portmacro_cmsis.h, portTICK_PERIOD_MS is defined as (1000 / 1024)
@@ -22,24 +25,25 @@ void m601z_task(void * pvParameters)
     // ( duration_in_milliseconds / portTICK_PERIOD_MS ) anymore.
     // We must calculate the ticksToDelay on our own. Here, 1024 means 1 second.
     vTaskDelay(1024);
-    NRF_LOG_INFO("m601z task ticks");
+    elapsed++;
+    NRF_LOG_INFO("m601z: elapsed %d seconds", elapsed);
   }
 }
 
 void app_m601z_freertos_init(void){
-	BaseType_t xReturned = xTaskCreate(m601z_task, 
+  BaseType_t xReturned = xTaskCreate(m601z_task,
                                      "m601z",
                                      TSK_M601Z_STACK_SIZE,
                                      NULL,
                                      TSK_M601Z_PRIORITY,
                                      &m_m601z_thread);
-	if (xReturned != pdPASS)
-	{
-		NRF_LOG_ERROR("m601z task not created.");
-		APP_ERROR_HANDLER(NRF_ERROR_NO_MEM);
-	}
-	else 
-	{
-		NRF_LOG_INFO("m601z task created.");
-	}
+  if (xReturned != pdPASS)
+  {
+    NRF_LOG_ERROR("m601z task not created.");
+    APP_ERROR_HANDLER(NRF_ERROR_NO_MEM);
+  }
+  else
+  {
+    NRF_LOG_INFO("m601z task created.");
+  }
 }
