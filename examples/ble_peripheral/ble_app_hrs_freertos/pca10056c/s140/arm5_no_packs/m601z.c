@@ -8,30 +8,40 @@
 #include "semphr.h"
 
 #include "nrfx_timer.h"
-#include "nrfx_gpiote.h"
 #include "nrf_gpio.h"
 #include "nrf_log.h"
+#include "nrf_assert.h"
+
 #include "m601z.h"
 
+#ifdef USE_DK_BOARD
+#define MDQ                                         (0 + 27)    // P0.27 (SCL)
+                                                                // short SB32 to enable pull-up
+#else
 #define   MDQ                                       0           // P0.00
-#define   MINT                                      (32 + 15)   // P1.15
+#define   MINT                                      (32 + 15)   // P1.15, not used
+#endif
 
 typedef enum err_onewire
 {
-  err_onewire_none = 0,
-  err_onewire_not_detected,
-  err_onewire_timeout,
+  ERR_OW_NONE = 0,
+  ERR_OW_UNDETECTED
 } err_onewire_t;
 
 typedef enum continuation {
-  CONT_RESET = 0,
+  CONT_INIT = 0,
+  CONT_RESET,
   CONT_RESET_DONE,
   CONT_DETECT,
   CONT_DETECT_DONE,
   CONT_WRITE_LOW,
-  CONT_WRITE_HIGH,
+  CONT_WRITE_HIGH1, // early
+  CONT_WRITE_HIGH0, // late
   CONT_WRITE_REC,
-  CONT_READ_BIT,
+  CONT_READ_LOW,
+  CONT_READ_HIGH,
+  CONT_READ_SAMPLE,
+  CONT_READ_REC
 } continuation_t;
 
 typedef struct onewire_transaction_ctx
@@ -46,7 +56,7 @@ typedef struct onewire_transaction_ctx
   uint8_t idata_len;
 
   uint8_t bit_cnt;
-  uint8_t ignore_undetected;
+  // uint8_t ignore_undetected;
 } onewire_transaction_ctx_t;
 
 static onewire_transaction_ctx_t ctx;
@@ -73,95 +83,109 @@ static const nrfx_timer_config_t timer1_config = {
   .frequency = NRF_TIMER_FREQ_1MHz,             // default config is 16MHz
   .mode = NRF_TIMER_MODE_TIMER,
   .bit_width = NRF_TIMER_BIT_WIDTH_32,          // default config is 16bit.
-  .interrupt_priority = NRFX_TIMER_DEFAULT_CONFIG_IRQ_PRIORITY,
+  .interrupt_priority = 4, // NRFX_TIMER_DEFAULT_CONFIG_IRQ_PRIORITY,
   .p_context = &ctx,
 };
 
-//static void config_mdq_od_output()
-//{
-//  // initially high (open drain)
-//  nrf_gpio_pin_set(MDQ);
-//  nrf_gpio_cfg(MDQ,
-//               NRF_GPIO_PIN_DIR_OUTPUT,
-//               NRF_GPIO_PIN_INPUT_DISCONNECT,
-//               NRF_GPIO_PIN_NOPULL,
-//               NRF_GPIO_PIN_S0D1,       // standard 0 disconnect 1, open drain
-//               NRF_GPIO_PIN_NOSENSE);   // sense only affect sleep wakeup
-//}
-
-//static void config_mdq_od_input()
-//{
-//  nrf_gpio_cfg(MDQ,
-//               NRF_GPIO_PIN_DIR_INPUT,
-//               NRF_GPIO_PIN_INPUT_CONNECT,
-//               NRF_GPIO_PIN_NOPULL,
-//               NRF_GPIO_PIN_S0D1,
-//               NRF_GPIO_PIN_NOSENSE);
-//}
-
-static void mdq_hitolo_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
+uint8_t crc8(uint8_t *data, size_t len)
 {
-  if (pin == MDQ && action == NRF_GPIOTE_POLARITY_HITOLO)
+  uint8_t crc = 0xff;
+  size_t i, j;
+  for (i = 0; i < len; i++)
   {
-    nrfx_timer_resume(&timer1);
+    crc ^= data[i];
+    for (j = 0; j < 8; j++)
+    {
+      if ((crc & 0x80) != 0)
+      {
+        crc = (uint8_t)((crc << 1) ^ 0x31);
+      }
+      else
+      {
+        crc <<= 1;
+      }
+    }
   }
+  return crc;
+}
+
+unsigned char CRC8(unsigned char *serial, unsigned char length)
+{
+  unsigned char result = 0x00;
+  unsigned char pDataBuf;
+  unsigned char i;
+
+  while(length--)
+  {
+    pDataBuf = *serial++;
+    for(i=0; i<8; i++)
+    {
+      if((result^(pDataBuf))&0x01)
+      {
+        result ^= 0x18;
+        result >>= 1;
+        result |= 0x80;
+      }
+      else {
+        result >>= 1;
+      }
+      pDataBuf >>= 1;
+    }
+  }
+  return result;
 }
 
 /*
  * In gpio driver, open drain mode is possible (note NRF_GPIO_PIN_S0D1 in commented code)
  * But gpiote driver does not provide this option.
  */
-static void mdq_out_init()
+static void mdq_out()
 {
-  nrfx_err_t err;
-
-  nrfx_gpiote_out_config_t cfg = NRFX_GPIOTE_CONFIG_OUT_SIMPLE(1);
-  err = nrfx_gpiote_out_init(MDQ, &cfg);
-  APP_ERROR_CHECK(err);
-
   nrf_gpio_cfg(MDQ,
                NRF_GPIO_PIN_DIR_OUTPUT,
                NRF_GPIO_PIN_INPUT_DISCONNECT,
                NRF_GPIO_PIN_NOPULL,
-               NRF_GPIO_PIN_H0D1,       // high 0 disconnect 1, open drain
+               NRF_GPIO_PIN_S0D1,       // standard 0 disconnect 1, open drain
                NRF_GPIO_PIN_NOSENSE);   // only affect sleep wakeup
 }
 
-static void mdq_out_uninit()
+static void mdq_in()
 {
-  nrfx_gpiote_out_uninit(MDQ);
+  nrf_gpio_cfg(MDQ,
+               NRF_GPIO_PIN_DIR_INPUT,
+               NRF_GPIO_PIN_INPUT_CONNECT,
+               NRF_GPIO_PIN_NOPULL,
+               NRF_GPIO_PIN_S0D1,
+               NRF_GPIO_PIN_NOSENSE);
 }
 
-static void mdq_in_init()
+static uint32_t mdq_read()
 {
-  nrfx_err_t err;
+  uint32_t level;
 
-  nrfx_gpiote_in_config_t config = NRFX_GPIOTE_CONFIG_IN_SENSE_HITOLO(true);
-  err = nrfx_gpiote_in_init(MDQ, &config, mdq_hitolo_handler);
-  APP_ERROR_CHECK(err);
+  mdq_in();
+  level = nrf_gpio_pin_read(MDQ);
+  mdq_out();
+
+  return level;
 }
 
-static void mdq_in_uninit()
+static void next_stop(continuation_t cont, uint32_t delay)
 {
-  nrfx_gpiote_in_uninit(MDQ);
+  nrf_timer_cc_write(timer1.p_reg, NRF_TIMER_CC_CHANNEL0, delay);
+  nrfx_timer_clear(&timer1);
+  nrfx_timer_resume(&timer1);
+
+  ctx.cont = cont;
 }
-
-//static void config_mdq_in_event()
-//{
-//  // true for IN_EVENT, skip gpio setup, dunno whether there are any side effects
-//  // TODO
-//  nrfx_gpiote_in_config_t config = NRFX_GPIOTE_CONFIG_IN_SENSE_HITOLO(true);
-//
-//  // TODO error checking
-//  nrfx_gpiote_in_init(MDQ, &config, mdq_hitolo_handler);
-//}
-
-// static nrfx_gpiote_out_config_t mdq_out_low_cfg = NRFX_GPIOTE_CONFIG_OUT_SIMPLE(false);
 
 static void onewire_handle(onewire_transaction_ctx_t* p_ctx)
 {
   switch(p_ctx->cont)
   {
+    case CONT_INIT:
+      xSemaphoreGiveFromISR(sem, NULL);
+      return;
     case CONT_RESET:
       goto cont_reset;
     case CONT_RESET_DONE:
@@ -172,56 +196,52 @@ static void onewire_handle(onewire_transaction_ctx_t* p_ctx)
       goto cont_detect_done;
     case CONT_WRITE_LOW:
       goto cont_write_low;
-    case CONT_WRITE_HIGH:
-      goto cont_write_high;
+    case CONT_WRITE_HIGH1:
+      goto cont_write_high1;
+    case CONT_WRITE_HIGH0:
+      goto cont_write_high0;
     case CONT_WRITE_REC:
       goto cont_write_rec;
-    case CONT_READ_BIT:
-      goto cont_read_bit;
+    case CONT_READ_LOW:
+      goto cont_read_low;
+    case CONT_READ_HIGH:
+      goto cont_read_high;
+    case CONT_READ_SAMPLE:
+      goto cont_read_sample;
+    case CONT_READ_REC:
+      goto cont_read_rec;
   }
 
   cont_reset:
   {
-    // deprecated config_mdq_od_output();
-    mdq_out_init();
     nrf_gpio_pin_write(MDQ, 0);
-    nrfx_timer_compare(&timer1, NRF_TIMER_CC_CHANNEL0, 600, true);
-    p_ctx->cont = CONT_RESET_DONE;
+    next_stop(CONT_RESET_DONE, 960);
     return;
   }
 
   cont_reset_done:
   {
-    mdq_out_uninit();
-    mdq_in_init();
-    nrfx_timer_compare(&timer1, NRF_TIMER_CC_CHANNEL0, 645, true);
-    p_ctx->cont = CONT_DETECT;
+    nrf_gpio_pin_write(MDQ, 1);
+    next_stop(CONT_DETECT, 70);
     return;
   }
 
   cont_detect:
   {
-    if (nrfx_gpiote_in_is_set(MDQ))
+    if (mdq_read())
     {
-      mdq_in_uninit();
-      nrfx_timer_pause(&timer1);
-      p_ctx->err = err_onewire_not_detected;
+      p_ctx->err = ERR_OW_UNDETECTED;
       xSemaphoreGiveFromISR(sem, NULL);
     }
     else
     {
-      // we shall not end input state here for the device may pull down
-      // the dq line for a while
-      nrfx_timer_compare(&timer1, NRF_TIMER_CC_CHANNEL0, 1200, true);
-      p_ctx->cont = CONT_DETECT_DONE;
+      next_stop(CONT_DETECT_DONE, (960 - 70));
     }
     return;
   }
 
   cont_detect_done:
   {
-    mdq_in_uninit();
-    mdq_out_init();
     p_ctx->bit_cnt = 0;
     // no return here
   }
@@ -235,98 +255,104 @@ static void onewire_handle(onewire_transaction_ctx_t* p_ctx)
   {
     nrf_gpio_pin_write(MDQ, 0);
 
-    uint8_t i = p_ctx->bit_cnt;
-    uint8_t bit = p_ctx->odata[i / 8] & ((uint8_t)1 << (i % 8));
-    uint32_t delay = bit ? 5 : 90;
-    nrfx_timer_compare(&timer1, NRF_TIMER_CC_CHANNEL0, delay, true);
-    nrfx_timer_clear(&timer1);
+    uint8_t bit_cnt = p_ctx->bit_cnt;
+    uint8_t idx = bit_cnt / 8;
+    uint8_t mask = (uint8_t)1 << (bit_cnt % 8);
+    uint8_t bit = p_ctx->odata[idx] & mask;
 
-    p_ctx->cont = CONT_WRITE_HIGH;
+    if (bit)
+    {
+      next_stop(CONT_WRITE_HIGH1, 5);
+    }
+    else
+    {
+      next_stop(CONT_WRITE_HIGH0, 90);
+    }
     return;
   }
 
-  cont_write_high:
+  cont_write_high1:
   {
     nrf_gpio_pin_write(MDQ, 1);
-
-    nrfx_timer_compare(&timer1, NRF_TIMER_CC_CHANNEL0, 90, true);
-
-    p_ctx->cont = CONT_WRITE_REC;
+    next_stop(CONT_WRITE_REC, (90 - 5));
     return;
+  }
+
+  cont_write_high0:
+  {
+    nrf_gpio_pin_write(MDQ, 1);
+    // no return
   }
 
   cont_write_rec:
   {
     p_ctx->bit_cnt++;
-
-    if (p_ctx->bit_cnt < p_ctx->odata_len * 8)
+    if (p_ctx->bit_cnt < (p_ctx->odata_len * 8))
     {
       // loop
-      nrfx_timer_compare(&timer1, NRF_TIMER_CC_CHANNEL0, 100, true);
-      p_ctx->cont = CONT_WRITE_LOW;
+      next_stop(CONT_WRITE_LOW, 10);
       return;
     }
 
     if (p_ctx->idata_len == 0)
     {
-      // no data to read, finished
-      mdq_out_uninit();
-      nrfx_timer_pause(&timer1);
-      p_ctx->err = err_onewire_none;
+      p_ctx->err = ERR_OW_NONE;
       xSemaphoreGiveFromISR(sem, NULL);
       return;
     }
     else
     {
-      mdq_out_uninit();
-      mdq_in_init();
-
-      // pause and clear timer
-      nrfx_timer_pause(&timer1);
-      nrfx_timer_clear(&timer1);
-      nrfx_timer_compare(&timer1, NRF_TIMER_CC_CHANNEL0, 12, true);
-
-      // enable input interrupt
-      nrfx_gpiote_in_event_enable(MDQ, true);
-
       // reset loop variable
       p_ctx->bit_cnt = 0;
-      p_ctx->cont = CONT_READ_BIT;
+      next_stop(CONT_READ_LOW, 10);
       return;
     }
   }
 
-  cont_read_bit:
+  cont_read_low:
   {
-    // pause and clear timer
-    nrfx_timer_pause(&timer1);
-    nrfx_timer_clear(&timer1);
+    nrf_gpio_pin_write(MDQ, 0);
+    next_stop(CONT_READ_HIGH, 2);
+    return;
+  }
 
+  cont_read_high:
+  {
+    nrf_gpio_pin_write(MDQ, 1);
+    next_stop(CONT_READ_SAMPLE, 10);
+    return;
+  }
+
+  cont_read_sample:
+  {
     uint32_t idx = p_ctx->bit_cnt / 8;
     uint32_t mask = (1U << (p_ctx->bit_cnt % 8));
 
-    // uint32_t val = nrf_gpio_pin_read(MDQ);
-    if (nrfx_gpiote_in_is_set(MDQ))
+    if (mdq_read())
     {
       p_ctx->idata[idx] |= mask;
     }
     else
     {
-      p_ctx->idata[idx] &= ~mask;
+      p_ctx->idata[idx] &= ~mask; // this is not required actually TODO
     }
 
+    next_stop(CONT_READ_REC, (60-12)); // why measured timing so different?
+    return;
+  }
+
+  cont_read_rec:
+  {
     p_ctx->bit_cnt++;
+
     if (p_ctx->bit_cnt < p_ctx->idata_len * 8)
     {
+      next_stop(CONT_READ_LOW, 10);
       return;
     }
     else
     {
-      // no data to read, finished
-      nrfx_gpiote_in_event_disable(MDQ); // possibly unnecessary
-      mdq_in_uninit();
-
-      p_ctx->err = err_onewire_none;
+      p_ctx->err = ERR_OW_NONE;
       xSemaphoreGiveFromISR(sem, NULL);
       return;
     }
@@ -334,7 +360,7 @@ static void onewire_handle(onewire_transaction_ctx_t* p_ctx)
 }
 
 /*
- * CC0 is used as toggling channel
+ * Only channel 0 is used
  */
 static void timer1_callback(nrf_timer_event_t event_type, void* p_context)
 {
@@ -343,41 +369,66 @@ static void timer1_callback(nrf_timer_event_t event_type, void* p_context)
     case NRF_TIMER_EVENT_COMPARE0:
       onewire_handle((onewire_transaction_ctx_t*)p_context);
       break;
-    case NRF_TIMER_EVENT_COMPARE1:  // pull up
-      nrfx_gpiote_out_set(MDQ);
-      break;
-    case NRF_TIMER_EVENT_COMPARE2:  // sampling
-      break;
-    case NRF_TIMER_EVENT_COMPARE3:  // period end, clear
-      xSemaphoreGiveFromISR(sem, NULL);
-      break;
     default:
       break;
   }
 }
 
+/*
+ * onewire convert T command
+ */
+uint32_t onewire_convert()
+{
+  memset(&ctx, 0, sizeof(ctx));
+  ctx.odata[0] = 0xCC;  // skip rom   11001100b
+  ctx.odata[1] = 0x44;  // convert T  01000100b
+  ctx.odata_len = 2;
+
+  next_stop(CONT_RESET, 1);
+  xSemaphoreTake(sem, portMAX_DELAY);
+
+  return ctx.err;
+}
+
+uint32_t onewire_read_scratchpad()
+{
+  memset(&ctx, 0, sizeof(ctx));
+  ctx.odata[0] = 0xCC;  // skip rom
+  ctx.odata[1] = 0xBE;  // read scratchpad
+  ctx.odata_len = 2;
+  ctx.idata_len = 9;    // including crc
+
+  next_stop(CONT_RESET, 1);
+  xSemaphoreTake(sem, portMAX_DELAY);
+
+  return ctx.err;
+}
+
+/*
+ * freertos task for m601z
+ */
 void m601z_task(void * pvParameters)
 {
   NRF_LOG_INFO("m601z task starts");
 
-  sem = xSemaphoreCreateBinary(); // TODO check error
-//  nrf_gpio_cfg_input(MDQ, NRF_GPIO_PIN_NOPULL);
-//  nrf_gpio_cfg_output(MDQ);
+  // init semaphore
+  sem = xSemaphoreCreateBinary();
 
-  uint32_t elapsed = 0;
-
-  // timer1_config.frequency = NRF_TIMER_FREQ_1MHz;
-  // timer1_config.bit_width = NRF_TIMER_BIT_WIDTH_32;
-
+  // init timer
   nrfx_err_t err = nrfx_timer_init(&timer1, &timer1_config, timer1_callback);
   APP_ERROR_CHECK(err); // this will eventually trigger a reset
 
-//  nrfx_timer_compare(&timer1, NRF_TIMER_CC_CHANNEL0, 0, true);
-//  nrfx_timer_compare(&timer1, NRF_TIMER_CC_CHANNEL1, 600, true);
-//  nrfx_timer_compare(&timer1, NRF_TIMER_CC_CHANNEL2, 645, true);
-//  nrfx_timer_compare(&timer1, NRF_TIMER_CC_CHANNEL3, 1200, true);
+  // delay 1us to put the timer in STOP state
+  nrfx_timer_extended_compare(&timer1, NRF_TIMER_CC_CHANNEL0, 1, NRF_TIMER_SHORT_COMPARE0_STOP_MASK, true);
+  nrfx_timer_enable(&timer1);
 
-  for (;;)
+  xSemaphoreTake(sem, portMAX_DELAY);
+
+  // avoid negative pulse
+  nrf_gpio_pin_set(MDQ);
+  mdq_out();
+
+  for (uint32_t i = 0;;i++)
   {
     // In portmacro_cmsis.h, portTICK_PERIOD_MS is defined as (1000 / 1024)
     // which evaluates to zero !!! This is a serious design flaw.
@@ -385,36 +436,37 @@ void m601z_task(void * pvParameters)
     // we cannot use the familiar expression
     // ( duration_in_milliseconds / portTICK_PERIOD_MS ) anymore.
     // We must calculate the ticksToDelay on our own. Here, 1024 means 1 second.
-    vTaskDelay(1024);
-    elapsed++;
-    NRF_LOG_INFO("m601z: elapsed %d seconds", elapsed);
+    vTaskDelay(5120);
 
-    // just start timer1, oneshot.
-    memset(&ctx, 0, sizeof(ctx));
-    ctx.odata[0] = 0xCC;  // skip rom
-    ctx.odata[1] = 0x44;  // convert T
-    ctx.odata_len = 2;
-    nrfx_timer_compare(&timer1, NRF_TIMER_CC_CHANNEL0, 1, true);
-    nrfx_timer_enable(&timer1);
-
-    xSemaphoreTake(sem, portMAX_DELAY);
-    nrfx_timer_disable(&timer1);  // TASK_SHUTDOWN is deprecated actually :)
+    if (onewire_convert())
+    {
+      NRF_LOG_RAW_INFO("[m601z] sensor not detected (%d)\n", i);
+      continue;
+    }
 
     // convert time 10.5ms, 5.5ms, 4ms, configurable
     // each tick is 1/1024 second, 11 ticks is 10.75ms
-    vTaskDelay(11);
+    vTaskDelay(12);
 
-    memset(&ctx, 0, sizeof(ctx));
-    ctx.odata[0] = 0xCC;  // skip rom
-    ctx.odata[1] = 0xBE;  // read scratchpad
-    ctx.odata_len = 2;
-    ctx.idata_len = 9;    // including crc
+    if (onewire_read_scratchpad())
+    {
+      NRF_LOG_RAW_INFO("[m601z] sensor not responding (%d)\n", i);
+      continue;
+    }
 
-    nrfx_timer_compare(&timer1, NRF_TIMER_CC_CHANNEL0, 1, true);
-    nrfx_timer_enable(&timer1);
+    uint8_t crc = CRC8(&ctx.idata[0], ctx.idata_len - 1);
+    int16_t *st = (int16_t*)ctx.idata;
+    float temp = (float)(*st)/256 + 40;
 
-    xSemaphoreTake(sem, portMAX_DELAY);
-    nrfx_timer_disable(&timer1);  // TASK_SHUTDOWN is deprecated actually :)
+    if (crc == ctx.idata[8])
+    {
+      NRF_LOG_RAW_INFO("[m601z] temp: " NRF_LOG_FLOAT_MARKER " (%d)\n", NRF_LOG_FLOAT(temp), i);
+    }
+    else
+    {
+      NRF_LOG_RAW_INFO("[m601z] temp: " NRF_LOG_FLOAT_MARKER " (%d, bad crc)\n", NRF_LOG_FLOAT(temp), i);
+      // NRF_LOG_HEXDUMP_INFO(ctx.idata, ctx.idata_len);
+    }
   }
 }
 
