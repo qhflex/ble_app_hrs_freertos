@@ -84,8 +84,6 @@
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 
-#include "nrfx_gpiote.h"
-
 #include "m601z.h"
 
 #define DEVICE_NAME                         "Nordic_HRM"                            /**< Name of device. Will be included in the advertising data. */
@@ -979,9 +977,6 @@ int main(void)
     ble_stack_init();
 
     // Initialize modules.
-    err_code = nrfx_gpiote_init();
-    APP_ERROR_CHECK(err_code);
-
     timers_init();
     buttons_leds_init(&erase_bonds);
     gap_params_init();
