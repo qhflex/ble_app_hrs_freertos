@@ -7740,7 +7740,11 @@
 #endif
 // <o> NRF_LOG_BACKEND_UART_TX_PIN - UART TX pin 
 #ifndef NRF_LOG_BACKEND_UART_TX_PIN
+#ifdef USE_DK_BOARD
+#define NRF_LOG_BACKEND_UART_TX_PIN 6 // onboard one (32 + 10)
+#else
 #define NRF_LOG_BACKEND_UART_TX_PIN 16
+#endif
 #endif
 
 // <o> NRF_LOG_BACKEND_UART_BAUDRATE  - Default Baudrate
@@ -7773,7 +7777,7 @@
 // <i> longer one will be fragmented.
 
 #ifndef NRF_LOG_BACKEND_UART_TEMP_BUFFER_SIZE
-#define NRF_LOG_BACKEND_UART_TEMP_BUFFER_SIZE 64
+#define NRF_LOG_BACKEND_UART_TEMP_BUFFER_SIZE 256
 #endif
 
 // </e>
