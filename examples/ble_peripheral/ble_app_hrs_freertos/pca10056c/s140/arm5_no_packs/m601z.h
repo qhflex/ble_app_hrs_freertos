@@ -9,7 +9,6 @@
 /*
  * This file defines m601z interface.
  */
- 
 void app_m601z_freertos_init(void);
 
 #endif // APP_M601Z_H

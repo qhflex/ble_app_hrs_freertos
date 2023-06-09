@@ -85,6 +85,7 @@
 #include "nrf_log_default_backends.h"
 
 #include "m601z.h"
+#include "qma6110p.h"
 
 #define DEVICE_NAME                         "Nordic_HRM"                            /**< Name of device. Will be included in the advertising data. */
 #define MANUFACTURER_NAME                   "NordicSemiconductor"                   /**< Manufacturer. Will be passed to Device Information Service. */
@@ -978,21 +979,22 @@ int main(void)
 
     // Initialize modules.
     timers_init();
-    buttons_leds_init(&erase_bonds);
-    gap_params_init();
-    gatt_init();
-    advertising_init();
-    services_init();
-    sensor_simulator_init();
-    conn_params_init();
-    peer_manager_init();
-    application_timers_start();
+//    buttons_leds_init(&erase_bonds);
+//    gap_params_init();
+//    gatt_init();
+//    advertising_init();
+//    services_init();
+//    sensor_simulator_init();
+//    conn_params_init();
+//    peer_manager_init();
+//    application_timers_start();
 
     // Create a FreeRTOS task for the BLE stack.
     // The task will run advertising_start() before entering its loop.
-    nrf_sdh_freertos_init(advertising_start, &erase_bonds);
+//    nrf_sdh_freertos_init(advertising_start, &erase_bonds);
 
     app_m601z_freertos_init();
+    app_qma6110p_freertos_init();
 
     NRF_LOG_INFO("HRS FreeRTOS example started.");
     // Start FreeRTOS scheduler.

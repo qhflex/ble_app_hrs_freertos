@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include <math.h>
 
 #include "FreeRTOSConfig.h"
 #include "FreeRTOS.h"
@@ -16,7 +17,9 @@
 
 #ifdef USE_DK_BOARD
 #define MDQ                                         (0 + 27)    // P0.27 (SCL)
+#define MDR                                         (0 + 26)    // toggle this pin when sampling
                                                                 // short SB32 to enable pull-up
+                                                                
 #else
 #define   MDQ                                       0           // P0.00
 #define   MINT                                      (32 + 15)   // P1.15, not used
@@ -262,11 +265,12 @@ static void onewire_handle(onewire_transaction_ctx_t* p_ctx)
 
     if (bit)
     {
-      next_stop(CONT_WRITE_HIGH1, 5);
+      // next_stop(CONT_WRITE_HIGH1, 2); // measure ~12
+      next_stop(CONT_WRITE_HIGH1, 1); // measure ~12
     }
     else
     {
-      next_stop(CONT_WRITE_HIGH0, 90);
+      next_stop(CONT_WRITE_HIGH0, 80); // measured ~90
     }
     return;
   }
@@ -274,7 +278,7 @@ static void onewire_handle(onewire_transaction_ctx_t* p_ctx)
   cont_write_high1:
   {
     nrf_gpio_pin_write(MDQ, 1);
-    next_stop(CONT_WRITE_REC, (90 - 5));
+    next_stop(CONT_WRITE_REC, 49); // measured around 94
     return;
   }
 
@@ -312,14 +316,14 @@ static void onewire_handle(onewire_transaction_ctx_t* p_ctx)
   cont_read_low:
   {
     nrf_gpio_pin_write(MDQ, 0);
-    next_stop(CONT_READ_HIGH, 2);
+    next_stop(CONT_READ_HIGH, 1); // around 8us
     return;
   }
 
   cont_read_high:
   {
     nrf_gpio_pin_write(MDQ, 1);
-    next_stop(CONT_READ_SAMPLE, 10);
+    next_stop(CONT_READ_SAMPLE, 2); // 
     return;
   }
 
@@ -327,17 +331,31 @@ static void onewire_handle(onewire_transaction_ctx_t* p_ctx)
   {
     uint32_t idx = p_ctx->bit_cnt / 8;
     uint32_t mask = (1U << (p_ctx->bit_cnt % 8));
-
+    
+//#ifdef USE_DK_BOARD    
+//    nrf_gpio_pin_toggle(MDR);
+//#endif
+    
     if (mdq_read())
     {
+      
+//#ifdef USE_DK_BOARD    
+//      nrf_gpio_pin_toggle(MDR);
+//#endif
+      
       p_ctx->idata[idx] |= mask;
     }
     else
     {
+      
+//#ifdef USE_DK_BOARD    
+//    nrf_gpio_pin_toggle(MDR);
+//#endif
+      
       p_ctx->idata[idx] &= ~mask; // this is not required actually TODO
     }
 
-    next_stop(CONT_READ_REC, (60-12)); // why measured timing so different?
+    next_stop(CONT_READ_REC, (40)); // ~96us in total
     return;
   }
 
@@ -404,6 +422,29 @@ uint32_t onewire_read_scratchpad()
   return ctx.err;
 }
 
+static void print_temp(int num)
+{
+  const char *code = "0123456789ABCDEF";
+  char buf[12] = {0};
+  char hex[28] = {0};
+  
+  int16_t *st = (int16_t*)ctx.idata;
+  float temp = (float)(*st)/256 + 40;
+  snprintf(buf, 10, "%.4f", temp);
+  
+  int j = 0;
+  for (int i = 0; i < ctx.idata_len; i++)
+  {
+    hex[j++] = ' ';
+    hex[j++] = code[ctx.idata[i] >> 4];
+    hex[j++] = code[ctx.idata[i] & 0x0f];
+  }
+  
+  char *crc = (CRC8(&ctx.idata[0], ctx.idata_len - 1) == ctx.idata[ctx.idata_len - 1]) ? "crc ok" : "crc bad";
+  
+  NRF_LOG_RAW_INFO("[m601z] %s (%d) (%s, %s)\n", buf, num, &hex[1], crc);
+}
+
 /*
  * freertos task for m601z
  */
@@ -428,7 +469,18 @@ void m601z_task(void * pvParameters)
   nrf_gpio_pin_set(MDQ);
   mdq_out();
 
-  for (uint32_t i = 0;;i++)
+//#ifdef USE_DK_BOARD  
+//  nrf_gpio_cfg(MDR,
+//             NRF_GPIO_PIN_DIR_OUTPUT,
+//             NRF_GPIO_PIN_INPUT_DISCONNECT,
+//             NRF_GPIO_PIN_NOPULL,
+//             NRF_GPIO_PIN_S0D1,       // standard 0 disconnect 1, open drain
+//             NRF_GPIO_PIN_NOSENSE);   // only affect sleep wakeup
+//#endif             
+  
+  NRF_LOG_RAW_INFO("[m601z] test pin level %d\n", mdq_read());
+
+  for (uint32_t i = 1;;i++)
   {
     // In portmacro_cmsis.h, portTICK_PERIOD_MS is defined as (1000 / 1024)
     // which evaluates to zero !!! This is a serious design flaw.
@@ -453,20 +505,43 @@ void m601z_task(void * pvParameters)
       NRF_LOG_RAW_INFO("[m601z] sensor not responding (%d)\n", i);
       continue;
     }
+    
+    print_temp(i);
 
-    uint8_t crc = CRC8(&ctx.idata[0], ctx.idata_len - 1);
-    int16_t *st = (int16_t*)ctx.idata;
-    float temp = (float)(*st)/256 + 40;
+//    uint8_t crc = CRC8(&ctx.idata[0], ctx.idata_len - 1);
+//    int16_t *st = (int16_t*)ctx.idata;
+//    float temp = (float)(*st)/256 + 40;
+//    
+//    char *sign = temp < 0 ? "-" : "+";
+//    float abs = (temp < 0) ? -temp : temp;
+//    int int_digits = abs;
+//    float frac = abs - int_digits;
+//    int frac_digits = trunc(frac * 10000);
 
-    if (crc == ctx.idata[8])
-    {
-      NRF_LOG_RAW_INFO("[m601z] temp: " NRF_LOG_FLOAT_MARKER " (%d)\n", NRF_LOG_FLOAT(temp), i);
-    }
-    else
-    {
-      NRF_LOG_RAW_INFO("[m601z] temp: " NRF_LOG_FLOAT_MARKER " (%d, bad crc)\n", NRF_LOG_FLOAT(temp), i);
-      // NRF_LOG_HEXDUMP_INFO(ctx.idata, ctx.idata_len);
-    }
+//    if (crc == ctx.idata[8])
+//    {
+//      // NRF_LOG_RAW_INFO("[m601z] temp: %s%d.%d (%d, crc ok, %s%s)\n", sign, int_digits, frac_digits, i);
+//    }
+//    else
+//    {
+//      const char *code = "0123456789ABCDEF";
+//      char hex[28]; // 9 spaces + 9 * 2 chars + 1 null terminator = 28
+//      memset(hex, 0, 27);
+//      
+//      int j = 0;
+//      for (int i=0; i < ctx.idata_len; i++)
+//      {
+//        hex[j++] = ' ';
+//        
+//        int high = ctx.idata[i] >> 4;
+//        hex[j++] = code[high];
+//        int low = ctx.idata[i] & 0x0f;
+//        hex[j++] = code[low];
+//      }
+//      
+//      NRF_LOG_RAW_INFO("[m601z] temp: %s%d.%d (%d, %s %s)\n", sign, int_digits, frac_digits, i, code, hex);
+//      // NRF_LOG_RAW_INFO("[m601z] temp: " NRF_LOG_FLOAT_MARKER " (%d), bad crc \n", NRF_LOG_FLOAT(temp), i);
+//    }
   }
 }
 
