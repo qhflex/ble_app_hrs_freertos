@@ -80,12 +80,18 @@
 #include "nrf_ble_gatt.h"
 #include "nrf_ble_qwr.h"
 
+#include "nrfx_gpiote.h"
+
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 
 #include "m601z.h"
 #include "qma6110p.h"
+#include "ads1292r.h"
+#include "max86141.h"
+
+#include "usbcdc.h"
 
 #define DEVICE_NAME                         "Nordic_HRM"                            /**< Name of device. Will be included in the advertising data. */
 #define MANUFACTURER_NAME                   "NordicSemiconductor"                   /**< Manufacturer. Will be passed to Device Information Service. */
@@ -946,6 +952,12 @@ static void clock_init(void)
 {
     ret_code_t err_code = nrf_drv_clock_init();
     APP_ERROR_CHECK(err_code);
+    
+    nrf_drv_clock_lfclk_request(NULL);
+    while (!nrf_drv_clock_lfclk_is_running())
+    {
+        // just waiting
+    }
 }
 
 
@@ -959,6 +971,11 @@ int main(void)
     // Initialize modules.
     log_init();
     clock_init();
+    
+    err_code = app_timer_init();
+    APP_ERROR_CHECK(err_code);
+    
+    nrfx_gpiote_init();
 
     // Do not start any interrupt that uses system functions before system initialisation.
     // The best solution is to start the OS before any other initalisation.
@@ -975,7 +992,7 @@ int main(void)
     SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
 
     // Configure and initialize the BLE stack.
-    ble_stack_init();
+    // ble_stack_init();
 
     // Initialize modules.
     timers_init();
@@ -991,10 +1008,13 @@ int main(void)
 
     // Create a FreeRTOS task for the BLE stack.
     // The task will run advertising_start() before entering its loop.
-//    nrf_sdh_freertos_init(advertising_start, &erase_bonds);
+    // nrf_sdh_freertos_init(advertising_start, &erase_bonds);
 
-    app_m601z_freertos_init();
-    app_qma6110p_freertos_init();
+    // app_m601z_freertos_init();
+    // app_qma6110p_freertos_init();
+    // app_ads1292r_freertos_init();
+    app_max86141_freertos_init();
+    app_usbcdc_freertos_init();
 
     NRF_LOG_INFO("HRS FreeRTOS example started.");
     // Start FreeRTOS scheduler.

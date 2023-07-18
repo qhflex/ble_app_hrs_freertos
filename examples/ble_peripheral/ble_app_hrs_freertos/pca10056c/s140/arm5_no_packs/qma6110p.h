@@ -82,7 +82,7 @@
     NRF_TWI_MNGR_READ (QMA6110P_ADDR, p_buffer,   byte_cnt, 0)
 
 /*
- * This file defines m601z interface.
+ * This file defines qma6110p interface.
  */
 void app_qma6110p_freertos_init(void);
 

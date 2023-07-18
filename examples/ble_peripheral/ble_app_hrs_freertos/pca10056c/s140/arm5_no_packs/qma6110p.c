@@ -111,3 +111,4 @@ void app_qma6110p_freertos_init(void)
     NRF_LOG_INFO("qma6110p task created.");
   }
 }
+
