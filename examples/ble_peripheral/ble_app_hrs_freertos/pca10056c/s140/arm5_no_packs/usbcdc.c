@@ -26,12 +26,6 @@
 #include "app_usbd_cdc_acm.h"
 #include "app_usbd_serial_num.h"
 
-// #include "boards.h"
-// #include "bsp.h"
-// #include "bsp_cli.h"
-// #include "nrf_cli.h"
-// #include "nrf_cli_uart.h"
-
 #include "nrfx_timer.h"
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -61,7 +55,6 @@ static TaskHandle_t m_usbcdc_thread;
 #define QUEUE_ITEM_SIZE         6
 
 static  QueueHandle_t m_queue = NULL;
-static  bool usbd_running = false;
 
 #if NRF_CLI_ENABLED
 /**
@@ -74,34 +67,6 @@ NRF_CLI_DEF(m_cli_uart,
             '\r',
             4);
 #endif
-
-/**@file
- * @defgroup usbd_cdc_acm_example main.c
- * @{
- * @ingroup usbd_cdc_acm_example
- * @brief USBD CDC ACM example
- *
- */
-
-#define LED_USB_RESUME      (BSP_BOARD_LED_0)
-#define LED_CDC_ACM_OPEN    (BSP_BOARD_LED_1)
-#define LED_CDC_ACM_RX      (BSP_BOARD_LED_2)
-#define LED_CDC_ACM_TX      (BSP_BOARD_LED_3)
-
-#define BTN_CDC_DATA_SEND       0
-#define BTN_CDC_NOTIFY_SEND     1
-
-#define BTN_CDC_DATA_KEY_RELEASE        (bsp_event_t)(BSP_EVENT_KEY_LAST + 1)
-
-/**
- * @brief Enable power USB detection
- *
- * Configure if example supports USB port connection
- */
-#ifndef USBD_POWER_DETECTION
-#define USBD_POWER_DETECTION true
-#endif
-
 
 static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const * p_inst,
                                     app_usbd_cdc_acm_user_event_t event);
@@ -130,8 +95,8 @@ APP_USBD_CDC_ACM_GLOBAL_DEF(m_app_cdc_acm,
 #define READ_SIZE 1
 
 static char m_rx_buffer[READ_SIZE];
-static char m_tx_buffer[NRF_DRV_USBD_EPSIZE];
-static bool m_send_flag = 0;
+// static char m_tx_buffer[NRF_DRV_USBD_EPSIZE];
+// static bool m_send_flag = 0;
 
 /**
  * @brief User event handler @ref app_usbd_cdc_acm_user_ev_handler_t (headphones)
@@ -225,51 +190,6 @@ static void usbd_user_ev_handler(app_usbd_event_type_t event)
             break;
     }
 }
-
-//static void bsp_event_callback(bsp_event_t ev)
-//{
-//    ret_code_t ret;
-//    switch ((unsigned int)ev)
-//    {
-//        case CONCAT_2(BSP_EVENT_KEY_, BTN_CDC_DATA_SEND):
-//        {
-//            m_send_flag = 1;
-//            break;
-//        }
-//
-//        case BTN_CDC_DATA_KEY_RELEASE :
-//        {
-//            m_send_flag = 0;
-//            break;
-//        }
-
-//        case CONCAT_2(BSP_EVENT_KEY_, BTN_CDC_NOTIFY_SEND):
-//        {
-//            ret = app_usbd_cdc_acm_serial_state_notify(&m_app_cdc_acm,
-//                                                       APP_USBD_CDC_ACM_SERIAL_STATE_BREAK,
-//                                                       false);
-//            UNUSED_VARIABLE(ret);
-//            break;
-//        }
-
-//        default:
-//            return; // no implementation needed
-//    }
-//}
-
-//static void init_bsp(void)
-//{
-//    ret_code_t ret;
-//    ret = bsp_init(BSP_INIT_BUTTONS, bsp_event_callback);
-//    APP_ERROR_CHECK(ret);
-//
-//    UNUSED_RETURN_VALUE(bsp_event_to_button_action_assign(BTN_CDC_DATA_SEND,
-//                                                          BSP_BUTTON_ACTION_RELEASE,
-//                                                          BTN_CDC_DATA_KEY_RELEASE));
-//
-//    /* Configure LEDs */
-//    bsp_board_init(BSP_INIT_LEDS);
-//}
 
 #if NRF_CLI_ENABLED
 static void init_cli(void)
@@ -414,62 +334,61 @@ void enqueue(spo2_sample_t * p_smpl)
     }
 }
 
-static void usbcdc_task(void * pvParameters)
+static void timer2_init(void)
 {
-    ret_code_t err_code;
-
+    nrfx_err_t err;
     m_queue = xQueueCreate(QUEUE_LENGTH, QUEUE_ITEM_SIZE);
     APP_ERROR_CHECK_BOOL(m_queue != NULL);
 
-    nrfx_err_t err = nrfx_timer_init(&timer2, &timer2_config, timer2_callback);
+    err = nrfx_timer_init(&timer2, &timer2_config, timer2_callback);
     APP_ERROR_CHECK(err);
 
-    nrfx_timer_extended_compare(&timer2, NRF_TIMER_CC_CHANNEL0, (4900),
+    nrfx_timer_extended_compare(&timer2, NRF_TIMER_CC_CHANNEL0, (4999), // TODO 
         NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK, true);
-    
-    vTaskDelay(2048);
+}
 
+static void usbcdc_init(void)
+{
+    ret_code_t err_code;
+    
     static const app_usbd_config_t usbd_config = {
         .ev_state_proc = usbd_user_ev_handler
     };
 
-    app_usbd_serial_num_generate();
-
     err_code = app_usbd_init(&usbd_config);
     APP_ERROR_CHECK(err_code);
-
+    
     NRF_LOG_INFO("USBD CDC ACM started.");
 
     app_usbd_class_inst_t const * class_cdc_acm = app_usbd_cdc_acm_class_inst_get(&m_app_cdc_acm);
     err_code = app_usbd_class_append(class_cdc_acm);
     APP_ERROR_CHECK(err_code);
+    
+    err_code = app_usbd_power_events_enable();
+    APP_ERROR_CHECK(err_code);
+}
 
-    if (USBD_POWER_DETECTION)
-    {
-        err_code = app_usbd_power_events_enable();
-        APP_ERROR_CHECK(err_code);
-    }
-    else
-    {
-        NRF_LOG_INFO("No USB power detection enabled\r\nStarting USB now");
-
-        app_usbd_enable();
-        app_usbd_start();
-    }
-
+static void usbcdc_task(void * pvParameters)
+{
+    // ret_code_t err_code;
+    
+    timer2_init();
+    
+    vTaskDelay(2048);
+    
+    usbcdc_init();
+    
     vTaskDelay(portMAX_DELAY);
 
     for (;;)
     {
-        static int counter = 0;
-        NRF_LOG_INFO("usbd %d", counter++);
         // while (app_usbd_event_queue_process())
         // {
             /* Nothing to do */
         // }
 
         // NRF_LOG_INFO("after app_usbd_event_queue_process");
-        vTaskDelay(128);
+        vTaskDelay(16);
 
 //        if(m_send_flag)
 //        {

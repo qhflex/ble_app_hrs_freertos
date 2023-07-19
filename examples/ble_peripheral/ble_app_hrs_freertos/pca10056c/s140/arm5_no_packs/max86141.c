@@ -164,10 +164,10 @@ const static max86141_cfg_t spo2_maxcfg = {
     .pdbias1      = 1,      // 0-64pF, smallest
   },
   .ledrge1 = {
-    .led25_rge    = 0,      // 0b00  31mA
+    .led25_rge    = 0,      // 0b00  31mA   <-
     .led14_rge    = 0,      // 0b01  62mA
                             // 0b10  93mA
-                            // 0b11 124mA   <-
+                            // 0b11 124mA
   },
   .led1pa         = 0x40,   // lsb =  0.12 when rge is 00 (0b00)
                             //        0.24 when rge is 01 (0b01)
@@ -601,8 +601,8 @@ void uart_error_handle(app_uart_evt_t * p_event)
     }
 }
 
-#define MAX_RED_PA      0x60
-#define MAX_IR_PA       0x60
+#define MAX_RED_PA      0x80
+#define MAX_IR_PA       0x80
 
 #define MIN_RED_PA      0x10
 #define MIN_IR_PA       0x10
@@ -667,7 +667,7 @@ static void dynamic(uint32_t ir, uint32_t red)
     red_sign[0] = (led2_red == old_led2_red) ? ' ' : (led2_red < old_led2_red) ? '-' : '+';
     ir_sign [0] = (led1_ir  == old_led1_ir ) ? ' ' : (led1_ir  < old_led1_ir ) ? '-' : '+';
 
-    NRF_LOG_INFO("red: 0x%06x %s, ir: 0x%06x %s", red, red_sign, ir, ir_sign);
+    // NRF_LOG_INFO("red: 0x%06x %s, ir: 0x%06x %s", red, red_sign, ir, ir_sign);
 }
 
 static void max86141_task(void * pvParameters)
