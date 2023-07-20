@@ -125,12 +125,12 @@ const static max86141_cfg_t spo2_maxcfg = {
   },
   .ppgcfg1 = {
 //  .ppg2_adc_rge = 2,
-    .ppg1_adc_rge = 3,      // 0b00  4.097uA (full scale)
+    .ppg1_adc_rge = 2,      // 0b00  4.097uA (full scale)
                             // 0b01  8.192uA
                             // 0b10 16.384uA
                             // 0b11 32.768uA <-
 
-    .ppg_tint     = 0,      // pulse width = tint + tsetlng + 0.5uS = 129.8uS
+    .ppg_tint     = 2,      // pulse width = tint + tsetlng + 0.5uS = 129.8uS
                             // if tsetlng = 01 (6uS, default) then pw = 123.8uS
                             // as in the value provided in pseudo code
                             //
@@ -140,21 +140,21 @@ const static max86141_cfg_t spo2_maxcfg = {
                             // 0b11 integration time is 117.3uS
   },
   .ppgcfg2 = {
-    .ppg_sr       = 0x01,   // 0x00 25sps
-                            // 0x01 50sps   <-
+    .ppg_sr       = 0x05,   // 0x00 25sps
+                            // 0x01 50sps   
                             // 0x02 84sps
                             // 0x03 100sps
                             // 0x04 200sps
                             // 0x05 400sps
                             // 0x11 1024sps
 
-    .smp_ave      = 0,      // 0b000 (0) 1  <- (no sample averaging)
+    .smp_ave      = 3,      // 0b000 (0) 1  <- (no sample averaging)
                             // 0b001 (1) 2
                             // 0b010 (2) 4
                             // 0b011 (3) 8
   },
   .ppgcfg3 = {
-    .led_setlng   = 3,      // 0b00  4.0uS
+    .led_setlng   = 2,      // 0b00  4.0uS
                             // 0b01  6.0uS
                             // 0b10  8.0uS
                             // 0b11 12.0us  <-
@@ -169,13 +169,13 @@ const static max86141_cfg_t spo2_maxcfg = {
                             // 0b10  93mA
                             // 0b11 124mA   <-
   },
-  .led1pa         = 0x40,   // lsb =  0.12 when rge is 00 (0b00)
+  .led1pa         = 0x28,   // lsb =  0.12 when rge is 00 (0b00)
                             //        0.24 when rge is 01 (0b01)
                             //        0.36 when rge is 02 (0b10) <-
                             //        0.48 when rge is 03 (0b11)
                             // rge = 0, pa = 0x40 => 0.12 * 64 = 7.68mA
 
-  .led2pa         = 0x40,
+  .led2pa         = 0x38,
   .ledseq1 = {
     .ledc135      = 1,      // 0001 LED1
     .ledc246      = 2,      // 0010 LED2
@@ -606,12 +606,15 @@ void uart_error_handle(app_uart_evt_t * p_event)
 
 #define MIN_RED_PA      0x10
 #define MIN_IR_PA       0x10
-#define PA_STEP         0x10
+#define PA_UP_STEP      0x04
+#define PA_DOWN_STEP    0x10
 
 static void dynamic(uint32_t ir, uint32_t red)
 {
     static uint8_t led1_ir  = 0;
     static uint8_t led2_red = 0;
+    
+    return;
 
     if (led1_ir == 0) {
         led1_ir = read_reg(&spo2_ctx, REG_LED1_PA);
@@ -626,11 +629,11 @@ static void dynamic(uint32_t ir, uint32_t red)
     uint8_t old_led1_ir  = led1_ir;
     uint8_t old_led2_red = led2_red;
 
-    if (red > 0x060000)
+    if (red > 0x078000)
     {
         if (led2_red > MIN_RED_PA)
         {
-            led2_red = (led2_red - PA_STEP) > MIN_RED_PA ? (led2_red - PA_STEP) : MIN_RED_PA;
+            led2_red = (led2_red - PA_DOWN_STEP) > MIN_RED_PA ? (led2_red - PA_DOWN_STEP) : MIN_RED_PA;
             write_reg(&spo2_ctx, REG_LED2_PA, led2_red);
         }
     }
@@ -638,17 +641,17 @@ static void dynamic(uint32_t ir, uint32_t red)
     {
         if (led2_red < MAX_RED_PA)
         {
-            led2_red = (led2_red + PA_STEP) < MAX_RED_PA ? (led2_red + PA_STEP) : MAX_RED_PA;
+            led2_red = (led2_red + PA_UP_STEP) < MAX_RED_PA ? (led2_red + PA_UP_STEP) : MAX_RED_PA;
             write_reg(&spo2_ctx, REG_LED2_PA, led2_red);
         }
     }
 
-    if (ir > 0x060000)
+    if (ir > 0x078000)
     {
         // NRF_LOG_INFO("ir %d is greater than 0x060000, led1ir %d", ir, led1_ir);
         if (led1_ir > MIN_IR_PA)
         {
-            led1_ir = (led1_ir - PA_STEP) > MIN_IR_PA ? (led1_ir - PA_STEP) : MIN_IR_PA;
+            led1_ir = (led1_ir - PA_DOWN_STEP) > MIN_IR_PA ? (led1_ir - PA_DOWN_STEP) : MIN_IR_PA;
             write_reg(&spo2_ctx, REG_LED1_PA, led1_ir);
         }
     }
@@ -656,7 +659,7 @@ static void dynamic(uint32_t ir, uint32_t red)
     {
         if (led1_ir < MAX_IR_PA)
         {
-            led1_ir = (led1_ir + PA_STEP) < MAX_IR_PA ? (led1_ir + PA_STEP) : MAX_IR_PA;
+            led1_ir = (led1_ir + PA_UP_STEP) < MAX_IR_PA ? (led1_ir + PA_UP_STEP) : MAX_IR_PA;
             write_reg(&spo2_ctx, REG_LED1_PA, led1_ir);
         }
     }
