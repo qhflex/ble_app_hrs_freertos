@@ -1804,7 +1804,7 @@
 // <196609=> External Full Swing 
 
 #ifndef NRFX_CLOCK_CONFIG_LF_SRC
-#define NRFX_CLOCK_CONFIG_LF_SRC 0
+#define NRFX_CLOCK_CONFIG_LF_SRC 1
 #endif
 
 // <o> NRFX_CLOCK_CONFIG_IRQ_PRIORITY  - Interrupt priority
@@ -2593,7 +2593,7 @@
 // <e> NRFX_POWER_ENABLED - nrfx_power - POWER peripheral driver
 //==========================================================
 #ifndef NRFX_POWER_ENABLED
-#define NRFX_POWER_ENABLED 1
+#define NRFX_POWER_ENABLED 0
 #endif
 // <o> NRFX_POWER_CONFIG_IRQ_PRIORITY  - Interrupt priority
  
@@ -3542,7 +3542,7 @@
 // <e> NRFX_SPIM_ENABLED - nrfx_spim - SPIM peripheral driver
 //==========================================================
 #ifndef NRFX_SPIM_ENABLED
-#define NRFX_SPIM_ENABLED 1
+#define NRFX_SPIM_ENABLED 0
 #endif
 // <q> NRFX_SPIM0_ENABLED  - Enable SPIM0 instance
  
@@ -3768,7 +3768,7 @@
 // <e> NRFX_SPI_ENABLED - nrfx_spi - SPI peripheral driver
 //==========================================================
 #ifndef NRFX_SPI_ENABLED
-#define NRFX_SPI_ENABLED 1
+#define NRFX_SPI_ENABLED 0
 #endif
 // <q> NRFX_SPI0_ENABLED  - Enable SPI0 instance
  
@@ -3976,17 +3976,10 @@
 
 // </e>
 
-// <q> NRFX_SYSTICK_ENABLED  - nrfx_systick - ARM(R) SysTick driver
- 
-
-#ifndef NRFX_SYSTICK_ENABLED
-#define NRFX_SYSTICK_ENABLED 1
-#endif
-
 // <e> NRFX_TIMER_ENABLED - nrfx_timer - TIMER periperal driver
 //==========================================================
 #ifndef NRFX_TIMER_ENABLED
-#define NRFX_TIMER_ENABLED 1
+#define NRFX_TIMER_ENABLED 0
 #endif
 // <q> NRFX_TIMER0_ENABLED  - Enable TIMER0 instance
  
@@ -3999,14 +3992,14 @@
  
 
 #ifndef NRFX_TIMER1_ENABLED
-#define NRFX_TIMER1_ENABLED 1
+#define NRFX_TIMER1_ENABLED 0
 #endif
 
 // <q> NRFX_TIMER2_ENABLED  - Enable TIMER2 instance
  
 
 #ifndef NRFX_TIMER2_ENABLED
-#define NRFX_TIMER2_ENABLED 1
+#define NRFX_TIMER2_ENABLED 0
 #endif
 
 // <q> NRFX_TIMER3_ENABLED  - Enable TIMER3 instance
@@ -4131,7 +4124,7 @@
 // <e> NRFX_TWIM_ENABLED - nrfx_twim - TWIM peripheral driver
 //==========================================================
 #ifndef NRFX_TWIM_ENABLED
-#define NRFX_TWIM_ENABLED 1
+#define NRFX_TWIM_ENABLED 0
 #endif
 // <q> NRFX_TWIM0_ENABLED  - Enable TWIM0 instance
  
@@ -4370,7 +4363,7 @@
 // <e> NRFX_TWI_ENABLED - nrfx_twi - TWI peripheral driver
 //==========================================================
 #ifndef NRFX_TWI_ENABLED
-#define NRFX_TWI_ENABLED 1
+#define NRFX_TWI_ENABLED 0
 #endif
 // <q> NRFX_TWI0_ENABLED  - Enable TWI0 instance
  
@@ -4721,7 +4714,7 @@
 // <e> NRFX_USBD_ENABLED - nrfx_usbd - USBD peripheral driver
 //==========================================================
 #ifndef NRFX_USBD_ENABLED
-#define NRFX_USBD_ENABLED 1
+#define NRFX_USBD_ENABLED 0
 #endif
 // <o> NRFX_USBD_CONFIG_IRQ_PRIORITY  - Interrupt priority
  
@@ -4897,14 +4890,14 @@
 // <196609=> External Full Swing 
 
 #ifndef CLOCK_CONFIG_LF_SRC
-#define CLOCK_CONFIG_LF_SRC 0
+#define CLOCK_CONFIG_LF_SRC 1
 #endif
 
 // <q> CLOCK_CONFIG_LF_CAL_ENABLED  - Calibration enable for LF Clock Source
  
 
 #ifndef CLOCK_CONFIG_LF_CAL_ENABLED
-#define CLOCK_CONFIG_LF_CAL_ENABLED 1
+#define CLOCK_CONFIG_LF_CAL_ENABLED 0
 #endif
 
 // <o> CLOCK_CONFIG_IRQ_PRIORITY  - Interrupt priority
@@ -4981,7 +4974,7 @@
 // <e> POWER_ENABLED - nrf_drv_power - POWER peripheral driver - legacy layer
 //==========================================================
 #ifndef POWER_ENABLED
-#define POWER_ENABLED 1
+#define POWER_ENABLED 0
 #endif
 // <o> POWER_CONFIG_IRQ_PRIORITY  - Interrupt priority
  
@@ -5629,7 +5622,7 @@
 // <e> SPI_ENABLED - nrf_drv_spi - SPI/SPIM peripheral driver - legacy layer
 //==========================================================
 #ifndef SPI_ENABLED
-#define SPI_ENABLED 1
+#define SPI_ENABLED 0
 #endif
 // <o> SPI_DEFAULT_CONFIG_IRQ_PRIORITY  - Interrupt priority
  
@@ -5675,13 +5668,13 @@
 // <e> SPI1_ENABLED - Enable SPI1 instance
 //==========================================================
 #ifndef SPI1_ENABLED
-#define SPI1_ENABLED 1
+#define SPI1_ENABLED 0
 #endif
 // <q> SPI1_USE_EASY_DMA  - Use EasyDMA
  
 
 #ifndef SPI1_USE_EASY_DMA
-#define SPI1_USE_EASY_DMA 0
+#define SPI1_USE_EASY_DMA 1
 #endif
 
 // </e>
@@ -5689,20 +5682,18 @@
 // <e> SPI2_ENABLED - Enable SPI2 instance
 //==========================================================
 #ifndef SPI2_ENABLED
-#define SPI2_ENABLED 1
+#define SPI2_ENABLED 0
 #endif
 // <q> SPI2_USE_EASY_DMA  - Use EasyDMA
  
 
 #ifndef SPI2_USE_EASY_DMA
-#define SPI2_USE_EASY_DMA 0
+#define SPI2_USE_EASY_DMA 1
 #endif
 
 // </e>
 
 // </e>
-
-#if 0
 
 // <e> TIMER_ENABLED - nrf_drv_timer - TIMER periperal driver - legacy layer
 //==========================================================
@@ -5800,8 +5791,6 @@
 
 // </e>
 
-#endif // legacy layer configuration for timer
-
 // <e> TWIS_ENABLED - nrf_drv_twis - TWIS peripheral driver - legacy layer
 //==========================================================
 #ifndef TWIS_ENABLED
@@ -5891,7 +5880,7 @@
 // <e> TWI_ENABLED - nrf_drv_twi - TWI/TWIM peripheral driver - legacy layer
 //==========================================================
 #ifndef TWI_ENABLED
-#define TWI_ENABLED 1
+#define TWI_ENABLED 0
 #endif
 // <o> TWI_DEFAULT_CONFIG_FREQUENCY  - Frequency
  
@@ -5937,7 +5926,7 @@
 // <e> TWI0_ENABLED - Enable TWI0 instance
 //==========================================================
 #ifndef TWI0_ENABLED
-#define TWI0_ENABLED 1
+#define TWI0_ENABLED 0
 #endif
 // <q> TWI0_USE_EASY_DMA  - Use EasyDMA (if present)
  
@@ -6058,27 +6047,16 @@
 // <e> UART1_ENABLED - Enable UART1 instance
 //==========================================================
 #ifndef UART1_ENABLED
-#define UART1_ENABLED 1
+#define UART1_ENABLED 0
 #endif
 // </e>
 
-
-#ifndef APP_FIFO_ENABLED
-#define APP_FIFO_ENABLED 1
-#endif
-
-#ifndef APP_UART_ENABLED
-#define APP_UART_ENABLED 1
-#endif
-
-#ifndef APP_UART_DRIVER_INSTANCE
-#define APP_UART_DRIVER_INSTANCE 1
-#endif
+// </e>
 
 // <e> USBD_ENABLED - nrf_drv_usbd - Software Component
 //==========================================================
 #ifndef USBD_ENABLED
-#define USBD_ENABLED 1
+#define USBD_ENABLED 0
 #endif
 // <o> USBD_CONFIG_IRQ_PRIORITY  - Interrupt priority
  
@@ -6210,7 +6188,7 @@
 // <e> APP_SCHEDULER_ENABLED - app_scheduler - Events scheduler
 //==========================================================
 #ifndef APP_SCHEDULER_ENABLED
-#define APP_SCHEDULER_ENABLED 0
+#define APP_SCHEDULER_ENABLED 1
 #endif
 // <q> APP_SCHEDULER_WITH_PAUSE  - Enabling pause feature
  
@@ -6288,7 +6266,7 @@
 // <31=> 1024 Hz 
 
 #ifndef APP_TIMER_CONFIG_RTC_FREQUENCY
-#define APP_TIMER_CONFIG_RTC_FREQUENCY 0
+#define APP_TIMER_CONFIG_RTC_FREQUENCY 1
 #endif
 
 // <o> APP_TIMER_CONFIG_IRQ_PRIORITY  - Interrupt priority
@@ -6378,7 +6356,7 @@
 // <e> APP_USBD_ENABLED - app_usbd - USB Device library
 //==========================================================
 #ifndef APP_USBD_ENABLED
-#define APP_USBD_ENABLED 1
+#define APP_USBD_ENABLED 0
 #endif
 // <o> APP_USBD_VID - Vendor ID.  <0x0000-0xFFFF> 
 
@@ -6387,7 +6365,7 @@
 // <i> Vendor ID ordered from USB IF: http://www.usb.org/developers/vendor/
 
 #ifndef APP_USBD_VID
-#define APP_USBD_VID 0x1915
+#define APP_USBD_VID 0
 #endif
 
 // <o> APP_USBD_PID - Product ID.  <0x0000-0xFFFF> 
@@ -6397,7 +6375,7 @@
 // <i> Selected Product ID
 
 #ifndef APP_USBD_PID
-#define APP_USBD_PID 0x521A
+#define APP_USBD_PID 0
 #endif
 
 // <o> APP_USBD_DEVICE_VER_MAJOR - Major device version  <0-99> 
@@ -6481,7 +6459,7 @@
 // <2=> Interrupt 
 
 #ifndef APP_USBD_CONFIG_SOF_HANDLING_MODE
-#define APP_USBD_CONFIG_SOF_HANDLING_MODE 1 // 2 // originally 1
+#define APP_USBD_CONFIG_SOF_HANDLING_MODE 1
 #endif
 
 // </e>
@@ -6599,7 +6577,7 @@
 // <i> Note: This value is not editable in Configuration Wizard.
 // <i> Serial number that is defined the same way like in @ref APP_USBD_STRINGS_MANUFACTURER.
 #ifndef APP_USBD_STRING_SERIAL
-#define APP_USBD_STRING_SERIAL APP_USBD_STRING_DESC("700a0b1b0a64")
+#define APP_USBD_STRING_SERIAL APP_USBD_STRING_DESC("000000000000")
 #endif
 
 // </e>
@@ -6844,7 +6822,7 @@
  
 
 #ifndef HARDFAULT_HANDLER_ENABLED
-#define HARDFAULT_HANDLER_ENABLED 1
+#define HARDFAULT_HANDLER_ENABLED 0
 #endif
 
 // <e> HCI_MEM_POOL_ENABLED - hci_mem_pool - memory pool implementation used by HCI
@@ -7321,7 +7299,7 @@
 // <e> NRF_PWR_MGMT_ENABLED - nrf_pwr_mgmt - Power management module
 //==========================================================
 #ifndef NRF_PWR_MGMT_ENABLED
-#define NRF_PWR_MGMT_ENABLED 0
+#define NRF_PWR_MGMT_ENABLED 1
 #endif
 // <e> NRF_PWR_MGMT_CONFIG_DEBUG_PIN_ENABLED - Enables pin debug in the module.
 
@@ -7444,7 +7422,7 @@
 // <e> NRF_QUEUE_ENABLED - nrf_queue - Queue module
 //==========================================================
 #ifndef NRF_QUEUE_ENABLED
-#define NRF_QUEUE_ENABLED 1
+#define NRF_QUEUE_ENABLED 0
 #endif
 // <q> NRF_QUEUE_CLI_CMDS  - Enable CLI commands specific to the module
  
@@ -7466,14 +7444,14 @@
  
 
 #ifndef NRF_SORTLIST_ENABLED
-#define NRF_SORTLIST_ENABLED 0
+#define NRF_SORTLIST_ENABLED 1
 #endif
 
 // <q> NRF_SPI_MNGR_ENABLED  - nrf_spi_mngr - SPI transaction manager
  
 
 #ifndef NRF_SPI_MNGR_ENABLED
-#define NRF_SPI_MNGR_ENABLED 1
+#define NRF_SPI_MNGR_ENABLED 0
 #endif
 
 // <q> NRF_STRERROR_ENABLED  - nrf_strerror - Library for converting error code to string.
@@ -7487,7 +7465,7 @@
  
 
 #ifndef NRF_TWI_MNGR_ENABLED
-#define NRF_TWI_MNGR_ENABLED 1
+#define NRF_TWI_MNGR_ENABLED 0
 #endif
 
 // <q> SLIP_ENABLED  - slip - SLIP encoding and decoding
@@ -7568,7 +7546,7 @@
  
 
 #ifndef APP_USBD_CDC_ACM_ENABLED
-#define APP_USBD_CDC_ACM_ENABLED 1
+#define APP_USBD_CDC_ACM_ENABLED 0
 #endif
 
 // <q> APP_USBD_CDC_ACM_ZLP_ON_EPSIZE_WRITE  - Send ZLP on write with same size as endpoint
@@ -7758,11 +7736,7 @@
 #endif
 // <o> NRF_LOG_BACKEND_UART_TX_PIN - UART TX pin 
 #ifndef NRF_LOG_BACKEND_UART_TX_PIN
-#ifdef USE_DK_BOARD
-#define NRF_LOG_BACKEND_UART_TX_PIN 6 // onboard one (32 + 10)
-#else
-#define NRF_LOG_BACKEND_UART_TX_PIN 16
-#endif
+#define NRF_LOG_BACKEND_UART_TX_PIN 6
 #endif
 
 // <o> NRF_LOG_BACKEND_UART_BAUDRATE  - Default Baudrate
@@ -7795,7 +7769,7 @@
 // <i> longer one will be fragmented.
 
 #ifndef NRF_LOG_BACKEND_UART_TEMP_BUFFER_SIZE
-#define NRF_LOG_BACKEND_UART_TEMP_BUFFER_SIZE 512
+#define NRF_LOG_BACKEND_UART_TEMP_BUFFER_SIZE 64
 #endif
 
 // </e>
@@ -10382,7 +10356,7 @@
 // <e> NRF_SDH_BLE_LOG_ENABLED - Enable logging in SoftDevice handler (BLE) module.
 //==========================================================
 #ifndef NRF_SDH_BLE_LOG_ENABLED
-#define NRF_SDH_BLE_LOG_ENABLED 0
+#define NRF_SDH_BLE_LOG_ENABLED 1
 #endif
 // <o> NRF_SDH_BLE_LOG_LEVEL  - Default Severity level
  
@@ -11954,7 +11928,7 @@
 // <2=> NRF_SDH_DISPATCH_MODEL_POLLING 
 
 #ifndef NRF_SDH_DISPATCH_MODEL
-#define NRF_SDH_DISPATCH_MODEL 2
+#define NRF_SDH_DISPATCH_MODEL 0
 #endif
 
 // </h> 
@@ -11970,12 +11944,12 @@
 // <2=> NRF_CLOCK_LF_SRC_SYNTH 
 
 #ifndef NRF_SDH_CLOCK_LF_SRC
-#define NRF_SDH_CLOCK_LF_SRC 0
+#define NRF_SDH_CLOCK_LF_SRC 1
 #endif
 
 // <o> NRF_SDH_CLOCK_LF_RC_CTIV - SoftDevice calibration timer interval. 
 #ifndef NRF_SDH_CLOCK_LF_RC_CTIV
-#define NRF_SDH_CLOCK_LF_RC_CTIV 16
+#define NRF_SDH_CLOCK_LF_RC_CTIV 0
 #endif
 
 // <o> NRF_SDH_CLOCK_LF_RC_TEMP_CTIV - SoftDevice calibration timer interval under constant temperature. 
@@ -11983,7 +11957,7 @@
 // <i>  if the temperature has not changed.
 
 #ifndef NRF_SDH_CLOCK_LF_RC_TEMP_CTIV
-#define NRF_SDH_CLOCK_LF_RC_TEMP_CTIV 2
+#define NRF_SDH_CLOCK_LF_RC_TEMP_CTIV 0
 #endif
 
 // <o> NRF_SDH_CLOCK_LF_ACCURACY  - External clock accuracy used in the LL to compute timing.
@@ -12002,7 +11976,7 @@
 // <11=> NRF_CLOCK_LF_ACCURACY_1_PPM 
 
 #ifndef NRF_SDH_CLOCK_LF_ACCURACY
-#define NRF_SDH_CLOCK_LF_ACCURACY 1
+#define NRF_SDH_CLOCK_LF_ACCURACY 7
 #endif
 
 // </h> 
@@ -12153,12 +12127,6 @@
 
 // </h> 
 //==========================================================
-
-// <q> RETARGET_ENABLED - retarget - Retargeting stdio functions
-
-#ifndef RETARGET_ENABLED
-#define RETARGET_ENABLED 0
-#endif
 
 // <<< end of configuration section >>>
 #endif //SDK_CONFIG_H
