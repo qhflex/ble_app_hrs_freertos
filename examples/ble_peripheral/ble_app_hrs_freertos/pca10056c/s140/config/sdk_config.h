@@ -323,7 +323,7 @@
 // <e> BLE_BAS_ENABLED - ble_bas - Battery Service
 //==========================================================
 #ifndef BLE_BAS_ENABLED
-#define BLE_BAS_ENABLED 1
+#define BLE_BAS_ENABLED 0
 #endif
 // <e> BLE_BAS_CONFIG_LOG_ENABLED - Enables logging in the module.
 //==========================================================
@@ -396,7 +396,7 @@
  
 
 #ifndef BLE_DIS_ENABLED
-#define BLE_DIS_ENABLED 1
+#define BLE_DIS_ENABLED 0
 #endif
 
 // <q> BLE_GLS_ENABLED  - ble_gls - Glucose Service
@@ -424,7 +424,7 @@
  
 
 #ifndef BLE_HRS_ENABLED
-#define BLE_HRS_ENABLED 1
+#define BLE_HRS_ENABLED 0
 #endif
 
 // <q> BLE_HTS_ENABLED  - ble_hts - Health Thermometer Service
@@ -3976,6 +3976,13 @@
 
 // </e>
 
+// <q> NRFX_SYSTICK_ENABLED  - nrfx_systick - ARM(R) SysTick driver
+ 
+
+#ifndef NRFX_SYSTICK_ENABLED
+#define NRFX_SYSTICK_ENABLED 1
+#endif
+
 // <e> NRFX_TIMER_ENABLED - nrfx_timer - TIMER periperal driver
 //==========================================================
 #ifndef NRFX_TIMER_ENABLED
@@ -6071,7 +6078,7 @@
 // <e> USBD_ENABLED - nrf_drv_usbd - Software Component
 //==========================================================
 #ifndef USBD_ENABLED
-#define USBD_ENABLED 0
+#define USBD_ENABLED 1
 #endif
 // <o> USBD_CONFIG_IRQ_PRIORITY  - Interrupt priority
  
@@ -6451,7 +6458,7 @@
 // <i> Functions that modify USBD state are functions for sleep, wakeup, start, stop, enable, and disable.
 //==========================================================
 #ifndef APP_USBD_CONFIG_EVENT_QUEUE_ENABLE
-#define APP_USBD_CONFIG_EVENT_QUEUE_ENABLE 0 // 1
+#define APP_USBD_CONFIG_EVENT_QUEUE_ENABLE 1
 #endif
 // <o> APP_USBD_CONFIG_EVENT_QUEUE_SIZE - The size of the event queue.  <16-64> 
 
@@ -6474,7 +6481,7 @@
 // <2=> Interrupt 
 
 #ifndef APP_USBD_CONFIG_SOF_HANDLING_MODE
-#define APP_USBD_CONFIG_SOF_HANDLING_MODE 2 // originally 1
+#define APP_USBD_CONFIG_SOF_HANDLING_MODE 1 // 2 // originally 1
 #endif
 
 // </e>
@@ -7408,7 +7415,7 @@
  
 
 #ifndef NRF_PWR_MGMT_CONFIG_FPU_SUPPORT_ENABLED
-#define NRF_PWR_MGMT_CONFIG_FPU_SUPPORT_ENABLED 0
+#define NRF_PWR_MGMT_CONFIG_FPU_SUPPORT_ENABLED 1
 #endif
 
 // <q> NRF_PWR_MGMT_CONFIG_AUTO_SHUTDOWN_RETRY  - Blocked shutdown procedure will be retried every second.

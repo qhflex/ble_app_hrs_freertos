@@ -226,6 +226,17 @@ static void usbd_user_ev_handler(app_usbd_event_type_t event)
     }
 }
 
+void usb_new_event_isr_handler(app_usbd_internal_evt_t const * const p_event, bool queued)
+{
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    UNUSED_PARAMETER(p_event);
+    UNUSED_PARAMETER(queued);
+    ASSERT(m_usbcdc_thread != NULL);
+    /* Release the semaphore */
+    vTaskNotifyGiveFromISR(m_usbcdc_thread, &xHigherPriorityTaskWoken);
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+}
+
 //static void bsp_event_callback(bsp_event_t ev)
 //{
 //    ret_code_t ret;
@@ -418,22 +429,21 @@ static void usbcdc_task(void * pvParameters)
 {
     ret_code_t err_code;
 
-    m_queue = xQueueCreate(QUEUE_LENGTH, QUEUE_ITEM_SIZE);
-    APP_ERROR_CHECK_BOOL(m_queue != NULL);
+//    m_queue = xQueueCreate(QUEUE_LENGTH, QUEUE_ITEM_SIZE);
+//    APP_ERROR_CHECK_BOOL(m_queue != NULL);
 
-    nrfx_err_t err = nrfx_timer_init(&timer2, &timer2_config, timer2_callback);
-    APP_ERROR_CHECK(err);
+//    nrfx_err_t err = nrfx_timer_init(&timer2, &timer2_config, timer2_callback);
+//    APP_ERROR_CHECK(err);
 
-    nrfx_timer_extended_compare(&timer2, NRF_TIMER_CC_CHANNEL0, (4900),
-        NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK, true);
+//    nrfx_timer_extended_compare(&timer2, NRF_TIMER_CC_CHANNEL0, (4900),
+//        NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK, true);
     
-    vTaskDelay(2048);
+    // vTaskDelay(2048);
 
     static const app_usbd_config_t usbd_config = {
+        .ev_isr_handler = usb_new_event_isr_handler,
         .ev_state_proc = usbd_user_ev_handler
     };
-
-    app_usbd_serial_num_generate();
 
     err_code = app_usbd_init(&usbd_config);
     APP_ERROR_CHECK(err_code);
@@ -457,16 +467,18 @@ static void usbcdc_task(void * pvParameters)
         app_usbd_start();
     }
 
-    vTaskDelay(portMAX_DELAY);
+    // vTaskDelay(portMAX_DELAY);
+    UNUSED_RETURN_VALUE(xTaskNotifyGive(xTaskGetCurrentTaskHandle()));
 
     for (;;)
     {
+        UNUSED_RETURN_VALUE(ulTaskNotifyTake(pdTRUE, portMAX_DELAY));
         static int counter = 0;
-        NRF_LOG_INFO("usbd %d", counter++);
-        // while (app_usbd_event_queue_process())
-        // {
+        // NRF_LOG_INFO("usbd %d", counter++);
+        while (app_usbd_event_queue_process())
+        {
             /* Nothing to do */
-        // }
+        }
 
         // NRF_LOG_INFO("after app_usbd_event_queue_process");
         vTaskDelay(128);
