@@ -1,6 +1,8 @@
 #ifndef __APP_CONFIG_H__
 #define __APP_CONFIG_H__
 
+#define MIMIC_ROUGU                                 1
+
 #define NRFX_CLOCK_CONFIG_LF_SRC                    0
 #define CLOCK_CONFIG_LF_SRC                         0
 #define CLOCK_CONFIG_LF_CAL_ENABLED                 1

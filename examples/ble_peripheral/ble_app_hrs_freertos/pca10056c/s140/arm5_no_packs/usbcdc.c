@@ -145,7 +145,7 @@ static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const * p_inst,
     {
         case APP_USBD_CDC_ACM_USER_EVT_PORT_OPEN:
         {
-            // bsp_board_led_on(LED_CDC_ACM_OPEN);
+            NRF_LOG_INFO("cdc acm port open");
             xQueueReset(m_queue);
             nrfx_timer_enable(&timer2);
 
@@ -158,7 +158,7 @@ static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const * p_inst,
         }
         case APP_USBD_CDC_ACM_USER_EVT_PORT_CLOSE:
             nrfx_timer_disable(&timer2);
-            // bsp_board_led_off(LED_CDC_ACM_OPEN);
+            NRF_LOG_INFO("cdc acm port close");
             break;
         case APP_USBD_CDC_ACM_USER_EVT_TX_DONE:
             // bsp_board_led_invert(LED_CDC_ACM_TX);
@@ -198,15 +198,15 @@ static void usbd_user_ev_handler(app_usbd_event_type_t event)
             // bsp_board_led_on(LED_USB_RESUME);
             break;
         case APP_USBD_EVT_STARTED:
-            NRF_LOG_INFO("APP_USBD_EVT_STARTED");
+            NRF_LOG_INFO("usbd started");
             break;
         case APP_USBD_EVT_STOPPED:
-            NRF_LOG_INFO("APP_USBD_EVT_STOPPED");
+            NRF_LOG_INFO("usbd stopped");
             app_usbd_disable();
             // bsp_board_leds_off();
             break;
         case APP_USBD_EVT_POWER_DETECTED:
-            NRF_LOG_INFO("USB power detected");
+            NRF_LOG_INFO("usb power detected");
 
             if (!nrf_drv_usbd_is_enabled())
             {
@@ -214,11 +214,11 @@ static void usbd_user_ev_handler(app_usbd_event_type_t event)
             }
             break;
         case APP_USBD_EVT_POWER_REMOVED:
-            NRF_LOG_INFO("USB power removed");
+            NRF_LOG_INFO("usb power removed");
             app_usbd_stop();
             break;
         case APP_USBD_EVT_POWER_READY:
-            NRF_LOG_INFO("USB ready");
+            NRF_LOG_INFO("usb power ready");
             app_usbd_start();
             break;
         default:
@@ -299,7 +299,7 @@ static void init_cli(void)
 }
 #endif
 
-static uint8_t rougu[15] = { 0x18, 0xff };
+static uint8_t rougu[15] = { 0 };
 
 //          uint16_t sigma = 0;
 //          for (int i = 0; i < 14; i++)
@@ -429,16 +429,16 @@ static void usbcdc_task(void * pvParameters)
 {
     ret_code_t err_code;
 
-//    m_queue = xQueueCreate(QUEUE_LENGTH, QUEUE_ITEM_SIZE);
-//    APP_ERROR_CHECK_BOOL(m_queue != NULL);
+#ifdef MIMIC_ROUGU
+    m_queue = xQueueCreate(QUEUE_LENGTH, QUEUE_ITEM_SIZE);
+    APP_ERROR_CHECK_BOOL(m_queue != NULL);
 
-//    nrfx_err_t err = nrfx_timer_init(&timer2, &timer2_config, timer2_callback);
-//    APP_ERROR_CHECK(err);
+    nrfx_err_t err = nrfx_timer_init(&timer2, &timer2_config, timer2_callback);
+    APP_ERROR_CHECK(err);
 
-//    nrfx_timer_extended_compare(&timer2, NRF_TIMER_CC_CHANNEL0, (4900),
-//        NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK, true);
-    
-    // vTaskDelay(2048);
+    nrfx_timer_extended_compare(&timer2, NRF_TIMER_CC_CHANNEL0, (4900),
+        NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK, true);
+#endif
 
     static const app_usbd_config_t usbd_config = {
         .ev_isr_handler = usb_new_event_isr_handler,
@@ -448,7 +448,7 @@ static void usbcdc_task(void * pvParameters)
     err_code = app_usbd_init(&usbd_config);
     APP_ERROR_CHECK(err_code);
 
-    NRF_LOG_INFO("USBD CDC ACM started.");
+    NRF_LOG_INFO("usbcdc task started.");
 
     app_usbd_class_inst_t const * class_cdc_acm = app_usbd_cdc_acm_class_inst_get(&m_app_cdc_acm);
     err_code = app_usbd_class_append(class_cdc_acm);
@@ -480,8 +480,8 @@ static void usbcdc_task(void * pvParameters)
             /* Nothing to do */
         }
 
-        // NRF_LOG_INFO("after app_usbd_event_queue_process");
-        vTaskDelay(128);
+        // NRF_LOG_INFO("app_usbd_event_queue_process done");
+        // vTaskDelay(128);
 
 //        if(m_send_flag)
 //        {
