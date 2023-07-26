@@ -60,7 +60,7 @@ static TaskHandle_t m_usbcdc_thread;
 #define QUEUE_LENGTH            100
 #define QUEUE_ITEM_SIZE         6
 
-static  QueueHandle_t m_queue = NULL;
+static  QueueHandle_t m_rougu_queue = NULL;
 static  bool usbd_running = false;
 
 #if NRF_CLI_ENABLED
@@ -146,9 +146,10 @@ static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const * p_inst,
         case APP_USBD_CDC_ACM_USER_EVT_PORT_OPEN:
         {
             NRF_LOG_INFO("cdc acm port open");
-            xQueueReset(m_queue);
+#ifdef MIMIC_ROUGU            
+            xQueueReset(m_rougu_queue);
             nrfx_timer_enable(&timer2);
-
+#endif
             /*Setup first transfer*/
             ret_code_t ret = app_usbd_cdc_acm_read(&m_app_cdc_acm,
                                                    m_rx_buffer,
@@ -157,11 +158,12 @@ static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const * p_inst,
             break;
         }
         case APP_USBD_CDC_ACM_USER_EVT_PORT_CLOSE:
+#ifdef MIMIC_ROUGU            
             nrfx_timer_disable(&timer2);
+#endif        
             NRF_LOG_INFO("cdc acm port close");
             break;
         case APP_USBD_CDC_ACM_USER_EVT_TX_DONE:
-            // bsp_board_led_invert(LED_CDC_ACM_TX);
             break;
         case APP_USBD_CDC_ACM_USER_EVT_RX_DONE:
         {
@@ -317,7 +319,7 @@ static void timer2_callback(nrf_timer_event_t event_type, void * p_context)
             static int counter = 0;
             static int speed = 0;
             
-            if (pdTRUE != xQueueReceiveFromISR(m_queue, &sample, NULL))
+            if (pdTRUE != xQueueReceiveFromISR(m_rougu_queue, &sample, NULL))
             {
                 return;
             }
@@ -368,7 +370,7 @@ static void timer2_callback(nrf_timer_event_t event_type, void * p_context)
                NRF_LOG_INFO("cdc_acm_write failed, error %d", err_code);
             }
             
-            int waiting = uxQueueMessagesWaitingFromISR(m_queue);
+            int waiting = uxQueueMessagesWaitingFromISR(m_rougu_queue);
             int expect = 0;
             if (waiting > 60)
             {
@@ -417,9 +419,9 @@ bool cdc_acm_running()
     return nrfx_timer_is_enabled(&timer2);
 }
 
-void enqueue(spo2_sample_t * p_smpl)
+void rougu_enqueue(spo2_sample_t * p_smpl)
 {
-    if (pdTRUE != xQueueSend(m_queue, p_smpl, 0))
+    if (pdTRUE != xQueueSend(m_rougu_queue, p_smpl, 0))
     {
         NRF_LOG_INFO("samples dropped due to queue full");
     }
@@ -430,8 +432,8 @@ static void usbcdc_task(void * pvParameters)
     ret_code_t err_code;
 
 #ifdef MIMIC_ROUGU
-    m_queue = xQueueCreate(QUEUE_LENGTH, QUEUE_ITEM_SIZE);
-    APP_ERROR_CHECK_BOOL(m_queue != NULL);
+    m_rougu_queue = xQueueCreate(QUEUE_LENGTH, QUEUE_ITEM_SIZE);
+    APP_ERROR_CHECK_BOOL(m_rougu_queue != NULL);
 
     nrfx_err_t err = nrfx_timer_init(&timer2, &timer2_config, timer2_callback);
     APP_ERROR_CHECK(err);
@@ -473,8 +475,7 @@ static void usbcdc_task(void * pvParameters)
     for (;;)
     {
         UNUSED_RETURN_VALUE(ulTaskNotifyTake(pdTRUE, portMAX_DELAY));
-        static int counter = 0;
-        // NRF_LOG_INFO("usbd %d", counter++);
+
         while (app_usbd_event_queue_process())
         {
             /* Nothing to do */

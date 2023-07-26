@@ -349,7 +349,7 @@ static void device_data_read_single_2LEDs(max86141_ctx_t * ctx) {
   }
 }
 
-void device_data_read_dual_2LEDs(max86141_ctx_t * ctx) {
+static void device_data_read_dual_2LEDs(max86141_ctx_t * ctx) {
   int i;
 
   uint8_t buf   [FIFO_READ_SAMPLES*3];       //(128 - FIFO_A_FULL[6:0]) samples, 3 byte/channel
@@ -716,6 +716,8 @@ static void max86141_task(void * pvParameters)
         {
             static int fifo_count;
             read_fifo(&spo2_ctx);
+            
+#ifdef MIMIC_ROUGU            
             uint32_t total_red = 0;
             uint32_t total_ir = 0;
 
@@ -737,12 +739,15 @@ static void max86141_task(void * pvParameters)
                 total_ir  += ((uint32_t)smpl.byte[0] << 16) + ((uint32_t)smpl.byte[1] << 8) + (uint32_t)smpl.byte[2];
                 total_red += ((uint32_t)smpl.byte[3] << 16) + ((uint32_t)smpl.byte[4] << 8) + (uint32_t)smpl.byte[5];
 
-                enqueue(&smpl);
+                rougu_enqueue(&smpl);
             }
             
             uint32_t ir_avg = total_ir / (FIFO_READ_SAMPLES / 2);
             uint32_t red_avg = total_red / (FIFO_READ_SAMPLES / 2);
             dynamic(ir_avg, red_avg);
+#else
+            
+#endif            
         }
     }
 }

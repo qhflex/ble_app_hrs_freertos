@@ -9,7 +9,7 @@ typedef __packed struct spo2_sample {
 } spo2_sample_t;
 
 bool cdc_acm_running(void);
-void enqueue(spo2_sample_t * p_smpl);
+void rougu_enqueue(spo2_sample_t * p_smpl);
 
 void app_usbcdc_freertos_init(void);
 
