@@ -11,6 +11,13 @@
 #include "nrf_spi_mngr.h"
 
 #include "ads1292r.h"
+#include "usbcdc.h"
+
+#include "ECG_2D.h"
+#include "BRHPFilter.h"
+#include "qrsdetect.h"
+
+// #include 
 
 // TODO move these definition to header file
 // TODO don't use cs pin
@@ -54,10 +61,59 @@ static          int parse_24bit___signed_be(const uint8_t octet[3])
   return ((int32_t)u) >> 8;
 }
 
-typedef struct rdatac_record
+typedef __packed struct rdatac_record
 {
   uint8_t octet[9];
 } rdatac_record_t;
+
+typedef struct rdatac_record_hex
+{
+    char hex[18];
+    char cr;
+    char lf;
+    char end;
+} rdatac_record_hex_t;
+
+typedef __packed struct ads129x_sensor_packet_v0
+{
+    uint8_t preamble[8];
+    uint16_t packet_type;   // 0x0101
+    uint16_t payload_len;   // 250
+    
+    uint8_t global_type;    // 0xff
+    uint16_t global_len;    // 0x04;
+    uint16_t sensor_id;     // 0x02;
+    uint8_t instance_id;    // 0x00;
+    uint8_t global_ver;     // 0x00;
+    
+    uint8_t local_00;        // regs type, 00
+    uint16_t local_00_len;   // 12 00~0B
+    uint8_t regval[12];     //
+    
+    uint8_t local_10;        // rdatac
+    uint16_t local_10_len;   // 225 (25 * 9)
+    
+    rdatac_record_t record[25]; // records
+    
+    uint8_t ck_a;
+    uint8_t ck_b;
+} ads129x_sensor_packet_type_v0_t;
+
+static ads129x_sensor_packet_type_v0_t packet_buffer = {
+    .preamble = {0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0xD5},
+    .packet_type = 0x0101,
+    .payload_len = 250,
+    .global_type = 0xff,
+    .global_len = 0x04,
+    .sensor_id = 0x02,
+    .instance_id = 0x00,
+    .global_ver = 0x00,
+    .local_00 = 0x00,
+    .local_00_len = 12,
+    .regval = { 0x00 },
+    .local_10 = 0x10,
+    .local_10_len = 225,
+};
 
 typedef struct rdatac_parsed
 {
@@ -244,23 +300,56 @@ unsigned char kalam32_defconfig[15] = {
   0x0c          // 0x0b GPIO
 };
 
+// find the source
 unsigned char arduino_defconfig[15] = {
-  0x00,         // id
-  0x01,         // config1, 250 sps
-  0xa0,         // config2, lead-off comp off, reference buffer enabled, 2.42V reference
-  0x10,         // +95%/-5%, 6nA, DC lead off detect
-  0x40,         // gain=4, normal input
-  0x60,         // gain=12, normal input
-  0x2c,         // rld buffer enabled, rld lead-off sense disabled, 
-                // rld not connected to any input
-  0x00,         // lead-off detect disabled for all inputs
-  0x00,         // lead-off stat,
-  0xf2,         // resp1, resp modulation/demodulation on, phase 135 degree,
+    0x00,         // id
+    0x01,         // config1, 250 sps
+    0xa0,         // config2, lead-off comp off, reference buffer enabled, 2.42V reference
+    0x10,         // +95%/-5%, 6nA, DC lead off detect
+    0x40,         // gain=4, normal input
+    0x60,         // gain=12, normal input
+    0x2c,         // rld buffer enabled, rld lead-off sense disabled, 
+                    // rld not connected to any input
+    0x00,         // lead-off detect disabled for all inputs
+    0x00,         // lead-off stat,
+    0xf2,         // resp1, resp modulation/demodulation on, phase 135 degree,
                 // internal respiration with internal clock
-  0x03,         // resp2, calib off, resp_freq = 32kHz, RLDREF_INT = 1 (internal reference)
-  0x0c,         // gpio, two gpio pins are input
+    0x03,         // resp2, calib off, resp_freq = 32kHz, RLDREF_INT = 1 (internal reference)
+    0x0c,         // gpio, two gpio pins are input
 };
 
+/** REG_STRUCT_DEF gREG_ST in rougu code */
+unsigned char rougu_defconfig[15] = {
+    0x00,   /* 0x00:    id          */
+    0x01,   /* 0x01:    CONFIG1     */
+    0xE0,   /* 0x02:    CONFIG2     */ /* PDB_LOFF_COMP set */
+    0x10,   /* 0x03:    LOFF        */
+    0x81,   /* 0x04:    CH1SET      */ /* Power Down, Input shorted (measuring offset) */
+    0x07,   /* 0x05:    CH2SET      */ /* gain = 6, RLD_DRM chan2 negative connected to RLDIN */
+    0x20,   /* 0x06:    RLD_SENS    */ /* RLD buffer enabled */
+    0x00,   /* 0x07:    LOFF_SENS   */
+    0x00,   /* 0x08:    LOFF_STAT   */
+    0x02,   /* 0x09:    RESP1       */ /* resp demodulation off, modulation off, phase 0 degree */
+    0x01,   /* 0x0a:    RESP2       */ /* RLDREF externally fed */
+    0x0C    /* 0x0b:    GPIO        */
+};
+
+unsigned char adjusted_config[15] = {
+    0x00,       // id
+    0x01,       // config1, 250 sps
+    0xe0,       // config2, lead-off comp on, reference buffer enabled, 2.42V reference
+    0x10,       // +95%/-5%, 6nA, DC lead off detect
+    0x40,       // gain=4, normal input
+    0x60,       // gain=12, normal input
+    0x20,       // rld buffer enabled, rld lead-off sense disabled, 
+                // rld not connected to any input
+    0x0f,       // lead-off detect disabled for all inputs
+    0x00,       // lead-off stat,
+    0x02,       // resp1, resp modulation/demodulation on, phase 135 degree,
+                // internal respiration with internal clock
+    0x03,       // resp2, calib off, resp_freq = 32kHz, RLDREF_INT = 1 (internal reference)
+    0x0c,       // gpio, two gpio pins are input    
+};
 
 // this is not used in custom board, clksel pulled high, using internal clock
 void ADS1x9x_Clock_Select(unsigned char clock_in);
@@ -809,23 +898,23 @@ void ADS1x9x_Default_Reg_Init(void)
     for ( Reg_Init_i = 1; Reg_Init_i < 12; Reg_Init_i++)
     {
       // ADS1x9x_Reg_Write(Reg_Init_i,ADS1x9xR_Default_Register_Settings[Reg_Init_i]);
-      ADS1x9x_Reg_Write(Reg_Init_i, arduino_defconfig[Reg_Init_i]);
+      ADS1x9x_Reg_Write(Reg_Init_i, adjusted_config[Reg_Init_i]);
     }
   }
 }
 
 void ADS1x9x_Read_All_Regs(unsigned char ADS1x9xeg_buf[])
 {
-  unsigned char Regs_i;
-  Set_ADS1x9x_Chip_Enable();
-  // for ( Regs_i =0; Regs_i <200;Regs_i++);
-  vTaskDelay(1);
-  Clear_ADS1x9x_Chip_Enable();
+    unsigned char Regs_i;
+    Set_ADS1x9x_Chip_Enable();
+    // for ( Regs_i =0; Regs_i <200;Regs_i++);
+    vTaskDelay(1);
+    Clear_ADS1x9x_Chip_Enable();
 
-  for ( Regs_i = 0; Regs_i < 12; Regs_i++)
-  {
-    ADS1x9xeg_buf[Regs_i] = ADS1x9x_Reg_Read(Regs_i);
-  }
+    for ( Regs_i = 0; Regs_i < 12; Regs_i++)
+    {
+        ADS1x9xeg_buf[Regs_i] = ADS1x9x_Reg_Read(Regs_i);
+    }
 }
 
 /*
@@ -888,6 +977,8 @@ void ADS1x9x_PowerOn_Init(void)
   ADS1x9x_Read_All_Regs(ADS1x9xRegVal);
   ADS1x9x_Default_Reg_Init();
   ADS1x9x_Read_All_Regs(ADS1x9xRegVal);
+  
+  memcpy(&packet_buffer.regval[0], ADS1x9xRegVal, 12);
 }
 
 void ADS1292x_Parse_data_packet(void)
@@ -1076,9 +1167,14 @@ static nrf_spi_mngr_transfer_t rdatac_xfers[] =
 
 static void spi_rdatac_end_callback(ret_code_t result, void * p_user_data)
 {
+  uint32_t err_count = 0;
   if (rdatac_xfers[0].p_rx_data == rxbuf)
   {
-    NRF_LOG_INFO("[ads1292r] rxbuf used as rdatac buffer, bad thing happends!");
+        err_count++;
+        if (err_count % 1000 == 0)
+        {
+            NRF_LOG_INFO("[ads1292r] rxbuf used as rdatac buffer, bad thing happends!");
+        }
   }
   else
   {
@@ -1105,6 +1201,18 @@ static void spi_rdatac_end_callback(ret_code_t result, void * p_user_data)
 //  {
 //    for(;;){}
 //  }
+}
+
+static void simple_crc(uint8_t * buf, uint8_t * cka, uint8_t * ckb)
+{
+    int num = cka - buf;
+    *cka = 0;
+    *ckb = 0;
+    for (int i = 0; i < num; i++)
+    {
+        *cka = *cka + buf[i];
+        *ckb = *ckb + *cka;
+    }
 }
 
 static nrf_spi_mngr_transaction_t rdatac_trans = {
@@ -1190,11 +1298,11 @@ static void ads1292r_init_gpio(void)
 // see table 10, ideal output versus input signal on page 29 in datasheet
 // test 7fffffh, 000001h, 000000h, ffffffh, 800000h
 const static rdatac_record_t trec_test_data[5]  = {
-  {0x00, 0x00, 0x00, 0x7f, 0xff, 0xff, 0x7f, 0xff, 0xff}, // max
-  {0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01}, // positive 1
-  {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, // zero
-  {0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}, // negative 1
-  {0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x80, 0x00, 0x00}  // min
+    {0x00, 0x00, 0x00, 0x7f, 0xff, 0xff, 0x7f, 0xff, 0xff}, // max
+    {0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01}, // positive 1
+    {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, // zero
+    {0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}, // negative 1
+    {0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x80, 0x00, 0x00}  // min
 };
 
 const static char * trec_test_name[5] = {
@@ -1207,42 +1315,46 @@ const static char * trec_test_name[5] = {
 
 static void ads1292r_task(void * pvParameters)
 {
-  NRF_LOG_INFO("--- formatted print test begin ---");
-  for (int j = 0; j < 5; j++)
-  {
-    rdatac_parsed_t parsed = parse_rdatac_record(&trec_test_data[j]);
-    NRF_LOG_RAW_INFO("  %s : %d, %d\n", 
+    NRF_LOG_INFO("--- formatted print test begin ---");
+    for (int j = 0; j < 5; j++)
+    {
+        rdatac_parsed_t parsed = parse_rdatac_record(&trec_test_data[j]);
+        NRF_LOG_RAW_INFO("  %s : %d, %d\n", 
                      trec_test_name[j], 
                      parsed.chan1, 
                      parsed.chan2);
-  }
-  NRF_LOG_INFO("---- formatted print test end ----");  
-  
-  p_records_idle = xQueueCreate(8, sizeof(void*));
-  ASSERT(p_records_idle != NULL);
-  p_records_pending = xQueueCreate(8, sizeof(void*));
-  ASSERT(p_records_pending != NULL);
-  
-  for (int i = 0; i < 8; i++)
-  {
-    rdatac_record_t * p_rec = &rdatac_records[i];
-    if (pdTRUE == xQueueSend(p_records_idle, &p_rec, 0))
-    {
     }
-    else
+    NRF_LOG_INFO("---- formatted print test end ----");  
+  
+    p_records_idle = xQueueCreate(8, sizeof(void*));
+    ASSERT(p_records_idle != NULL);
+    p_records_pending = xQueueCreate(8, sizeof(void*));
+    ASSERT(p_records_pending != NULL);
+  
+    for (int i = 0; i < 8; i++)
     {
+        rdatac_record_t * p_rec = &rdatac_records[i];
+        if (pdTRUE == xQueueSend(p_records_idle, &p_rec, 0))
+        {
+        }
+        else
+        {
+        }
     }
-  }
   
-  NRF_LOG_INFO("[ads1292r] mem queue initialized");
+    NRF_LOG_INFO("[ads1292r] mem queue initialized");
+    
+    ECG_2D_initialize();
+    BRHPFilter_initialize();
+    resetQRSDetect(200);
   
-  ads1292r_init_gpio();
-  spi_config();
+    ads1292r_init_gpio();
+    spi_config();
 
-  ADS1x9x_PowerOn_Init();
+    ADS1x9x_PowerOn_Init();
   
-  // enable drdy interrupt
-  nrfx_gpiote_in_event_enable(ADS1292R_DRDY_PIN, true);
+    // enable drdy interrupt
+    nrfx_gpiote_in_event_enable(ADS1292R_DRDY_PIN, true);
   
   // ads1292_Start_Read_Data_Continuous(spi);
   // Start_Read_Data_Continuous();
@@ -1284,15 +1396,21 @@ static void ads1292r_task(void * pvParameters)
   // Stop_Read_Data_Continuous();
   // vTaskDelay(10);
   // NRF_LOG_INFO("ads1292 initial read reg %d: %d", 0, ADS1x9x_Reg_Read(0));
-
-  for (int i = 0;;i++)
-  {
+    uint32_t count = 0;
+    uint32_t sample_count = 0;
+    uint16_t br;
+    uint16_t ecg;
+  
+    int result, result2;
+    for (int i = 0;;i++)
+    {
 //    Soft_Reset_ADS1x9x();
 //    vTaskDelay(20);
 //    NRF_LOG_INFO("ads1292 initial read reg %d: %d", 0, ADS1x9x_Reg_Read(0));
 //    vTaskDelay(1024);
-    rdatac_record_t* p_rec = NULL;
-    xQueueReceive(p_records_pending, &p_rec, portMAX_DELAY);
+    
+        rdatac_record_t* p_rec = NULL;
+        xQueueReceive(p_records_pending, &p_rec, portMAX_DELAY);
 
 #if 0    
     int ecgdata[3];
@@ -1307,35 +1425,125 @@ static void ads1292r_task(void * pvParameters)
     
     NRF_LOG_RAW_INFO("%d, %d, %d\n", ecgdata[0], ecgdata[1], ecgdata[2]);
 #else
-    rdatac_parsed_t parsed = parse_rdatac_record(p_rec);
-    NRF_LOG_RAW_INFO("%d, %d\n", parsed.chan1, parsed.chan2);
+        // rdatac_parsed_t parsed = parse_rdatac_record(p_rec);
+        // NRF_LOG_RAW_INFO("%d, %d\n", parsed.chan1, parsed.chan2);
+        if (cdc_acm_port_open())
+        {
+//            rdatac_record_hex_t* p_pkt = (rdatac_record_hex_t*)pvPortMalloc(sizeof(rdatac_record_hex_t));
+//            if (p_pkt)
+//            {
+//                static const char hexes[] = "0123456789ABCDEF";
+//                
+//                for (int i = 0; i < 9; i++)
+//                {
+//                    p_pkt->hex[i * 2 + 0] = hexes[(p_rec->octet[i] >>   4)];
+//                    p_pkt->hex[i * 2 + 1] = hexes[(p_rec->octet[i] & 0x0F)];
+//                }
+//                
+//                p_pkt->cr = '\r';
+//                p_pkt->lf = '\n';
+//                p_pkt->end = '\0';
+//                
+//                cdc_acm_send_packet((uint8_t *)p_pkt, sizeof(rdatac_record_hex_t));
+//                count++;
+//                if (count % 1000 == 0)
+//                {
+//                    NRF_LOG_INFO("%d packets sent", count);
+//                }
+//            }
+            packet_buffer.record[sample_count++] = *p_rec;
+            if (sample_count == 25)
+            {
+                simple_crc((uint8_t *)&packet_buffer.packet_type, &packet_buffer.ck_a, &packet_buffer.ck_b);
+                uint8_t * p_pkt = (uint8_t *)pvPortMalloc(sizeof(packet_buffer));
+                if (p_pkt)
+                {
+                    memcpy(p_pkt, &packet_buffer, sizeof(packet_buffer));
+                    cdc_acm_send_packet(p_pkt, sizeof(packet_buffer));
+                }
+                sample_count = 0;
+            }
+            
+            
+        }
+        else
+        {
+            sample_count = 0;
+        }
+        
+        // pGET_BLE_BAG->ECG.LOFF_STATE = ((pSend_ADS->STAT.DH<<1) | (pSend_ADS->STAT.DM>>7));
+        
+        // for(i = 0,j = 0;i < MAX_BAG_NUM;i++)
+        // {
+        
+        
+        if((i%10) == 0)
+        {
+            // result = (pSend_ADS[i].CHn[0].DH<<24) | (pSend_ADS[i].CHn[0].DM<<16) | (pSend_ADS[i].CHn[0].DL<<8);
+            result = p_rec->octet[3] << 24 | p_rec->octet[4] << 16 | p_rec->octet[5] << 8;
+            In_Signal1 = (float)(result>>8);
+            ECG_2D_step_1();
+            BRHPFilter_U.Input = Out_Signal1;
+            BRHPFilter_step();
+            // pGET_BLE_BAG->BR.CH1[j++] = (uint16_t)BRHPFilter_Y.Output;
+            br = (uint16_t)BRHPFilter_Y.Output;
+        }
+        // result2 = (pSend_ADS[i].CHn[1].DH<<24) | (pSend_ADS[i].CHn[1].DM<<16) | (pSend_ADS[i].CHn[1].DL<<8);
+        result2 = p_rec->octet[6] << 24 | p_rec->octet[7] << 16 | p_rec->octet[8] << 8;
+        In_Signal2 = (float)(result2>>14);
+
+        ECG_2D_step_2();		
+        // pGET_BLE_BAG->ECG.CH2[i] = (uint16_t)Out_Signal2;	
+        ecg = (uint16_t)Out_Signal2;	
+        
+        static int QrsCount = 0;
+        static int winPeak;
+        static int filterData;
+        static int sbPeak;
+        static int get_hr;
+        int delay;
+
+        delay = QRSDetect(Out_Signal2, QrsCount, &winPeak, &filterData, &sbPeak, (int *)&get_hr);
+        if (delay > 0) {
+            QrsCount++;
+        }
+        // }
+    
+        if (i % 10 == 0)
+        {
+            NRF_LOG_INFO("hr: %d, ecg: %d, br: %d", get_hr, ecg, br);
+        }
+        else
+        {
+            NRF_LOG_INFO("hr: %d, ecg: %d", get_hr, ecg);
+        }
 #endif    
     
 //    if (i % 500 == 0)
 //    {
 //      NRF_LOG_INFO("%d records processed", i);
 //    }
-    xQueueSend(p_records_idle, &p_rec, portMAX_DELAY);
+        xQueueSend(p_records_idle, &p_rec, portMAX_DELAY);
     
     // vTaskDelay(portMAX_DELAY);
-  }
+    }
 }
 
 void app_ads1292r_freertos_init(void)
 {
-  BaseType_t xReturned = xTaskCreate(ads1292r_task,
-                                     "ads1292r",
-                                     TSK_ADS1292R_STACK_SIZE,
-                                     NULL,
-                                     TSK_ADS1292R_PRIORITY,
-                                     &m_ads1292r_thread);
-  if (xReturned != pdPASS)
-  {
-    NRF_LOG_ERROR("[ads1292r] task not created.");
-    APP_ERROR_HANDLER(NRF_ERROR_NO_MEM);
-  }
-  else
-  {
-    NRF_LOG_INFO("[ads1292r] task created.");
-  }
+    BaseType_t xReturned = xTaskCreate(ads1292r_task,
+                                       "ads1292r",
+                                       TSK_ADS1292R_STACK_SIZE,
+                                       NULL,
+                                       TSK_ADS1292R_PRIORITY,
+                                       &m_ads1292r_thread);
+    if (xReturned != pdPASS)
+    {
+        NRF_LOG_ERROR("[ads1292r] task not created.");
+        APP_ERROR_HANDLER(NRF_ERROR_NO_MEM);
+    }
+    else
+    {
+        NRF_LOG_INFO("[ads1292r] task created.");
+    }
 }

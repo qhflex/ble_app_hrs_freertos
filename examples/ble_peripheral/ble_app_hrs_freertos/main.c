@@ -333,7 +333,7 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
             break;
 
         case BLE_ADV_EVT_IDLE:
-            sleep_mode_enter();
+            // sleep_mode_enter();
             break;
 
         default:
@@ -604,7 +604,7 @@ int main(void)
     // err_code = app_timer_init();
     // APP_ERROR_CHECK(err_code);
     
-    // nrfx_gpiote_init();
+    nrfx_gpiote_init();
 
     // Do not start any interrupt that uses system functions before system initialisation.
     // The best solution is to start the OS before any other initalisation.
@@ -630,15 +630,14 @@ int main(void)
     conn_params_init();
     peer_manager_init();
 
-
     // Create a FreeRTOS task for the BLE stack.
     // The task will run advertising_start() before entering its loop.
     nrf_sdh_freertos_init(advertising_start, &erase_bonds);
 
     // app_m601z_freertos_init();
     // app_qma6110p_freertos_init();
-    // app_ads1292r_freertos_init();
-    app_max86141_freertos_init();
+    app_ads1292r_freertos_init();
+    // app_max86141_freertos_init();
     app_usbcdc_freertos_init();
 
     NRF_LOG_INFO("HRS FreeRTOS example started.");

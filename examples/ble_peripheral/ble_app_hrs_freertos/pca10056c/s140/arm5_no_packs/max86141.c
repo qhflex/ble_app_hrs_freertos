@@ -712,12 +712,12 @@ static void max86141_task(void * pvParameters)
         vTaskDelay(100);
 
         // uint8_t intstat1 = ;
-        if (cdc_acm_running() && (0x80 & read_reg(&spo2_ctx, REG_INT_STAT_1)))  // A_FULL
+        if (cdc_acm_port_open() && (0x80 & read_reg(&spo2_ctx, REG_INT_STAT_1)))  // A_FULL
         {
             static int fifo_count;
             read_fifo(&spo2_ctx);
             
-#ifdef MIMIC_ROUGU            
+#if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
             uint32_t total_red = 0;
             uint32_t total_ir = 0;
 

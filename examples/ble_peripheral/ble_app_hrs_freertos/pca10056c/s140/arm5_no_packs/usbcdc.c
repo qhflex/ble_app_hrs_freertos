@@ -41,6 +41,15 @@
 
 #define TSK_USBCDC_STACK_SIZE   (64)
 #define TSK_USBCDC_PRIORITY      1
+#define NOT_INSIDE_ISR          (( SCB->ICSR & SCB_ICSR_VECTACTIVE_Msk ) == 0 )
+#define INSIDE_ISR              (!(NOT_INSIDE_ISR))
+
+#if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
+
+#define ROUGU_QUEUE_LENGTH            100
+#define ROUGU_QUEUE_ITEM_SIZE         6
+
+static  QueueHandle_t m_rougu_queue = NULL;
 
 const nrfx_timer_t timer2 = NRFX_TIMER_INSTANCE(2);
 
@@ -55,12 +64,19 @@ static const nrfx_timer_config_t timer2_config = {
 
 static void timer2_callback(nrf_timer_event_t event_type, void * p_context);
 
+#else
+
+typedef __packed struct pending_item {
+    uint8_t * p_pkt;
+    uint32_t size;
+} pending_item_t;
+
+static QueueHandle_t m_pending_queue = NULL;
+static uint8_t * p_pkt_sending = NULL;
+
+#endif
+
 static TaskHandle_t m_usbcdc_thread;
-
-#define QUEUE_LENGTH            100
-#define QUEUE_ITEM_SIZE         6
-
-static  QueueHandle_t m_rougu_queue = NULL;
 static  bool usbd_running = false;
 
 #if NRF_CLI_ENABLED
@@ -129,6 +145,8 @@ APP_USBD_CDC_ACM_GLOBAL_DEF(m_app_cdc_acm,
 
 #define READ_SIZE 1
 
+static bool m_cdc_acm_port_open = false;
+
 static char m_rx_buffer[READ_SIZE];
 static char m_tx_buffer[NRF_DRV_USBD_EPSIZE];
 static bool m_send_flag = 0;
@@ -145,8 +163,9 @@ static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const * p_inst,
     {
         case APP_USBD_CDC_ACM_USER_EVT_PORT_OPEN:
         {
-            NRF_LOG_INFO("cdc acm port open");
-#ifdef MIMIC_ROUGU            
+            NRF_LOG_INFO("cdc acm port open (inside isr %d)", (INSIDE_ISR) ? 1 : 0);
+            m_cdc_acm_port_open = true;
+#if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
             xQueueReset(m_rougu_queue);
             nrfx_timer_enable(&timer2);
 #endif
@@ -157,14 +176,67 @@ static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const * p_inst,
             UNUSED_VARIABLE(ret);
             break;
         }
-        case APP_USBD_CDC_ACM_USER_EVT_PORT_CLOSE:
-#ifdef MIMIC_ROUGU            
+        case APP_USBD_CDC_ACM_USER_EVT_PORT_CLOSE: {
+            m_cdc_acm_port_open = false;
+#if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
             nrfx_timer_disable(&timer2);
-#endif        
-            NRF_LOG_INFO("cdc acm port close");
+#else
+            if (p_pkt_sending)
+            {
+                NRF_LOG_INFO("freeing sending item when port close");
+                vPortFree(p_pkt_sending);
+                p_pkt_sending = NULL;
+            }
+            
+            uint32_t pending = uxQueueMessagesWaiting(m_pending_queue);
+            if (pending)
+            {
+                NRF_LOG_INFO("freeing %d pending item when port close", pending);
+                pending_item_t item;
+                while (pdTRUE == xQueueReceive(m_pending_queue, &item, NULL)) {
+                    vPortFree(item.p_pkt);
+                }
+            }
+            
+#endif
+            NRF_LOG_INFO("cdc acm port close (pending %d)", uxQueueMessagesWaiting(m_pending_queue));
             break;
-        case APP_USBD_CDC_ACM_USER_EVT_TX_DONE:
-            break;
+        }   
+        case APP_USBD_CDC_ACM_USER_EVT_TX_DONE: {   // assume this is isr context
+            if (p_pkt_sending) 
+            {
+                vPortFree(p_pkt_sending);
+                p_pkt_sending = NULL;
+            }
+            pending_item_t item;
+            BaseType_t result;
+            
+            try_next_item:
+            if (NOT_INSIDE_ISR)
+            {
+                result = xQueueReceive(m_pending_queue, &item, NULL);
+            }
+            else
+            {
+                result = xQueueReceiveFromISR(m_pending_queue, &item, NULL);
+            }
+            
+            if (result == pdTRUE)
+            {
+                uint8_t * p_pkt = item.p_pkt;
+                uint32_t size = item.size;
+                ret_code_t err_code = app_usbd_cdc_acm_write(&m_app_cdc_acm, p_pkt, size);
+                if (err_code == NRF_SUCCESS)
+                {
+                    p_pkt_sending = p_pkt;
+                }
+                else
+                {
+                    vPortFree(p_pkt);
+                    goto try_next_item;
+                }
+            }
+        }   break;
         case APP_USBD_CDC_ACM_USER_EVT_RX_DONE:
         {
             ret_code_t ret;
@@ -301,6 +373,7 @@ static void init_cli(void)
 }
 #endif
 
+#if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
 static uint8_t rougu[15] = { 0 };
 
 //          uint16_t sigma = 0;
@@ -315,17 +388,18 @@ static void timer2_callback(nrf_timer_event_t event_type, void * p_context)
     switch (event_type)
     {
         case NRF_TIMER_EVENT_COMPARE0: {
+
             spo2_sample_t sample;
             static int counter = 0;
             static int speed = 0;
-            
+
             if (pdTRUE != xQueueReceiveFromISR(m_rougu_queue, &sample, NULL))
             {
                 return;
             }
-                        
+
             rougu[0] = 0x18;
-            rougu[1] = 0xff;                
+            rougu[1] = 0xff;
             rougu[2] = sample.byte[3];
             rougu[3] = sample.byte[4];
             rougu[4] = sample.byte[5];
@@ -338,13 +412,13 @@ static void timer2_callback(nrf_timer_event_t event_type, void * p_context)
             rougu[11] = rougu[5];
             rougu[12] = rougu[6];
             rougu[13] = rougu[7];
-            
+
             uint16_t sum = 0;
             for (int j = 0; j < 14; j++)
             {
                 sum += (uint16_t)rougu[j];
             }
-            
+
             if (sum < 256)
             {
                 rougu[14] = sum;
@@ -355,7 +429,7 @@ static void timer2_callback(nrf_timer_event_t event_type, void * p_context)
             }
 
             // rougu[14] = (sum < 255) ? (uint8_t)sum : (uint8_t)(((~sum) + 1) & 0xff);
-            
+
             ret_code_t err_code = app_usbd_cdc_acm_write(&m_app_cdc_acm, rougu, sizeof(rougu));
             if (err_code == NRF_SUCCESS)
             {
@@ -363,13 +437,13 @@ static void timer2_callback(nrf_timer_event_t event_type, void * p_context)
                 if (counter % 1000 == 0)
                 {
                     NRF_LOG_INFO("%d packets sent", counter);
-                };                
+                };
             }
             else
             {
                NRF_LOG_INFO("cdc_acm_write failed, error %d", err_code);
             }
-            
+
             int waiting = uxQueueMessagesWaitingFromISR(m_rougu_queue);
             int expect = 0;
             if (waiting > 60)
@@ -384,7 +458,7 @@ static void timer2_callback(nrf_timer_event_t event_type, void * p_context)
             {
                 expect = 1;
             }
-            
+
             if (expect != speed)
             {
                 uint32_t cc = 5000 - 1; // accurate
@@ -403,21 +477,28 @@ static void timer2_callback(nrf_timer_event_t event_type, void * p_context)
 
                 nrfx_timer_extended_compare(&timer2, NRF_TIMER_CC_CHANNEL0, cc,
                     NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK, true);
-                
+
 
                 // NRF_LOG_INFO("waiting %d, %s", waiting, (expect == 0) ? "-" : (expect == 1) ? "+2%" : (expect == 2) ? "+11%" : "+100%");
                 speed = expect;
             }
+
+
         }   break;
         default:
-            break;   
+            break;
     }
 }
 
-bool cdc_acm_running()
+#endif
+
+bool cdc_acm_port_open()
 {
-    return nrfx_timer_is_enabled(&timer2);
+    // return nrfx_timer_is_enabled(&timer2);
+    return m_cdc_acm_port_open;
 }
+
+#if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
 
 void rougu_enqueue(spo2_sample_t * p_smpl)
 {
@@ -427,12 +508,14 @@ void rougu_enqueue(spo2_sample_t * p_smpl)
     }
 }
 
+#endif
+
 static void usbcdc_task(void * pvParameters)
 {
     ret_code_t err_code;
 
-#ifdef MIMIC_ROUGU
-    m_rougu_queue = xQueueCreate(QUEUE_LENGTH, QUEUE_ITEM_SIZE);
+#if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
+    m_rougu_queue = xQueueCreate(ROUGU_QUEUE_LENGTH, ROUGU_QUEUE_ITEM_SIZE);
     APP_ERROR_CHECK_BOOL(m_rougu_queue != NULL);
 
     nrfx_err_t err = nrfx_timer_init(&timer2, &timer2_config, timer2_callback);
@@ -440,6 +523,11 @@ static void usbcdc_task(void * pvParameters)
 
     nrfx_timer_extended_compare(&timer2, NRF_TIMER_CC_CHANNEL0, (4900),
         NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK, true);
+#else
+    
+    m_pending_queue = xQueueCreate(8, sizeof(pending_item_t));
+    APP_ERROR_CHECK_BOOL(m_pending_queue != NULL);
+    
 #endif
 
     static const app_usbd_config_t usbd_config = {
@@ -507,7 +595,47 @@ static void usbcdc_task(void * pvParameters)
     }
 }
 
-
+void cdc_acm_send_packet(uint8_t * p_pkt, uint32_t size)
+{
+    if (!m_cdc_acm_port_open)
+    {
+        vPortFree(p_pkt);
+        return;
+    }
+    
+    if (p_pkt_sending)
+    {
+        BaseType_t result;
+        pending_item_t item = { .p_pkt = p_pkt, size = size };
+        
+        if (NOT_INSIDE_ISR)
+        {
+            result = xQueueSend(m_pending_queue, &item, NULL);
+        }
+        else 
+        {
+            result = xQueueSendFromISR(m_pending_queue, &item, NULL);
+        }        
+        
+        if (result != pdTRUE)
+        {
+            NRF_LOG_INFO("cdc acm drop packet due to queue full");
+            vPortFree(p_pkt);
+        }
+        return;
+    }
+    
+    ret_code_t err_code = app_usbd_cdc_acm_write(&m_app_cdc_acm, p_pkt, size);
+    if (err_code == NRF_SUCCESS)
+    {
+        p_pkt_sending = p_pkt;
+    }
+    else
+    {
+        NRF_LOG_INFO("cdc acm write error %x04x%", err_code);
+        vPortFree(p_pkt);
+    }
+}
 
 void app_usbcdc_freertos_init(void)
 {
