@@ -1,7 +1,7 @@
 #ifndef __APP_CONFIG_H__
 #define __APP_CONFIG_H__
 
-#define MIMIC_ROUGU                                 0
+#define MIMIC_ROUGU                                 1
 
 #define NRFX_CLOCK_CONFIG_LF_SRC                    0
 #define CLOCK_CONFIG_LF_SRC                         0
@@ -79,7 +79,7 @@
 
 // = SDH DISPATCH = 
 // - 2 for POLLING, which is required by freertos
-#define NRF_SDH_DISPATCH_MODEL 2
+#define NRF_SDH_DISPATCH_MODEL                      2
 
 // donno why enabled in template
 #define NRF_SORTLIST_ENABLED                        0

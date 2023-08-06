@@ -7,8 +7,8 @@
 
 
 
-	int QRSDetect(int datum, int qrsIndex, int *winPeak, int *filterData, int* sbPeak, int*hr);
-	int resetQRSDetect(int minRrInterval);
+int QRSDetect(int datum, int qrsIndex, int *winPeak, int *filterData, int* sbPeak, int*hr);
+int resetQRSDetect(int minRrInterval);
 
 
-#endif 
+#endif

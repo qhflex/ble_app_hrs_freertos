@@ -39,7 +39,7 @@
 
 #include "usbcdc.h"
 
-#define TSK_USBCDC_STACK_SIZE   (64)
+#define TSK_USBCDC_STACK_SIZE   (256)
 #define TSK_USBCDC_PRIORITY      1
 #define NOT_INSIDE_ISR          (( SCB->ICSR & SCB_ICSR_VECTACTIVE_Msk ) == 0 )
 #define INSIDE_ISR              (!(NOT_INSIDE_ISR))
@@ -183,29 +183,31 @@ static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const * p_inst,
 #else
             if (p_pkt_sending)
             {
-                NRF_LOG_INFO("freeing sending item when port close");
-                vPortFree(p_pkt_sending);
+                NRF_LOG_INFO("clearing sending item when port close");
+                // vPortFree(p_pkt_sending);
                 p_pkt_sending = NULL;
             }
             
             uint32_t pending = uxQueueMessagesWaiting(m_pending_queue);
             if (pending)
             {
-                NRF_LOG_INFO("freeing %d pending item when port close", pending);
+                NRF_LOG_INFO("clearing %d pending item when port close", pending);
                 pending_item_t item;
                 while (pdTRUE == xQueueReceive(m_pending_queue, &item, NULL)) {
-                    vPortFree(item.p_pkt);
+                    // vPortFree(item.p_pkt);
                 }
             }
             
-#endif
             NRF_LOG_INFO("cdc acm port close (pending %d)", uxQueueMessagesWaiting(m_pending_queue));
+#endif
             break;
         }   
         case APP_USBD_CDC_ACM_USER_EVT_TX_DONE: {   // assume this is isr context
+#if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
+#else            
             if (p_pkt_sending) 
             {
-                vPortFree(p_pkt_sending);
+                // vPortFree(p_pkt_sending);
                 p_pkt_sending = NULL;
             }
             pending_item_t item;
@@ -232,11 +234,13 @@ static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const * p_inst,
                 }
                 else
                 {
-                    vPortFree(p_pkt);
+                    // vPortFree(p_pkt);
                     goto try_next_item;
                 }
             }
-        }   break;
+#endif            
+            break;
+        }   
         case APP_USBD_CDC_ACM_USER_EVT_RX_DONE:
         {
             ret_code_t ret;
@@ -597,9 +601,11 @@ static void usbcdc_task(void * pvParameters)
 
 void cdc_acm_send_packet(uint8_t * p_pkt, uint32_t size)
 {
+#if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
+#else    
     if (!m_cdc_acm_port_open)
     {
-        vPortFree(p_pkt);
+        // vPortFree(p_pkt);
         return;
     }
     
@@ -620,7 +626,7 @@ void cdc_acm_send_packet(uint8_t * p_pkt, uint32_t size)
         if (result != pdTRUE)
         {
             NRF_LOG_INFO("cdc acm drop packet due to queue full");
-            vPortFree(p_pkt);
+            // vPortFree(p_pkt);
         }
         return;
     }
@@ -633,8 +639,9 @@ void cdc_acm_send_packet(uint8_t * p_pkt, uint32_t size)
     else
     {
         NRF_LOG_INFO("cdc acm write error %x04x%", err_code);
-        vPortFree(p_pkt);
+        // vPortFree(p_pkt);
     }
+#endif    
 }
 
 void app_usbcdc_freertos_init(void)

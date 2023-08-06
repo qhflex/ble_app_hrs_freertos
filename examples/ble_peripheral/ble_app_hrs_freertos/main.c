@@ -636,8 +636,8 @@ int main(void)
 
     // app_m601z_freertos_init();
     // app_qma6110p_freertos_init();
-    app_ads1292r_freertos_init();
-    // app_max86141_freertos_init();
+    // app_ads1292r_freertos_init();
+    app_max86141_freertos_init();
     app_usbcdc_freertos_init();
 
     NRF_LOG_INFO("HRS FreeRTOS example started.");
