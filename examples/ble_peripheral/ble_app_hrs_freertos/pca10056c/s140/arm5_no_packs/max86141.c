@@ -17,6 +17,9 @@
 #include "usbcdc.h"
 #include "max86141.h"
 
+#define PRINT_REGISTERS                     0
+#define WRITE_READBACK                      0
+
 #define TSK_MAX86141_STACK_SIZE             64
 #define TSK_MAX86141_PRIORITY               1
 
@@ -125,12 +128,12 @@ const static max86141_cfg_t spo2_maxcfg = {
   },
   .ppgcfg1 = {
 //  .ppg2_adc_rge = 2,
-    .ppg1_adc_rge = 3,      // 0b00  4.097uA (full scale)
+    .ppg1_adc_rge = 2,      // 0b00  4.097uA (full scale)
                             // 0b01  8.192uA
                             // 0b10 16.384uA
                             // 0b11 32.768uA <-
 
-    .ppg_tint     = 0,      // pulse width = tint + tsetlng + 0.5uS = 129.8uS
+    .ppg_tint     = 2,      // pulse width = tint + tsetlng + 0.5uS = 129.8uS
                             // if tsetlng = 01 (6uS, default) then pw = 123.8uS
                             // as in the value provided in pseudo code
                             //
@@ -140,21 +143,21 @@ const static max86141_cfg_t spo2_maxcfg = {
                             // 0b11 integration time is 117.3uS
   },
   .ppgcfg2 = {
-    .ppg_sr       = 0x01,   // 0x00 25sps
-                            // 0x01 50sps   <-
+    .ppg_sr       = 0x05,   // 0x00 25sps
+                            // 0x01 50sps   
                             // 0x02 84sps
                             // 0x03 100sps
                             // 0x04 200sps
                             // 0x05 400sps
                             // 0x11 1024sps
 
-    .smp_ave      = 0,      // 0b000 (0) 1  <- (no sample averaging)
+    .smp_ave      = 3,      // 0b000 (0) 1  <- (no sample averaging)
                             // 0b001 (1) 2
                             // 0b010 (2) 4
                             // 0b011 (3) 8
   },
   .ppgcfg3 = {
-    .led_setlng   = 3,      // 0b00  4.0uS
+    .led_setlng   = 2,      // 0b00  4.0uS
                             // 0b01  6.0uS
                             // 0b10  8.0uS
                             // 0b11 12.0us  <-
@@ -169,13 +172,13 @@ const static max86141_cfg_t spo2_maxcfg = {
                             // 0b10  93mA
                             // 0b11 124mA
   },
-  .led1pa         = 0x40,   // lsb =  0.12 when rge is 00 (0b00)
+  .led1pa         = 0x28,   // lsb =  0.12 when rge is 00 (0b00)
                             //        0.24 when rge is 01 (0b01)
                             //        0.36 when rge is 02 (0b10) <-
                             //        0.48 when rge is 03 (0b11)
                             // rge = 0, pa = 0x40 => 0.12 * 64 = 7.68mA
 
-  .led2pa         = 0x40,
+  .led2pa         = 0x38,
   .ledseq1 = {
     .ledc135      = 1,      // 0001 LED1
     .ledc246      = 2,      // 0010 LED2
@@ -194,25 +197,23 @@ static void write_reg(max86141_ctx_t * ctx, uint8_t addr, uint8_t data_in);
 static uint8_t read_reg(max86141_ctx_t * ctx, uint8_t addr);
 static void print_registers(void);
 
-#define READBACK    1
 
 static void write_reg(max86141_ctx_t * ctx, uint8_t addr, uint8_t data_in)
 {
-  ret_code_t err_code;
+    ret_code_t err_code;
 
-  ctx->txbuf[0] = addr;
-  ctx->txbuf[1] = REG_OP_WRITE;
-  ctx->txbuf[2] = data_in;
+    ctx->txbuf[0] = addr;
+    ctx->txbuf[1] = REG_OP_WRITE;
+    ctx->txbuf[2] = data_in;
 
-  err_code = nrf_spi_mngr_perform(&m_max86141_spi_mngr, &ctx->spicfg, &ctx->xfer, 1, NULL);
-  APP_ERROR_CHECK(err_code);
+    err_code = nrf_spi_mngr_perform(&m_max86141_spi_mngr, &ctx->spicfg, &ctx->xfer, 1, NULL);
+    APP_ERROR_CHECK(err_code);
 
-#ifdef READBACK
-
-  uint8_t data_out = read_reg(ctx, addr);
-  NRF_LOG_INFO("reg %02x: write %02x, read %02x", addr, data_in, data_out);
-
-#endif
+    if (WRITE_READBACK)
+    {
+        uint8_t data_out = read_reg(ctx, addr);
+        NRF_LOG_INFO("reg %02x: write %02x, read %02x", addr, data_in, data_out);
+    }
 }
 
 static uint8_t read_reg(max86141_ctx_t * ctx, uint8_t addr)
@@ -348,7 +349,7 @@ static void device_data_read_single_2LEDs(max86141_ctx_t * ctx) {
   }
 }
 
-void device_data_read_dual_2LEDs(max86141_ctx_t * ctx) {
+static void device_data_read_dual_2LEDs(max86141_ctx_t * ctx) {
   int i;
 
   uint8_t buf   [FIFO_READ_SAMPLES*3];       //(128 - FIFO_A_FULL[6:0]) samples, 3 byte/channel
@@ -435,65 +436,64 @@ static void extract_tags(bool single_ppg,
 
 static void print_registers()
 {
-  NRF_LOG_INFO(" int status 1: 0x%02x", read_reg(&spo2_ctx, 0x00));
-  NRF_LOG_INFO(" int status 2: 0x%02x", read_reg(&spo2_ctx, 0x01));
-  NRF_LOG_INFO(" int enable 1: 0x%02x", read_reg(&spo2_ctx, 0x02));
-  NRF_LOG_INFO(" int enable 2: 0x%02x", read_reg(&spo2_ctx, 0x03));
-  NRF_LOG_INFO(" fifo write p: 0x%02x", read_reg(&spo2_ctx, 0x04));
-  NRF_LOG_INFO("  fifo read p: 0x%02x", read_reg(&spo2_ctx, 0x05));
-  NRF_LOG_INFO(" overflow cnt: 0x%02x", read_reg(&spo2_ctx, 0x06));
-  NRF_LOG_INFO("fifo data cnt: 0x%02x", read_reg(&spo2_ctx, 0x07));
-  NRF_LOG_INFO("fifo data reg: 0x%02x", read_reg(&spo2_ctx, 0x08));
-  NRF_LOG_INFO("  fifo conf 1: 0x%02x", read_reg(&spo2_ctx, 0x09));
-  NRF_LOG_INFO("  fifo conf 2: 0x%02x", read_reg(&spo2_ctx, 0x0a));
-  NRF_LOG_INFO("     sys ctrl: 0x%02x", read_reg(&spo2_ctx, 0x0d));
-  NRF_LOG_INFO("PPG sync ctrl: 0x%02x", read_reg(&spo2_ctx, 0x10));
-  NRF_LOG_INFO("   PPG conf 1: 0x%02x", read_reg(&spo2_ctx, 0x11));
-  NRF_LOG_INFO("   PPG conf 2: 0x%02x", read_reg(&spo2_ctx, 0x12));
-  NRF_LOG_INFO("   PPG conf 3: 0x%02x", read_reg(&spo2_ctx, 0x13));
-  NRF_LOG_INFO(" Prox int thr: 0x%02x", read_reg(&spo2_ctx, 0x14));
-  NRF_LOG_INFO(" Pho dio bias: 0x%02x", read_reg(&spo2_ctx, 0x15));
-  NRF_LOG_INFO(" Picket fence: 0x%02x", read_reg(&spo2_ctx, 0x16));
-  NRF_LOG_INFO(" LED seq reg1: 0x%02x", read_reg(&spo2_ctx, 0x20));
-  NRF_LOG_INFO(" LED seq reg2: 0x%02x", read_reg(&spo2_ctx, 0x21));
-  NRF_LOG_INFO(" LED seq reg3: 0x%02x", read_reg(&spo2_ctx, 0x22));
-  NRF_LOG_INFO("      LED1 pa: 0x%02x", read_reg(&spo2_ctx, 0x23));
-  NRF_LOG_INFO("      LED2 pa: 0x%02x", read_reg(&spo2_ctx, 0x24));
-  NRF_LOG_INFO("      LED3 pa: 0x%02x", read_reg(&spo2_ctx, 0x25));
-  NRF_LOG_INFO("      LED4 pa: 0x%02x", read_reg(&spo2_ctx, 0x26));
-  NRF_LOG_INFO("      LED5 pa: 0x%02x", read_reg(&spo2_ctx, 0x27));
-  NRF_LOG_INFO("      LED6 pa: 0x%02x", read_reg(&spo2_ctx, 0x28));
-  NRF_LOG_INFO(" LED pilot pa: 0x%02x", read_reg(&spo2_ctx, 0x29));
-  NRF_LOG_INFO("  LED range 1: 0x%02x", read_reg(&spo2_ctx, 0x2a));
-  NRF_LOG_INFO("  LED range 2: 0x%02x", read_reg(&spo2_ctx, 0x2b));
-  NRF_LOG_INFO("S1 hires dac1: 0x%02x", read_reg(&spo2_ctx, 0x2c));
-  NRF_LOG_INFO("S2 hires dac1: 0x%02x", read_reg(&spo2_ctx, 0x2d));
-  NRF_LOG_INFO("S3 hires dac1: 0x%02x", read_reg(&spo2_ctx, 0x2e));
-  NRF_LOG_INFO("S4 hires dac1: 0x%02x", read_reg(&spo2_ctx, 0x2f));
-  NRF_LOG_INFO("S5 hires dac1: 0x%02x", read_reg(&spo2_ctx, 0x30));
-  NRF_LOG_INFO("S6 hires dac1: 0x%02x", read_reg(&spo2_ctx, 0x31));
-  NRF_LOG_INFO("S1 hires dac2: 0x%02x", read_reg(&spo2_ctx, 0x32));
-  NRF_LOG_INFO("S2 hires dac2: 0x%02x", read_reg(&spo2_ctx, 0x33));
-  NRF_LOG_INFO("S3 hires dac2: 0x%02x", read_reg(&spo2_ctx, 0x34));
-  NRF_LOG_INFO("S4 hires dac2: 0x%02x", read_reg(&spo2_ctx, 0x35));
-  NRF_LOG_INFO("S5 hires dac2: 0x%02x", read_reg(&spo2_ctx, 0x36));
-  NRF_LOG_INFO("S6 hires dac2: 0x%02x", read_reg(&spo2_ctx, 0x37));
-  NRF_LOG_INFO("die temp conf: 0x%02x", read_reg(&spo2_ctx, 0x40));
-  NRF_LOG_INFO(" die temp int: 0x%02x", read_reg(&spo2_ctx, 0x41));
-  NRF_LOG_INFO("die temp frac: 0x%02x", read_reg(&spo2_ctx, 0x42));
-  NRF_LOG_INFO("      sha cmd: 0x%02x", read_reg(&spo2_ctx, 0xf0));
-  NRF_LOG_INFO("     sha conf: 0x%02x", read_reg(&spo2_ctx, 0xf1));
-  NRF_LOG_INFO("     mem ctrl: 0x%02x", read_reg(&spo2_ctx, 0xf2));
-  NRF_LOG_INFO("    mem index: 0x%02x", read_reg(&spo2_ctx, 0xf3));
-  NRF_LOG_INFO("     mem data: 0x%02x", read_reg(&spo2_ctx, 0xf4));
-  NRF_LOG_INFO("      part id: 0x%02x", read_reg(&spo2_ctx, 0xff));
+    NRF_LOG_INFO(" int status 1: 0x%02x", read_reg(&spo2_ctx, 0x00));
+    NRF_LOG_INFO(" int status 2: 0x%02x", read_reg(&spo2_ctx, 0x01));
+    NRF_LOG_INFO(" int enable 1: 0x%02x", read_reg(&spo2_ctx, 0x02));
+    NRF_LOG_INFO(" int enable 2: 0x%02x", read_reg(&spo2_ctx, 0x03));
+    NRF_LOG_INFO(" fifo write p: 0x%02x", read_reg(&spo2_ctx, 0x04));
+    NRF_LOG_INFO("  fifo read p: 0x%02x", read_reg(&spo2_ctx, 0x05));
+    NRF_LOG_INFO(" overflow cnt: 0x%02x", read_reg(&spo2_ctx, 0x06));
+    NRF_LOG_INFO("fifo data cnt: 0x%02x", read_reg(&spo2_ctx, 0x07));
+    NRF_LOG_INFO("fifo data reg: 0x%02x", read_reg(&spo2_ctx, 0x08));
+    NRF_LOG_INFO("  fifo conf 1: 0x%02x", read_reg(&spo2_ctx, 0x09));
+    NRF_LOG_INFO("  fifo conf 2: 0x%02x", read_reg(&spo2_ctx, 0x0a));
+    NRF_LOG_INFO("     sys ctrl: 0x%02x", read_reg(&spo2_ctx, 0x0d));
+    NRF_LOG_INFO("PPG sync ctrl: 0x%02x", read_reg(&spo2_ctx, 0x10));
+    NRF_LOG_INFO("   PPG conf 1: 0x%02x", read_reg(&spo2_ctx, 0x11));
+    NRF_LOG_INFO("   PPG conf 2: 0x%02x", read_reg(&spo2_ctx, 0x12));
+    NRF_LOG_INFO("   PPG conf 3: 0x%02x", read_reg(&spo2_ctx, 0x13));
+    NRF_LOG_INFO(" Prox int thr: 0x%02x", read_reg(&spo2_ctx, 0x14));
+    NRF_LOG_INFO(" Pho dio bias: 0x%02x", read_reg(&spo2_ctx, 0x15));
+    NRF_LOG_INFO(" Picket fence: 0x%02x", read_reg(&spo2_ctx, 0x16));
+    NRF_LOG_INFO(" LED seq reg1: 0x%02x", read_reg(&spo2_ctx, 0x20));
+    NRF_LOG_INFO(" LED seq reg2: 0x%02x", read_reg(&spo2_ctx, 0x21));
+    NRF_LOG_INFO(" LED seq reg3: 0x%02x", read_reg(&spo2_ctx, 0x22));
+    NRF_LOG_INFO("      LED1 pa: 0x%02x", read_reg(&spo2_ctx, 0x23));
+    NRF_LOG_INFO("      LED2 pa: 0x%02x", read_reg(&spo2_ctx, 0x24));
+    NRF_LOG_INFO("      LED3 pa: 0x%02x", read_reg(&spo2_ctx, 0x25));
+    NRF_LOG_INFO("      LED4 pa: 0x%02x", read_reg(&spo2_ctx, 0x26));
+    NRF_LOG_INFO("      LED5 pa: 0x%02x", read_reg(&spo2_ctx, 0x27));
+    NRF_LOG_INFO("      LED6 pa: 0x%02x", read_reg(&spo2_ctx, 0x28));
+    NRF_LOG_INFO(" LED pilot pa: 0x%02x", read_reg(&spo2_ctx, 0x29));
+    NRF_LOG_INFO("  LED range 1: 0x%02x", read_reg(&spo2_ctx, 0x2a));
+    NRF_LOG_INFO("  LED range 2: 0x%02x", read_reg(&spo2_ctx, 0x2b));
+    NRF_LOG_INFO("S1 hires dac1: 0x%02x", read_reg(&spo2_ctx, 0x2c));
+    NRF_LOG_INFO("S2 hires dac1: 0x%02x", read_reg(&spo2_ctx, 0x2d));
+    NRF_LOG_INFO("S3 hires dac1: 0x%02x", read_reg(&spo2_ctx, 0x2e));
+    NRF_LOG_INFO("S4 hires dac1: 0x%02x", read_reg(&spo2_ctx, 0x2f));
+    NRF_LOG_INFO("S5 hires dac1: 0x%02x", read_reg(&spo2_ctx, 0x30));
+    NRF_LOG_INFO("S6 hires dac1: 0x%02x", read_reg(&spo2_ctx, 0x31));
+    NRF_LOG_INFO("S1 hires dac2: 0x%02x", read_reg(&spo2_ctx, 0x32));
+    NRF_LOG_INFO("S2 hires dac2: 0x%02x", read_reg(&spo2_ctx, 0x33));
+    NRF_LOG_INFO("S3 hires dac2: 0x%02x", read_reg(&spo2_ctx, 0x34));
+    NRF_LOG_INFO("S4 hires dac2: 0x%02x", read_reg(&spo2_ctx, 0x35));
+    NRF_LOG_INFO("S5 hires dac2: 0x%02x", read_reg(&spo2_ctx, 0x36));
+    NRF_LOG_INFO("S6 hires dac2: 0x%02x", read_reg(&spo2_ctx, 0x37));
+    NRF_LOG_INFO("die temp conf: 0x%02x", read_reg(&spo2_ctx, 0x40));
+    NRF_LOG_INFO(" die temp int: 0x%02x", read_reg(&spo2_ctx, 0x41));
+    NRF_LOG_INFO("die temp frac: 0x%02x", read_reg(&spo2_ctx, 0x42));
+    NRF_LOG_INFO("      sha cmd: 0x%02x", read_reg(&spo2_ctx, 0xf0));
+    NRF_LOG_INFO("     sha conf: 0x%02x", read_reg(&spo2_ctx, 0xf1));
+    NRF_LOG_INFO("     mem ctrl: 0x%02x", read_reg(&spo2_ctx, 0xf2));
+    NRF_LOG_INFO("    mem index: 0x%02x", read_reg(&spo2_ctx, 0xf3));
+    NRF_LOG_INFO("     mem data: 0x%02x", read_reg(&spo2_ctx, 0xf4));
+    NRF_LOG_INFO("      part id: 0x%02x", read_reg(&spo2_ctx, 0xff));
 }
 
-static void spo2_init_packet()
+static void spo2_packet_init(bool log)
 {
-    int pos = 12;   // 8 preamble, 2 type, 2 length;
+    int pos = 0;   // 8 preamble, 2 type, 2 length;
 
-    pos = 0;
     spo2_packet[pos++] = 0x55;  // preamble
     spo2_packet[pos++] = 0x55;
     spo2_packet[pos++] = 0x55;
@@ -504,19 +504,28 @@ static void spo2_init_packet()
     spo2_packet[pos++] = 0xD5;
 
     spo2_type_pos = pos;
-    NRF_LOG_INFO("crc begin pos: %d", pos);
+    if (log) 
+    {
+        NRF_LOG_INFO("  crc begin pos: %d", pos);
+    }
 
     spo2_packet[pos++] = 0x01;  // type
     spo2_packet[pos++] = 0x01;
 
     spo2_pkt_len_pos = pos;
-    NRF_LOG_INFO("pkt length pos: %d", pos);
+    if (log)
+    {
+        NRF_LOG_INFO(" pkt length pos: %d", pos);
+    }
 
     spo2_packet[pos++] = 0xdf;  // packet length (223)
     spo2_packet[pos++] = 0x00;
 
     spo2_payload_pos = pos;
-    NRF_LOG_INFO("pkt payload pos: %d", pos);
+    if (log)
+    {
+        NRF_LOG_INFO("pkt payload pos: %d", pos);
+    }
 
     // global tlv
     spo2_packet[pos++] = 0xff;  // type
@@ -528,11 +537,13 @@ static void spo2_init_packet()
     spo2_packet[pos++] = 0x00;  // instance id
 
     spo2_seq_num_pos = pos;
-    NRF_LOG_INFO("seq num pos: %d", pos);
+    if (log)
+    {
+        NRF_LOG_INFO("    seq num pos: %d", pos);
+    }
 
     spo2_packet[pos++] = 0x00;  // sequence id
     spo2_packet[pos++] = FIFO_READ_SAMPLES; // number of samples
-
 
     int num_reg_tlvs = 4;
     for (int i = 0; i < 4; i++)
@@ -558,11 +569,17 @@ static void spo2_init_packet()
 
     spo2_fifo_begin_pos = pos;
     spo2_crc_pos = pos + fifo_size;
-    NRF_LOG_INFO("fifo begin pos: %d", pos);
-    NRF_LOG_INFO("crc pos: %d", spo2_crc_pos);
+    if (log)
+    {
+        NRF_LOG_INFO(" fifo begin pos: %d", pos);
+        NRF_LOG_INFO("        crc pos: %d", spo2_crc_pos);
+    }
 
     uint16_t payload_len = spo2_fifo_begin_pos + fifo_size - spo2_payload_pos;
-    NRF_LOG_INFO("payload len %d", payload_len);
+    if (log)
+    {
+        NRF_LOG_INFO("    payload len: %d", payload_len);
+    }
 
     spo2_packet[spo2_pkt_len_pos] = (uint8_t)(payload_len & 0x00ff);
     spo2_packet[spo2_pkt_len_pos + 1] = (uint8_t)(payload_len >> 8);
@@ -606,12 +623,15 @@ void uart_error_handle(app_uart_evt_t * p_event)
 
 #define MIN_RED_PA      0x10
 #define MIN_IR_PA       0x10
-#define PA_STEP         0x10
+#define PA_UP_STEP      0x04
+#define PA_DOWN_STEP    0x10
 
 static void dynamic(uint32_t ir, uint32_t red)
 {
     static uint8_t led1_ir  = 0;
     static uint8_t led2_red = 0;
+    
+    return;
 
     if (led1_ir == 0) {
         led1_ir = read_reg(&spo2_ctx, REG_LED1_PA);
@@ -626,11 +646,11 @@ static void dynamic(uint32_t ir, uint32_t red)
     uint8_t old_led1_ir  = led1_ir;
     uint8_t old_led2_red = led2_red;
 
-    if (red > 0x060000)
+    if (red > 0x078000)
     {
         if (led2_red > MIN_RED_PA)
         {
-            led2_red = (led2_red - PA_STEP) > MIN_RED_PA ? (led2_red - PA_STEP) : MIN_RED_PA;
+            led2_red = (led2_red - PA_DOWN_STEP) > MIN_RED_PA ? (led2_red - PA_DOWN_STEP) : MIN_RED_PA;
             write_reg(&spo2_ctx, REG_LED2_PA, led2_red);
         }
     }
@@ -638,17 +658,17 @@ static void dynamic(uint32_t ir, uint32_t red)
     {
         if (led2_red < MAX_RED_PA)
         {
-            led2_red = (led2_red + PA_STEP) < MAX_RED_PA ? (led2_red + PA_STEP) : MAX_RED_PA;
+            led2_red = (led2_red + PA_UP_STEP) < MAX_RED_PA ? (led2_red + PA_UP_STEP) : MAX_RED_PA;
             write_reg(&spo2_ctx, REG_LED2_PA, led2_red);
         }
     }
 
-    if (ir > 0x060000)
+    if (ir > 0x078000)
     {
         // NRF_LOG_INFO("ir %d is greater than 0x060000, led1ir %d", ir, led1_ir);
         if (led1_ir > MIN_IR_PA)
         {
-            led1_ir = (led1_ir - PA_STEP) > MIN_IR_PA ? (led1_ir - PA_STEP) : MIN_IR_PA;
+            led1_ir = (led1_ir - PA_DOWN_STEP) > MIN_IR_PA ? (led1_ir - PA_DOWN_STEP) : MIN_IR_PA;
             write_reg(&spo2_ctx, REG_LED1_PA, led1_ir);
         }
     }
@@ -656,7 +676,7 @@ static void dynamic(uint32_t ir, uint32_t red)
     {
         if (led1_ir < MAX_IR_PA)
         {
-            led1_ir = (led1_ir + PA_STEP) < MAX_IR_PA ? (led1_ir + PA_STEP) : MAX_IR_PA;
+            led1_ir = (led1_ir + PA_UP_STEP) < MAX_IR_PA ? (led1_ir + PA_UP_STEP) : MAX_IR_PA;
             write_reg(&spo2_ctx, REG_LED1_PA, led1_ir);
         }
     }
@@ -674,42 +694,15 @@ static void max86141_task(void * pvParameters)
 {
     ret_code_t err_code;
 
-#if 0
-    const app_uart_comm_params_t comm_params =
-      {
-          UART_PIN_DISCONNECTED,    // RX_PIN_NUMBER,
-          17,                       // TX_PIN_NUMBER,
-          UART_PIN_DISCONNECTED,    // RTS_PIN_NUMBER,
-          UART_PIN_DISCONNECTED,    // CTS_PIN_NUMBER,
-          APP_UART_FLOW_CONTROL_DISABLED,
-          false,
-#if defined (UART_PRESENT)
-          NRF_UART_BAUDRATE_115200
-#else
-          NRF_UARTE_BAUDRATE_115200
-#endif
-      };
-
-    APP_UART_FIFO_INIT(&comm_params,
-                         256, // UART_RX_BUF_SIZE,
-                         256, // UART_TX_BUF_SIZE,
-                         uart_error_handle,
-                         APP_IRQ_PRIORITY_LOWEST,
-                         err_code);
-
-    APP_ERROR_CHECK(err_code);
-#endif
-
-    vTaskDelay(1024);
-
-    spo2_ctx_init();
-    print_registers();
+    spo2_ctx_init();    
+    if (PRINT_REGISTERS) 
+    {
+        print_registers();
+    }
     max86141_init(&spo2_ctx);
-    spo2_init_packet();
-  //NRF_LOG_INFO("------ run ------");
-
-  // vTaskDelay(portMAX_DELAY);
+    spo2_packet_init(false);
     max86141_run(&spo2_ctx);
+    
     NRF_LOG_INFO("max86141 started");
 
     int line = 0;
@@ -719,10 +712,12 @@ static void max86141_task(void * pvParameters)
         vTaskDelay(100);
 
         // uint8_t intstat1 = ;
-        if (cdc_acm_running() && (0x80 & read_reg(&spo2_ctx, REG_INT_STAT_1)))  // A_FULL
+        if (cdc_acm_port_open() && (0x80 & read_reg(&spo2_ctx, REG_INT_STAT_1)))  // A_FULL
         {
             static int fifo_count;
             read_fifo(&spo2_ctx);
+            
+#if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
             uint32_t total_red = 0;
             uint32_t total_ir = 0;
 
@@ -744,12 +739,15 @@ static void max86141_task(void * pvParameters)
                 total_ir  += ((uint32_t)smpl.byte[0] << 16) + ((uint32_t)smpl.byte[1] << 8) + (uint32_t)smpl.byte[2];
                 total_red += ((uint32_t)smpl.byte[3] << 16) + ((uint32_t)smpl.byte[4] << 8) + (uint32_t)smpl.byte[5];
 
-                enqueue(&smpl);
+                rougu_enqueue(&smpl);
             }
             
             uint32_t ir_avg = total_ir / (FIFO_READ_SAMPLES / 2);
             uint32_t red_avg = total_red / (FIFO_READ_SAMPLES / 2);
             dynamic(ir_avg, red_avg);
+#else
+            
+#endif            
         }
     }
 }

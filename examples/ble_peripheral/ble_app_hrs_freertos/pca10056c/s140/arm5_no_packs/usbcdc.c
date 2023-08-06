@@ -33,8 +33,17 @@
 
 #include "usbcdc.h"
 
-#define TSK_USBCDC_STACK_SIZE   (64)
+#define TSK_USBCDC_STACK_SIZE   (256)
 #define TSK_USBCDC_PRIORITY      1
+#define NOT_INSIDE_ISR          (( SCB->ICSR & SCB_ICSR_VECTACTIVE_Msk ) == 0 )
+#define INSIDE_ISR              (!(NOT_INSIDE_ISR))
+
+#if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
+
+#define ROUGU_QUEUE_LENGTH            100
+#define ROUGU_QUEUE_ITEM_SIZE         6
+
+static  QueueHandle_t m_rougu_queue = NULL;
 
 const nrfx_timer_t timer2 = NRFX_TIMER_INSTANCE(2);
 
@@ -49,12 +58,20 @@ static const nrfx_timer_config_t timer2_config = {
 
 static void timer2_callback(nrf_timer_event_t event_type, void * p_context);
 
+#else
+
+typedef __packed struct pending_item {
+    uint8_t * p_pkt;
+    uint32_t size;
+} pending_item_t;
+
+static QueueHandle_t m_pending_queue = NULL;
+static uint8_t * p_pkt_sending = NULL;
+
+#endif
+
 static TaskHandle_t m_usbcdc_thread;
-
-#define QUEUE_LENGTH            100
-#define QUEUE_ITEM_SIZE         6
-
-static  QueueHandle_t m_queue = NULL;
+static  bool usbd_running = false;
 
 #if NRF_CLI_ENABLED
 /**
@@ -94,6 +111,8 @@ APP_USBD_CDC_ACM_GLOBAL_DEF(m_app_cdc_acm,
 
 #define READ_SIZE 1
 
+static bool m_cdc_acm_port_open = false;
+
 static char m_rx_buffer[READ_SIZE];
 // static char m_tx_buffer[NRF_DRV_USBD_EPSIZE];
 // static bool m_send_flag = 0;
@@ -110,10 +129,12 @@ static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const * p_inst,
     {
         case APP_USBD_CDC_ACM_USER_EVT_PORT_OPEN:
         {
-            // bsp_board_led_on(LED_CDC_ACM_OPEN);
-            xQueueReset(m_queue);
+            NRF_LOG_INFO("cdc acm port open (inside isr %d)", (INSIDE_ISR) ? 1 : 0);
+            m_cdc_acm_port_open = true;
+#if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
+            xQueueReset(m_rougu_queue);
             nrfx_timer_enable(&timer2);
-
+#endif
             /*Setup first transfer*/
             ret_code_t ret = app_usbd_cdc_acm_read(&m_app_cdc_acm,
                                                    m_rx_buffer,
@@ -121,13 +142,71 @@ static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const * p_inst,
             UNUSED_VARIABLE(ret);
             break;
         }
-        case APP_USBD_CDC_ACM_USER_EVT_PORT_CLOSE:
+        case APP_USBD_CDC_ACM_USER_EVT_PORT_CLOSE: {
+            m_cdc_acm_port_open = false;
+#if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
             nrfx_timer_disable(&timer2);
-            // bsp_board_led_off(LED_CDC_ACM_OPEN);
+#else
+            if (p_pkt_sending)
+            {
+                NRF_LOG_INFO("clearing sending item when port close");
+                // vPortFree(p_pkt_sending);
+                p_pkt_sending = NULL;
+            }
+            
+            uint32_t pending = uxQueueMessagesWaiting(m_pending_queue);
+            if (pending)
+            {
+                NRF_LOG_INFO("clearing %d pending item when port close", pending);
+                pending_item_t item;
+                while (pdTRUE == xQueueReceive(m_pending_queue, &item, NULL)) {
+                    // vPortFree(item.p_pkt);
+                }
+            }
+            
+            NRF_LOG_INFO("cdc acm port close (pending %d)", uxQueueMessagesWaiting(m_pending_queue));
+#endif
             break;
-        case APP_USBD_CDC_ACM_USER_EVT_TX_DONE:
-            // bsp_board_led_invert(LED_CDC_ACM_TX);
+        }   
+        case APP_USBD_CDC_ACM_USER_EVT_TX_DONE: {   // assume this is isr context
+#if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
+#else            
+            if (p_pkt_sending) 
+            {
+                // vPortFree(p_pkt_sending);
+                p_pkt_sending = NULL;
+            }
+            pending_item_t item;
+            BaseType_t result;
+            
+            try_next_item:
+            if (NOT_INSIDE_ISR)
+            {
+                result = xQueueReceive(m_pending_queue, &item, NULL);
+            }
+            else
+            {
+                result = xQueueReceiveFromISR(m_pending_queue, &item, NULL);
+            }
+            
+            if (result == pdTRUE)
+            {
+                uint8_t * p_pkt = item.p_pkt;
+                uint32_t size = item.size;
+                ret_code_t err_code = app_usbd_cdc_acm_write(&m_app_cdc_acm, p_pkt, size);
+                if (err_code == NRF_SUCCESS)
+                {
+                    p_pkt_sending = p_pkt;
+                }
+                else
+                {
+                    // vPortFree(p_pkt);
+                    goto try_next_item;
+                }
+            }
+#endif            
             break;
+        }   
         case APP_USBD_CDC_ACM_USER_EVT_RX_DONE:
         {
             ret_code_t ret;
@@ -163,15 +242,15 @@ static void usbd_user_ev_handler(app_usbd_event_type_t event)
             // bsp_board_led_on(LED_USB_RESUME);
             break;
         case APP_USBD_EVT_STARTED:
-            NRF_LOG_INFO("APP_USBD_EVT_STARTED");
+            NRF_LOG_INFO("usbd started");
             break;
         case APP_USBD_EVT_STOPPED:
-            NRF_LOG_INFO("APP_USBD_EVT_STOPPED");
+            NRF_LOG_INFO("usbd stopped");
             app_usbd_disable();
             // bsp_board_leds_off();
             break;
         case APP_USBD_EVT_POWER_DETECTED:
-            NRF_LOG_INFO("USB power detected");
+            NRF_LOG_INFO("usb power detected");
 
             if (!nrf_drv_usbd_is_enabled())
             {
@@ -179,17 +258,73 @@ static void usbd_user_ev_handler(app_usbd_event_type_t event)
             }
             break;
         case APP_USBD_EVT_POWER_REMOVED:
-            NRF_LOG_INFO("USB power removed");
+            NRF_LOG_INFO("usb power removed");
             app_usbd_stop();
             break;
         case APP_USBD_EVT_POWER_READY:
-            NRF_LOG_INFO("USB ready");
+            NRF_LOG_INFO("usb power ready");
             app_usbd_start();
             break;
         default:
             break;
     }
 }
+
+void usb_new_event_isr_handler(app_usbd_internal_evt_t const * const p_event, bool queued)
+{
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    UNUSED_PARAMETER(p_event);
+    UNUSED_PARAMETER(queued);
+    ASSERT(m_usbcdc_thread != NULL);
+    /* Release the semaphore */
+    vTaskNotifyGiveFromISR(m_usbcdc_thread, &xHigherPriorityTaskWoken);
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+}
+
+//static void bsp_event_callback(bsp_event_t ev)
+//{
+//    ret_code_t ret;
+//    switch ((unsigned int)ev)
+//    {
+//        case CONCAT_2(BSP_EVENT_KEY_, BTN_CDC_DATA_SEND):
+//        {
+//            m_send_flag = 1;
+//            break;
+//        }
+//
+//        case BTN_CDC_DATA_KEY_RELEASE :
+//        {
+//            m_send_flag = 0;
+//            break;
+//        }
+
+//        case CONCAT_2(BSP_EVENT_KEY_, BTN_CDC_NOTIFY_SEND):
+//        {
+//            ret = app_usbd_cdc_acm_serial_state_notify(&m_app_cdc_acm,
+//                                                       APP_USBD_CDC_ACM_SERIAL_STATE_BREAK,
+//                                                       false);
+//            UNUSED_VARIABLE(ret);
+//            break;
+//        }
+
+//        default:
+//            return; // no implementation needed
+//    }
+//}
+
+//static void init_bsp(void)
+//{
+//    ret_code_t ret;
+//    ret = bsp_init(BSP_INIT_BUTTONS, bsp_event_callback);
+//    APP_ERROR_CHECK(ret);
+//
+//    UNUSED_RETURN_VALUE(bsp_event_to_button_action_assign(BTN_CDC_DATA_SEND,
+//                                                          BSP_BUTTON_ACTION_RELEASE,
+//                                                          BTN_CDC_DATA_KEY_RELEASE));
+//
+//    /* Configure LEDs */
+//    bsp_board_init(BSP_INIT_LEDS);
+//}
 
 #if NRF_CLI_ENABLED
 static void init_cli(void)
@@ -208,7 +343,8 @@ static void init_cli(void)
 }
 #endif
 
-static uint8_t rougu[15] = { 0x18, 0xff };
+#if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
+static uint8_t rougu[15] = { 0 };
 
 //          uint16_t sigma = 0;
 //          for (int i = 0; i < 14; i++)
@@ -222,17 +358,18 @@ static void timer2_callback(nrf_timer_event_t event_type, void * p_context)
     switch (event_type)
     {
         case NRF_TIMER_EVENT_COMPARE0: {
+
             spo2_sample_t sample;
             static int counter = 0;
             static int speed = 0;
-            
-            if (pdTRUE != xQueueReceiveFromISR(m_queue, &sample, NULL))
+
+            if (pdTRUE != xQueueReceiveFromISR(m_rougu_queue, &sample, NULL))
             {
                 return;
             }
-                        
+
             rougu[0] = 0x18;
-            rougu[1] = 0xff;                
+            rougu[1] = 0xff;
             rougu[2] = sample.byte[3];
             rougu[3] = sample.byte[4];
             rougu[4] = sample.byte[5];
@@ -245,13 +382,13 @@ static void timer2_callback(nrf_timer_event_t event_type, void * p_context)
             rougu[11] = rougu[5];
             rougu[12] = rougu[6];
             rougu[13] = rougu[7];
-            
+
             uint16_t sum = 0;
             for (int j = 0; j < 14; j++)
             {
                 sum += (uint16_t)rougu[j];
             }
-            
+
             if (sum < 256)
             {
                 rougu[14] = sum;
@@ -262,7 +399,7 @@ static void timer2_callback(nrf_timer_event_t event_type, void * p_context)
             }
 
             // rougu[14] = (sum < 255) ? (uint8_t)sum : (uint8_t)(((~sum) + 1) & 0xff);
-            
+
             ret_code_t err_code = app_usbd_cdc_acm_write(&m_app_cdc_acm, rougu, sizeof(rougu));
             if (err_code == NRF_SUCCESS)
             {
@@ -270,14 +407,14 @@ static void timer2_callback(nrf_timer_event_t event_type, void * p_context)
                 if (counter % 1000 == 0)
                 {
                     NRF_LOG_INFO("%d packets sent", counter);
-                };                
+                };
             }
             else
             {
                NRF_LOG_INFO("cdc_acm_write failed, error %d", err_code);
             }
-            
-            int waiting = uxQueueMessagesWaitingFromISR(m_queue);
+
+            int waiting = uxQueueMessagesWaitingFromISR(m_rougu_queue);
             int expect = 0;
             if (waiting > 60)
             {
@@ -291,7 +428,7 @@ static void timer2_callback(nrf_timer_event_t event_type, void * p_context)
             {
                 expect = 1;
             }
-            
+
             if (expect != speed)
             {
                 uint32_t cc = 5000 - 1; // accurate
@@ -310,55 +447,72 @@ static void timer2_callback(nrf_timer_event_t event_type, void * p_context)
 
                 nrfx_timer_extended_compare(&timer2, NRF_TIMER_CC_CHANNEL0, cc,
                     NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK, true);
-                
+
 
                 // NRF_LOG_INFO("waiting %d, %s", waiting, (expect == 0) ? "-" : (expect == 1) ? "+2%" : (expect == 2) ? "+11%" : "+100%");
                 speed = expect;
             }
+
+
         }   break;
         default:
-            break;   
+            break;
     }
 }
 
-bool cdc_acm_running()
+#endif
+
+bool cdc_acm_port_open()
 {
-    return nrfx_timer_is_enabled(&timer2);
+    // return nrfx_timer_is_enabled(&timer2);
+    return m_cdc_acm_port_open;
 }
 
-void enqueue(spo2_sample_t * p_smpl)
+#if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
+
+void rougu_enqueue(spo2_sample_t * p_smpl)
 {
-    if (pdTRUE != xQueueSend(m_queue, p_smpl, 0))
+    if (pdTRUE != xQueueSend(m_rougu_queue, p_smpl, 0))
     {
         NRF_LOG_INFO("samples dropped due to queue full");
     }
 }
 
-static void timer2_init(void)
+#endif
+
+static void usbcdc_task(void * pvParameters)
 {
-    nrfx_err_t err;
-    m_queue = xQueueCreate(QUEUE_LENGTH, QUEUE_ITEM_SIZE);
-    APP_ERROR_CHECK_BOOL(m_queue != NULL);
+    ret_code_t err_code;
+
+#if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
+    m_rougu_queue = xQueueCreate(ROUGU_QUEUE_LENGTH, ROUGU_QUEUE_ITEM_SIZE);
+    APP_ERROR_CHECK_BOOL(m_rougu_queue != NULL);
 
     err = nrfx_timer_init(&timer2, &timer2_config, timer2_callback);
     APP_ERROR_CHECK(err);
 
     nrfx_timer_extended_compare(&timer2, NRF_TIMER_CC_CHANNEL0, (4999), // TODO 
         NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK, true);
-}
+#else
+    
+    m_pending_queue = xQueueCreate(8, sizeof(pending_item_t));
+    APP_ERROR_CHECK_BOOL(m_pending_queue != NULL);
+    
+#endif
 
 static void usbcdc_init(void)
 {
     ret_code_t err_code;
     
     static const app_usbd_config_t usbd_config = {
+        .ev_isr_handler = usb_new_event_isr_handler,
         .ev_state_proc = usbd_user_ev_handler
     };
 
     err_code = app_usbd_init(&usbd_config);
     APP_ERROR_CHECK(err_code);
-    
-    NRF_LOG_INFO("USBD CDC ACM started.");
+
+    NRF_LOG_INFO("usbcdc task started.");
 
     app_usbd_class_inst_t const * class_cdc_acm = app_usbd_cdc_acm_class_inst_get(&m_app_cdc_acm);
     err_code = app_usbd_class_append(class_cdc_acm);
@@ -368,27 +522,33 @@ static void usbcdc_init(void)
     APP_ERROR_CHECK(err_code);
 }
 
-static void usbcdc_task(void * pvParameters)
-{
-    // ret_code_t err_code;
-    
-    timer2_init();
-    
-    vTaskDelay(2048);
-    
-    usbcdc_init();
-    
-    vTaskDelay(portMAX_DELAY);
+    if (USBD_POWER_DETECTION)
+    {
+        err_code = app_usbd_power_events_enable();
+        APP_ERROR_CHECK(err_code);
+    }
+    else
+    {
+        NRF_LOG_INFO("No USB power detection enabled\r\nStarting USB now");
+
+        app_usbd_enable();
+        app_usbd_start();
+    }
+
+    // vTaskDelay(portMAX_DELAY);
+    UNUSED_RETURN_VALUE(xTaskNotifyGive(xTaskGetCurrentTaskHandle()));
 
     for (;;)
     {
-        // while (app_usbd_event_queue_process())
-        // {
-            /* Nothing to do */
-        // }
+        UNUSED_RETURN_VALUE(ulTaskNotifyTake(pdTRUE, portMAX_DELAY));
 
-        // NRF_LOG_INFO("after app_usbd_event_queue_process");
-        vTaskDelay(16);
+        while (app_usbd_event_queue_process())
+        {
+            /* Nothing to do */
+        }
+
+        // NRF_LOG_INFO("app_usbd_event_queue_process done");
+        // vTaskDelay(128);
 
 //        if(m_send_flag)
 //        {
@@ -413,7 +573,50 @@ static void usbcdc_task(void * pvParameters)
     }
 }
 
-
+void cdc_acm_send_packet(uint8_t * p_pkt, uint32_t size)
+{
+#if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
+#else    
+    if (!m_cdc_acm_port_open)
+    {
+        // vPortFree(p_pkt);
+        return;
+    }
+    
+    if (p_pkt_sending)
+    {
+        BaseType_t result;
+        pending_item_t item = { .p_pkt = p_pkt, size = size };
+        
+        if (NOT_INSIDE_ISR)
+        {
+            result = xQueueSend(m_pending_queue, &item, NULL);
+        }
+        else 
+        {
+            result = xQueueSendFromISR(m_pending_queue, &item, NULL);
+        }        
+        
+        if (result != pdTRUE)
+        {
+            NRF_LOG_INFO("cdc acm drop packet due to queue full");
+            // vPortFree(p_pkt);
+        }
+        return;
+    }
+    
+    ret_code_t err_code = app_usbd_cdc_acm_write(&m_app_cdc_acm, p_pkt, size);
+    if (err_code == NRF_SUCCESS)
+    {
+        p_pkt_sending = p_pkt;
+    }
+    else
+    {
+        NRF_LOG_INFO("cdc acm write error %x04x%", err_code);
+        // vPortFree(p_pkt);
+    }
+#endif    
+}
 
 void app_usbcdc_freertos_init(void)
 {

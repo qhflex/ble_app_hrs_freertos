@@ -23,7 +23,7 @@
  #define ADS1292R_CMD_WREG      0x40      // Write n nnnn registers starting at address r rrrr
                                           // first byte 010r rrrr (2xh)(2) - second byte 000n nnnn(2)
 
-#define TSK_ADS1292R_STACK_SIZE           (64)	// the unit is word, 4-bytes
+#define TSK_ADS1292R_STACK_SIZE           (512)	// the unit is word, 4-bytes
 #define TSK_ADS1292R_PRIORITY             (1)
 
 #define ADS1292R_REG_ID                   (0x00)
