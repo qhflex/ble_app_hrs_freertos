@@ -310,6 +310,7 @@ static void conn_params_init(void)
  */
 static void sleep_mode_enter(void)
 {
+    (void)sleep_mode_enter;
     ret_code_t err_code;
 
     // Go to system-off mode (this function will not return; wakeup will cause a reset).
@@ -558,7 +559,7 @@ static void logger_thread(void * arg)
     }
  }
 #endif
- 
+
  /**@brief A function which is hooked to idle task.
  * @note Idle hook must be enabled in FreeRTOS configuration (configUSE_IDLE_HOOK).
  */
@@ -575,7 +576,7 @@ static void clock_init(void)
 {
     ret_code_t err_code = nrf_drv_clock_init();
     APP_ERROR_CHECK(err_code);
-    
+
 //    nrf_drv_clock_lfclk_request(NULL);
 //    while (!nrf_drv_clock_lfclk_is_running())
 //    {
@@ -593,17 +594,17 @@ int main(void)
 
     // Initialize modules.
     log_init();
-    
-    app_usbd_serial_num_generate();    
-    
+
+    app_usbd_serial_num_generate();
+
     err_code = nrf_drv_power_init(NULL);
     APP_ERROR_CHECK(err_code);
-    
+
     clock_init();
-    
+
     // err_code = app_timer_init();
     // APP_ERROR_CHECK(err_code);
-    
+
     nrfx_gpiote_init();
 
     // Do not start any interrupt that uses system functions before system initialisation.
@@ -622,7 +623,7 @@ int main(void)
 
     // Configure and initialize the BLE stack.
     ble_stack_init();
-    
+
     gap_params_init();
     gatt_init();
     advertising_init();
@@ -636,11 +637,13 @@ int main(void)
 
     // app_m601z_freertos_init();
     // app_qma6110p_freertos_init();
-    // app_ads1292r_freertos_init();
+
+    app_ads1292r_freertos_init();
     app_max86141_freertos_init();
     app_usbcdc_freertos_init();
 
     NRF_LOG_INFO("HRS FreeRTOS example started.");
+
     // Start FreeRTOS scheduler.
     vTaskStartScheduler();
 

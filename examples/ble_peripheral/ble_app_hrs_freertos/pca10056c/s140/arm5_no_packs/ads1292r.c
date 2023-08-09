@@ -63,7 +63,7 @@ static          int parse_24bit___signed_be(const uint8_t octet[3])
 #endif
 
 // a rdatac sample, 9 bytes
-typedef __packed struct rdatac_record
+typedef struct __attribute__((packed)) rdatac_record
 {
   uint8_t octet[9];
 } rdatac_record_t;
@@ -1288,7 +1288,7 @@ const static char * trec_test_name[5] = {
 
 static void ads1292r_task(void * pvParameters)
 {
-#if 0    
+#if 0
     NRF_LOG_INFO("sizeof In_Signal1 is %d", sizeof(In_Signal1)); // 4
     NRF_LOG_INFO("sizeof In_Signal2 is %d", sizeof(In_Signal2));
     NRF_LOG_INFO("sizeof Out_Signal1 is %d", sizeof(Out_Signal1));
@@ -1308,9 +1308,9 @@ static void ads1292r_task(void * pvParameters)
     }
     NRF_LOG_INFO("---- formatted print test end ----");
 #endif
-    
+
     NRF_LOG_INFO("ads129x_brief_tlv_t size: %d", sizeof(ads129x_brief_tlv_t));
-    
+
     p_current_packet = next_packet();
     init_rdatac_records();
 
@@ -1373,7 +1373,7 @@ static void ads1292r_task(void * pvParameters)
     int rog_filterData;
     int rog_sbPeak;
     int rog_hr;
-    
+
     int rog_last_hr = 255;
 
     for (int i = 0;;i++)
@@ -1403,7 +1403,7 @@ static void ads1292r_task(void * pvParameters)
         xQueueReceive(p_records_pending, &p_src, portMAX_DELAY);
 
         // copy to p_sample
-        int sample_start = sizeof(rdatac_record_t) * m_packet_helper.sample_count;
+        int sample_start = sizeof(rdatac_record_t) * m_packet_helper.num_of_samples;
         rdatac_record_t* p_dst = (rdatac_record_t *)&m_packet_helper.p_sample->value[sample_start];
         *p_dst = *p_src;
 
@@ -1416,10 +1416,10 @@ static void ads1292r_task(void * pvParameters)
             uint8_t *p_octet;
 
             // fill rougu resp
-            if((m_packet_helper.sample_count % 10) == 0)
+            if((m_packet_helper.num_of_samples % 10) == 0)
             {
-                int resp_start = 14 * (m_packet_helper.sample_count / 10);
-                
+                int resp_start = 14 * (m_packet_helper.num_of_samples / 10);
+
                 result = p_src->octet[3] << 24 | p_src->octet[4] << 16 | p_src->octet[5] << 8;
                 In_Signal1 = (float)(result>>8);
 
@@ -1437,7 +1437,7 @@ static void ads1292r_task(void * pvParameters)
             }
 
             // fill rougu ecg
-            int ecg_start = m_packet_helper.sample_count * 2; // sizeof(uint16_t)
+            int ecg_start = m_packet_helper.num_of_samples * 2; // sizeof(uint16_t)
 
             // result2 = (pSend_ADS[i].CHn[1].DH<<24) | (pSend_ADS[i].CHn[1].DM<<16) | (pSend_ADS[i].CHn[1].DL<<8);
             result2 = p_src->octet[6] << 24 | p_src->octet[7] << 16 | p_src->octet[8] << 8;
@@ -1459,20 +1459,20 @@ static void ads1292r_task(void * pvParameters)
                 // NRF_LOG_INFO("rog qrs detected, hr %d, delay %d, qrs count %d", rog_hr, delay, rog_qrs_count);
                 rog_qrs_count++;
             }
-            
+
             m_packet_helper.p_brief->heart_rate = rog_hr;
             if (rog_hr != rog_last_hr)
             {
                 rog_last_hr = rog_hr;
             }
-            
+
             // NRF_LOG_INFO("heart rate (zr algo): %d", rog_hr);
         }
-        
-        m_packet_helper.sample_count += 1;
+
+        m_packet_helper.num_of_samples += 1;
 
         // sample tlv is ready
-        if (m_packet_helper.sample_count == ADS129X_SAMPLE_NUM)
+        if (m_packet_helper.num_of_samples == ADS129X_NUM_OF_SAMPLES)
         {
             if (cdc_acm_port_open())
             {
@@ -1486,9 +1486,9 @@ static void ads1292r_task(void * pvParameters)
             }
 
             // reset sample count, packet not changed
-            m_packet_helper.sample_count = 0;
+            m_packet_helper.num_of_samples = 0;
             rog_qrs_count = 0;
-            
+
             // NRF_LOG_INFO("heart rate (zr algo): %d", rog_last_hr);
         }
 
@@ -1605,11 +1605,11 @@ static sens_packet_t * next_packet(void)
         }
 
         initialized = true;
-        
-        NRF_LOG_INFO("ads129x packets initialized, payload length: %d, packet size: %d, %d samples per packet", 
-            m_packet_helper.payload_len, 
+
+        NRF_LOG_INFO("ads129x packets initialized, payload length: %d, packet size: %d, %d samples per packet",
+            m_packet_helper.payload_len,
             m_packet_helper.packet_size,
-            ADS129X_SAMPLE_NUM);
+            ADS129X_NUM_OF_SAMPLES);
     }
 
     // init next packet

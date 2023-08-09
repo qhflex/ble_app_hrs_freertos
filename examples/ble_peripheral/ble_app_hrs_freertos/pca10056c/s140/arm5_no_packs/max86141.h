@@ -79,7 +79,7 @@
 #define REG_MEM_DATA           (0xF4)
 #define REG_PART_ID            (0xFF)
 
-typedef __packed struct reg_intstat1  // 0x00
+typedef struct __attribute__((packed)) reg_intstat1  // 0x00
 {
   unsigned int pwr_rdy          : 1;
   unsigned int vdd_oor          : 1;
@@ -91,13 +91,13 @@ typedef __packed struct reg_intstat1  // 0x00
   unsigned int a_full           : 1;
 } reg_intstat1_t;
 
-typedef __packed struct reg_intstat2  // 0x01
+typedef struct __attribute__((packed)) reg_intstat2  // 0x01
 {
   unsigned int sha_done         : 1;
   unsigned int resv             : 7;
 } reg_intstat2_t;
 
-typedef __packed struct reg_inten1    // 0x02
+typedef struct __attribute__((packed)) reg_inten1    // 0x02
 {
   unsigned int resv             : 1;
   unsigned int vdd_oor_en       : 1;
@@ -109,19 +109,19 @@ typedef __packed struct reg_inten1    // 0x02
   unsigned int a_full_en        : 1;
 } reg_inten1_t;
 
-typedef __packed struct reg_inten2    // 0x03
+typedef struct __attribute__((packed)) reg_inten2    // 0x03
 {
   unsigned int sha_done_en      : 1;
   unsigned int resv             : 7;
 } reg_inten2_t;
 
-typedef __packed struct reg_fifocfg1  // 0x09
+typedef struct __attribute__((packed)) reg_fifocfg1  // 0x09
 {
   unsigned int fifo_a_full      : 7;
   unsigned int resv             : 1;
 } reg_fifocfg1_t;
 
-typedef __packed struct reg_fifocfg2  // 0x0a
+typedef struct __attribute__((packed)) reg_fifocfg2  // 0x0a
 {
   unsigned int resv1            : 1;
   unsigned int fifo_ro          : 1;
@@ -131,7 +131,7 @@ typedef __packed struct reg_fifocfg2  // 0x0a
   unsigned int resv2            : 3;
 } reg_fifocfg2_t;
 
-typedef __packed struct reg_sysctrl   // 0x0d
+typedef struct __attribute__((packed)) reg_sysctrl   // 0x0d
 {
   unsigned int reset      : 1;
   unsigned int shdn       : 1;
@@ -140,7 +140,7 @@ typedef __packed struct reg_sysctrl   // 0x0d
   unsigned int resv       : 4;
 } reg_sysctrl_t;
 
-typedef __packed struct reg_ppgcfg1
+typedef struct __attribute__((packed)) reg_ppgcfg1
 {
   unsigned int ppg_tint     : 2;
   unsigned int ppg1_adc_rge : 2;
@@ -149,13 +149,13 @@ typedef __packed struct reg_ppgcfg1
   unsigned int alc_disable  : 1;
 } reg_ppgcfg1_t;
 
-typedef __packed struct reg_ppgcfg2
+typedef struct __attribute__((packed)) reg_ppgcfg2
 {
   unsigned int smp_ave      : 3;
   unsigned int ppg_sr       : 5;
 } reg_ppgcfg2_t;
 
-typedef __packed struct reg_ppgcfg3
+typedef struct __attribute__((packed)) reg_ppgcfg3
 {
   unsigned int burst_en     : 1;
   unsigned int burst_rate   : 2;
@@ -164,7 +164,7 @@ typedef __packed struct reg_ppgcfg3
   unsigned int led_setlng   : 2;
 } reg_ppgcfg3_t;
 
-typedef __packed struct reg_pdbias
+typedef struct __attribute__((packed)) reg_pdbias
 {
   unsigned int pdbias1      : 3;
   unsigned int resv1        : 1;
@@ -172,7 +172,7 @@ typedef __packed struct reg_pdbias
   unsigned int resv2        : 1;
 } reg_pdbias_t;
 
-typedef __packed struct reg_ledrge
+typedef struct __attribute__((packed)) reg_ledrge
 {
   unsigned int led14_rge    : 2;
   unsigned int led25_rge    : 2;
@@ -181,13 +181,13 @@ typedef __packed struct reg_ledrge
 } reg_ledrge_t;
 
 
-typedef __packed struct reg_ledseq
+typedef struct __attribute__((packed)) reg_ledseq
 {
   unsigned int ledc135      : 4;
   unsigned int ledc246      : 4;
 } reg_ledseq_t;
 
-typedef __packed struct max86141_cfg
+typedef struct __attribute__((packed)) max86141_cfg
 {
   reg_inten1_t    inten1;
   reg_fifocfg1_t  fifocfg1;
@@ -212,29 +212,6 @@ typedef __packed struct max86141_cfg
 
 typedef struct max86141_ctx
 {
-  // Buffer to store data for using SNR (Signal to Noise Ratio)   
-  // int signalData_ledSeq1A_PD1[SIZE],  signalData_ledSeq1A_PD2[SIZE];  
-  
-  // Save data in tab to send them after by BLE
-  // int *tab_ledSeq1A_PD1= NULL, *tab_ledSeq1B_PD1= NULL;
-  // int *tab_ledSeq1A_PD2= NULL, *tab_ledSeq1B_PD2= NULL;
-   
-  // Seq1A_PD1 : Sequence control 1 A (0-3 bits) PD1 
-  // Seq1B_PD2 : Sequence control 1 B (4-7 bits) PD2
-  int ledSeq1A_PD1, tagSeq1A_PD1;
-  int ledSeq1B_PD1, tagSeq1B_PD1;
-  int ledSeq2A_PD1, tagSeq2A_PD1;
-  int ledSeq2B_PD1, tagSeq2B_PD1;
-  int ledSeq3A_PD1, tagSeq3A_PD1;
-  int ledSeq3B_PD1, tagSeq3B_PD1;
-
-  int ledSeq1A_PD2, tagSeq1A_PD2;
-  int ledSeq1B_PD2, tagSeq1B_PD2;
-  int ledSeq2A_PD2, tagSeq2A_PD2;
-  int ledSeq2B_PD2, tagSeq2B_PD2;
-  int ledSeq3A_PD2, tagSeq3A_PD2;
-  int ledSeq3B_PD2, tagSeq3B_PD2;
-  
   int ledModeSize;
   int num_photo_diodes;       // number of photo diodes, 1 for single, otherwise dual
   int *ledMode;
@@ -244,11 +221,11 @@ typedef struct max86141_ctx
   int sample_rate;
   int pulse_width;
   int adcRange;
-  
+
   const max86141_cfg_t *        p_maxcfg;
-  
+
   char tags[TAGLIST_SIZE];
-  
+
   /* for spi transfer */
   nrf_drv_spi_config_t          spicfg;
   uint8_t                       txbuf[3];
