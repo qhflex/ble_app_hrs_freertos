@@ -8,7 +8,6 @@
 #include "nrfx_gpiote.h"
 
 #include "nrf_log.h"
-// #include "nrf_assert.h"
 
 #include "nrf_spi_mngr.h"
 
@@ -71,15 +70,15 @@
 
 #define MAX86141_SPI_INSTANCE_ID            2
 
-#define MAX86141A_CS_PIN
-#define MAX86141A_CK_PIN
-#define MAX86141A_DI_PIN
-#define MAX86141A_DO_PIN
+#define MAX86141_SPO_CS_PIN                 8
+#define MAX86141_SPO_CK_PIN                 11
+#define MAX86141_SPO_DI_PIN                 (32 + 8)
+#define MAX86141_SPO_DO_PIN                 (32 + 9)
 
-#define MAX86141B_CS_PIN
-#define MAX86141B_CK_PIN
-#define MAX86141B_DI_PIN
-#define MAX86141B_DO_PIN
+#define MAX86141_ABP_CS_PIN
+#define MAX86141_ABP_CK_PIN
+#define MAX86141_ABP_DI_PIN
+#define MAX86141_ABP_DO_PIN
 
 #define MAX_PENDING_TRANSACTIONS            5
 
@@ -116,7 +115,7 @@ const static nrf_spi_mngr_transfer_t max86141_fifo_xfers[] =
 
 const static nrf_spi_mngr_transfer_t max86141_fifo_xfers_rougu[] =
 {
-  NRF_SPI_MNGR_TRANSFER(spi_fifo_tx, 2, spi_fifo_rx, SPI_FIFO_RX_SIZE),
+    NRF_SPI_MNGR_TRANSFER(spi_fifo_tx, 2, spi_fifo_rx, 8),
 };
 
 const static max86141_cfg_t spo2_maxcfg = {
@@ -266,7 +265,6 @@ const static max86141_cfg_t abp_maxcfg = {
   },
 };
 
-// 'a' for SpO2 (blood oxygen saturation)
 static max86141_ctx_t spo2_ctx = {
     .p_maxcfg = &spo2_maxcfg,
 };
@@ -294,43 +292,9 @@ static void dynamic(uint32_t ir, uint32_t red);
  * PROFILE CALLBACKS
  */
 
-/******************************************************************************
+/*******************************************************************************
  * PUBLIC FUNCTIONS
  */
-
-
-// static int spo2_type_pos;
-// static int spo2_pkt_len_pos;
-// static int spo2_payload_pos;
-// static int spo2_seq_num_pos;
-// static int spo2_fifo_begin_pos;
-// static int spo2_crc_pos;
-
-//const static uint16_t global_tlv_len = 9;
-
-//typedef struct reg_tlv_def {
-//    uint8_t reg;
-//    uint16_t num;
-//} local_tlv_def_t;
-
-//const local_tlv_def_t reg_tlvs[4] = {
-//    { 0x0D, 1 },
-//    { 0x10, 6 },
-//    { 0x20, 3 },
-//    { 0x23, 9 },
-//};
-
-//const uint16_t reg_tlv_len = 3 * 4 + 1 + 6 + 3 + 9; // 12 + 19 = 31
-//const uint16_t fifo_tlv_len = 3 + FIFO_READ_SAMPLES * 3; // = 183;
-
-//const uint16_t payload_len = global_tlv_len + reg_tlv_len + fifo_tlv_len; // 9 + 31 + 183 = 223
-
-//static uint8_t spo2_packet[237] = {
-//    0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0xD5, // preamble
-//    0x01, 0x01,                                     // type
-//    0xdf, 0x00,                                     // length
-//    0x00                                            // remaining 223 byte data and 2 byte crc
-//};
 
 static void read_fifo(max86141_ctx_t * ctx)
 {
@@ -532,105 +496,6 @@ static void print_registers(max86141_ctx_t * ctx)
     NRF_LOG_INFO("      part id: 0x%02x", read_reg(ctx, 0xff));
 }
 
-static void spo2_packet_init(bool log)
-{
-#if 0
-    int pos = 0;   // 8 preamble, 2 type, 2 length;
-
-    spo2_packet[pos++] = 0x55;  // preamble
-    spo2_packet[pos++] = 0x55;
-    spo2_packet[pos++] = 0x55;
-    spo2_packet[pos++] = 0x55;
-    spo2_packet[pos++] = 0x55;
-    spo2_packet[pos++] = 0x55;
-    spo2_packet[pos++] = 0x55;
-    spo2_packet[pos++] = 0xD5;
-
-    spo2_type_pos = pos;
-    if (log)
-    {
-        NRF_LOG_INFO("  crc begin pos: %d", pos);
-    }
-
-    spo2_packet[pos++] = 0x01;  // type
-    spo2_packet[pos++] = 0x01;
-
-    spo2_pkt_len_pos = pos;
-    if (log)
-    {
-        NRF_LOG_INFO(" pkt length pos: %d", pos);
-    }
-
-    spo2_packet[pos++] = 0xdf;  // packet length (223)
-    spo2_packet[pos++] = 0x00;
-
-    spo2_payload_pos = pos;
-    if (log)
-    {
-        NRF_LOG_INFO("pkt payload pos: %d", pos);
-    }
-
-    // global tlv
-    spo2_packet[pos++] = 0xff;  // type
-    spo2_packet[pos++] = 0x06;  // length
-    spo2_packet[pos++] = 0x00;
-    spo2_packet[pos++] = 0x01;  // sensor id, max86141
-    spo2_packet[pos++] = 0x00;
-    spo2_packet[pos++] = 0x00;  // global tlv version
-    spo2_packet[pos++] = 0x00;  // instance id
-
-    spo2_seq_num_pos = pos;
-    if (log)
-    {
-        NRF_LOG_INFO("    seq num pos: %d", pos);
-    }
-
-    spo2_packet[pos++] = 0x00;  // sequence id
-    spo2_packet[pos++] = FIFO_READ_SAMPLES; // number of samples
-
-//    int num_reg_tlvs = 4;
-    for (int i = 0; i < 4; i++)
-    {
-        uint8_t reg = reg_tlvs[i].reg;
-        uint16_t num = reg_tlvs[i].num;
-
-        spo2_packet[pos++] = reg;
-        spo2_packet[pos++] = (uint8_t)(num & 0xff);
-        spo2_packet[pos++] = (uint8_t)(num >> 8);
-
-        for (uint16_t j = 0; j < num; j++)
-        {
-            spo2_packet[pos++] = read_reg(&spo2_ctx, reg + j);
-        }
-    }
-
-    spo2_packet[pos++] = REG_FIFO_DATA;
-
-    uint16_t fifo_size = FIFO_READ_SAMPLES * 3;
-    spo2_packet[pos++] = (uint8_t)(fifo_size & 0x00ff);
-    spo2_packet[pos++] = (uint8_t)(fifo_size >> 8);
-
-    spo2_fifo_begin_pos = pos;
-    spo2_crc_pos = pos + fifo_size;
-    if (log)
-    {
-        NRF_LOG_INFO(" fifo begin pos: %d", pos);
-        NRF_LOG_INFO("        crc pos: %d", spo2_crc_pos);
-    }
-
-    uint16_t payload_len = spo2_fifo_begin_pos + fifo_size - spo2_payload_pos;
-    if (log)
-    {
-        NRF_LOG_INFO("    payload len: %d", payload_len);
-    }
-
-    spo2_packet[spo2_pkt_len_pos] = (uint8_t)(payload_len & 0x00ff);
-    spo2_packet[spo2_pkt_len_pos + 1] = (uint8_t)(payload_len >> 8);
-
-    APP_ERROR_CHECK_BOOL(pos + fifo_size + 2 == 237);
-#endif
-}
-
 static void spo2_ctx_init()
 {
     spo2_ctx.xfer.p_tx_data = spo2_ctx.txbuf;
@@ -639,10 +504,10 @@ static void spo2_ctx_init()
     spo2_ctx.xfer.rx_length = 3;
 
     // spo2_ctx.spicfg = NRF_DRV_SPI_DEFAULT_CONFIG;
-    spo2_ctx.spicfg.ss_pin        = 8;
-    spo2_ctx.spicfg.sck_pin       = 11;
-    spo2_ctx.spicfg.mosi_pin      = 32 + 8;
-    spo2_ctx.spicfg.miso_pin      = 32 + 9;
+    spo2_ctx.spicfg.ss_pin        = MAX86141_SPO_CS_PIN;
+    spo2_ctx.spicfg.sck_pin       = MAX86141_SPO_CK_PIN;
+    spo2_ctx.spicfg.mosi_pin      = MAX86141_SPO_DI_PIN;
+    spo2_ctx.spicfg.miso_pin      = MAX86141_SPO_DO_PIN;
     spo2_ctx.spicfg.orc           = 0xff;
     spo2_ctx.spicfg.mode          = NRF_DRV_SPI_MODE_0;
     spo2_ctx.spicfg.irq_priority  = APP_IRQ_PRIORITY_LOWEST;
@@ -662,13 +527,13 @@ static void spo2_ctx_init()
 //    }
 //}
 
-#define MAX_RED_PA      0x60
-#define MAX_IR_PA       0x60
+//#define MAX_RED_PA      0x60
+//#define MAX_IR_PA       0x60
 
-#define MIN_RED_PA      0x10
-#define MIN_IR_PA       0x10
-#define PA_UP_STEP      0x04
-#define PA_DOWN_STEP    0x10
+//#define MIN_RED_PA      0x10
+//#define MIN_IR_PA       0x10
+//#define PA_UP_STEP      0x04
+//#define PA_DOWN_STEP    0x10
 
 static void dynamic(uint32_t ir, uint32_t red)
 {
@@ -743,8 +608,6 @@ static bool is_invalid(uint8_t msb)
 
 static void max86141_task(void * pvParameters)
 {
-    // ret_code_t err_code;
-
     spo2_ctx_init();
     if (PRINT_REGISTERS)
     {
@@ -753,21 +616,16 @@ static void max86141_task(void * pvParameters)
     }
 
     max86141_init(&spo2_ctx);
-    spo2_packet_init(false);
+    // spo2_packet_init(false);
     max86141_run(&spo2_ctx);
 
     NRF_LOG_INFO("max86141 started");
 
 #if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
-    // https://www.freertos.org/xtaskdelayuntiltask-control.html    not available
-    // https://www.freertos.org/vtaskdelayuntil.html
-    // TickType_t xLastWakeTime;
-    TickType_t xFrequency = 21;
+    TickType_t xFrequency = 20;
     uint8_t count = 0;
-    // xLastWakeTime = xTaskGetTickCount();
     for (;;)
     {
-        // vTaskDelayUntil(&xLastWakeTime, xFrequency);
         vTaskDelay(xFrequency);
 
         read_fifo_count:
@@ -778,11 +636,11 @@ static void max86141_task(void * pvParameters)
             vTaskDelay(4);
             goto read_fifo_count;
         }
-//        else
-//        {
-//            NRF_LOG_INFO("[%d] data count: %d", xTaskGetTickCount(), count);
-//        }
-
+        else
+        {
+            // NRF_LOG_INFO("[%d] data count: %d", xTaskGetTickCount(),count);
+        }
+        
         read_fifo_rougu(&spo2_ctx);
 
         rougu[0] = 0x18;
@@ -796,19 +654,19 @@ static void max86141_task(void * pvParameters)
         /* reversed data observed */
         if ((buf[0] >> 3) == 1) // if IR first
         {
-            rougu[2] = buf[3];
+            rougu[2] = buf[3] & 0x07;   // seems that rougu client not confused by tag
             rougu[3] = buf[4];
             rougu[4] = buf[5];
-            rougu[5] = buf[0];
+            rougu[5] = buf[0] & 0x07;
             rougu[6] = buf[1];
             rougu[7] = buf[2];
         }
         else // otherwise
         {
-            rougu[2] = buf[0];
+            rougu[2] = buf[0] & 0x07;
             rougu[3] = buf[1];
             rougu[4] = buf[2];
-            rougu[5] = buf[3];
+            rougu[5] = buf[3] & 0x07;
             rougu[6] = buf[4];
             rougu[7] = buf[5];
         }
@@ -840,114 +698,30 @@ static void max86141_task(void * pvParameters)
             cdc_acm_send_packet(rougu, sizeof(rougu));
         }
 
-        xFrequency = count > 10 ? 19 : 21;
+        xFrequency = count > 10 ? 19 : 20;
     }
 #else
-#endif
-
-
-    for (int i = 0;;i++)
+    TickType_t xFrequency = 21;
+    uint8_t spo_count = 0;
+    uint8_t abp_count = 0;
+    for (;;)
     {
-        vTaskDelay(200);
-
-        uint8_t intstat1 = read_reg(&spo2_ctx, REG_INT_STAT_1);
-
-        // NRF_LOG_INFO("intstat1 %02x", intstat1);
-
-        if (0x80 & intstat1)  // A_FULL
+        vTaskDelay(xFrequency);
+        
+        spo_count = read_reg(&spo2_ctx, REG_FIFO_DATA_COUNT);
+        if (spo_count >= 60)
         {
-            uint8_t ovrc = read_reg(&spo2_ctx, REG_OVF_COUNTER);
-            uint8_t datc1 = read_reg(&spo2_ctx, REG_FIFO_DATA_COUNT);
-            read_fifo(&spo2_ctx);
-            uint8_t datc2 = read_reg(&spo2_ctx, REG_FIFO_DATA_COUNT);
-
-            NRF_LOG_INFO("ovrc: %d, datc1: %d, datac2: %d", ovrc, datc1, datc2);
-
-#if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
-            uint32_t total_red = 0;
-            uint32_t total_ir = 0;
-
-            for (int k = 0; k < FIFO_READ_SAMPLES / 2; k++)
-            {
-                // int tag1 = ( buf[k*6+0] >>  3) & 0x1f;
-                // int led1 = ((buf[k*6+0] << 16) | (buf[k*6+1] << 8) | (buf[k*6+2])) & 0x7ffff;
-                // int tag2 = ( buf[k*6+3] >>  3) & 0x1f;
-                // int led2 = ((buf[k*6+3] << 16) | (buf[k*6+4] << 8) | (buf[k*6+5])) & 0x7ffff;
-                spo2_sample_t smpl;
-                smpl.byte[0] = buf[k * 6 + 0]; // & 0x07;
-                smpl.byte[1] = buf[k * 6 + 1];
-                smpl.byte[2] = buf[k * 6 + 2];
-                smpl.byte[3] = buf[k * 6 + 3]; // & 0x07;
-                smpl.byte[4] = buf[k * 6 + 4];
-                smpl.byte[5] = buf[k * 6 + 5];
-
-                if (is_invalid(buf[k * 6 + 0]) || is_invalid(buf[k * 6 + 3]))
-                {
-                    NRF_LOG_RAW_HEXDUMP_INFO(&smpl.byte[0], 6);
-                }
-
-                // in schematic, led1 is ir, led2 is red
-                // total_ir  += ((uint32_t)smpl.byte[0] << 16) + ((uint32_t)smpl.byte[1] << 8) + (uint32_t)smpl.byte[2];
-                // total_red += ((uint32_t)smpl.byte[3] << 16) + ((uint32_t)smpl.byte[4] << 8) + (uint32_t)smpl.byte[5];
-
-
-
-//                if (cdc_acm_port_open())
-//                {
-//                    rougu_enqueue(&smpl);
-//                }
-//                else
-//                {
-//                    NRF_LOG_INFO("cdc acm closed???");
-//                }
-            }
-
-            // uint32_t ir_avg = total_ir / (FIFO_READ_SAMPLES / 2);
-            // uint32_t red_avg = total_red / (FIFO_READ_SAMPLES / 2);
-            // dynamic(ir_avg, red_avg);
-#else
-
-#endif
+            
         }
+        
+       
     }
+    
+#endif
+
 }
 
-      // NRF_LOG_INFO("read fifo done %d", j);
 
-//      for (int k = 0; k < FIFO_READ_SAMPLES / 2; k++)
-//      {
-//        int tag1 = ( buf[k*6+0] >>  3) & 0x1f;
-//        int led1 = ((buf[k*6+0] << 16) | (buf[k*6+1] << 8) | (buf[k*6+2])) & 0x7ffff;
-//        int tag2 = ( buf[k*6+3] >>  3) & 0x1f;
-//        int led2 = ((buf[k*6+3] << 16) | (buf[k*6+4] << 8) | (buf[k*6+5])) & 0x7ffff;
-//
-//        // NRF_LOG_RAW_INFO("%d, %d, %d, %d\n", tag1, led1, tag2, led2);
-//        NRF_LOG_RAW_INFO("%d, %d, %d\n", line++, led1, led2);
-//      }
-//      j++;
-
-//      memcpy(&spo2_packet[spo2_fifo_begin_pos], buf, FIFO_READ_SAMPLES * 3);
-//      spo2_packet[spo2_seq_num_pos] += 1;
-//      simple_crc(&spo2_packet[spo2_type_pos],
-//                 &spo2_packet[spo2_crc_pos],
-//                 &spo2_packet[spo2_crc_pos + 1]);
-//
-//      NRF_LOG_INFO("seq %d, cka %d, ckb %d",
-//        spo2_packet[spo2_seq_num_pos],
-//        spo2_packet[spo2_crc_pos],
-//        spo2_packet[spo2_crc_pos + 1]);
-
-
-//      for (int k = 0; k < spo2_crc_pos + 2; k++)
-//      {
-//        // app_uart_put(spo2_packet[k]);
-//      }
-
-
-        // vTaskDelay(16);
-
-    // static int counter = 0;
-    // NRF_LOG_INFO("max86141 %d", counter++);
 
 void app_max86141_freertos_init(void)
 {

@@ -3,7 +3,6 @@
 #include <stddef.h>
 #include <stdio.h>
 
-#include "FreeRTOSConfig.h"
 #include "FreeRTOS.h"
 #include "queue.h"
 #include "task.h"
@@ -39,28 +38,6 @@
 #define NOT_INSIDE_ISR          (( SCB->ICSR & SCB_ICSR_VECTACTIVE_Msk ) == 0 )
 #define INSIDE_ISR              (!(NOT_INSIDE_ISR))
 
-#if 0
-
-#define ROUGU_QUEUE_LENGTH            100
-#define ROUGU_QUEUE_ITEM_SIZE         6
-
-static  QueueHandle_t m_rougu_queue = NULL;
-
-const nrfx_timer_t timer2 = NRFX_TIMER_INSTANCE(2);
-
-static const nrfx_timer_config_t timer2_config = {
-    .frequency = NRF_TIMER_FREQ_250kHz,
-    .mode = NRF_TIMER_MODE_TIMER,
-    .bit_width = NRF_TIMER_BIT_WIDTH_32,
-    .interrupt_priority = 3,    // NRFX_TIMER_DEFAULT_CONFIG_IRQ_PRIORITY is 6, and smaller
-                                // value means higher priority
-    .p_context = NULL // &ctx,
-};
-
-static void timer2_callback(nrf_timer_event_t event_type, void * p_context);
-
-#else
-
 typedef __packed struct pending_item {
     uint8_t * p_pkt;
     uint32_t size;
@@ -69,10 +46,7 @@ typedef __packed struct pending_item {
 static QueueHandle_t m_pending_queue = NULL;
 static uint8_t * p_pkt_sending = NULL;
 
-#endif
-
 static TaskHandle_t m_usbcdc_thread;
-// static  bool usbd_running = false;
 
 #if NRF_CLI_ENABLED
 /**
@@ -162,10 +136,7 @@ static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const * p_inst,
         {
             NRF_LOG_INFO("cdc acm port open (inside isr %d)", (INSIDE_ISR) ? 1 : 0);
             m_cdc_acm_port_open = true;
-#if 0
-            xQueueReset(m_rougu_queue);
-            nrfx_timer_enable(&timer2);
-#endif
+
             /*Setup first transfer*/
             ret_code_t ret = app_usbd_cdc_acm_read(&m_app_cdc_acm,
                                                    m_rx_buffer,
@@ -175,9 +146,7 @@ static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const * p_inst,
         }
         case APP_USBD_CDC_ACM_USER_EVT_PORT_CLOSE: {
             m_cdc_acm_port_open = false;
-#if 0
-            nrfx_timer_disable(&timer2);
-#else
+
             if (p_pkt_sending)
             {
                 NRF_LOG_INFO("clearing sending item when port close");
@@ -196,12 +165,9 @@ static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const * p_inst,
             }
 
             NRF_LOG_INFO("cdc acm port close (pending %d)", uxQueueMessagesWaiting(m_pending_queue));
-#endif
             break;
         }
         case APP_USBD_CDC_ACM_USER_EVT_TX_DONE: {   // assume this is isr context
-#if 0
-#else
             if (p_pkt_sending)
             {
                 // vPortFree(p_pkt_sending);
@@ -235,7 +201,6 @@ static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const * p_inst,
                     goto try_next_item;
                 }
             }
-#endif
             break;
         }
         case APP_USBD_CDC_ACM_USER_EVT_RX_DONE:
@@ -374,162 +339,18 @@ static void init_cli(void)
 }
 #endif
 
-#if 0
-static uint8_t rougu[15] = { 0 };
-
-//          uint16_t sigma = 0;
-//          for (int i = 0; i < 14; i++)
-//          {
-//              sigma += (uint16_t)rougu[i];
-//          }
-//          rougu[14] = ((~sigma)+1) & 0xff;
-// size_t size = sprintf(m_tx_buffer, "USB CDC Timer fired: %u\r\n", frame_counter);
-static void timer2_callback(nrf_timer_event_t event_type, void * p_context)
-{
-    switch (event_type)
-    {
-        case NRF_TIMER_EVENT_COMPARE0: {
-
-            spo2_sample_t sample;
-            static int counter = 0;
-            static int speed = 0;
-
-            if (pdTRUE != xQueueReceiveFromISR(m_rougu_queue, &sample, NULL))
-            {
-                return;
-            }
-
-            rougu[0] = 0x18;
-            rougu[1] = 0xff;
-            rougu[2] = sample.byte[3];
-            rougu[3] = sample.byte[4];
-            rougu[4] = sample.byte[5];
-            rougu[5] = sample.byte[0];
-            rougu[6] = sample.byte[1];
-            rougu[7] = sample.byte[2];
-            rougu[8] = rougu[2];
-            rougu[9] = rougu[3];
-            rougu[10] = rougu[4];
-            rougu[11] = rougu[5];
-            rougu[12] = rougu[6];
-            rougu[13] = rougu[7];
-
-            uint16_t sum = 0;
-            for (int j = 0; j < 14; j++)
-            {
-                sum += (uint16_t)rougu[j];
-            }
-
-            if (sum < 256)
-            {
-                rougu[14] = sum;
-            }
-            else;
-            {
-                rougu[14] = ((~sum)+1) & 0xff;
-            }
-
-            // rougu[14] = (sum < 255) ? (uint8_t)sum : (uint8_t)(((~sum) + 1) & 0xff);
-
-            ret_code_t err_code = app_usbd_cdc_acm_write(&m_app_cdc_acm, rougu, sizeof(rougu));
-            if (err_code == NRF_SUCCESS)
-            {
-                counter++;
-                if (counter % 1000 == 0)
-                {
-                    NRF_LOG_INFO("%d packets sent", counter);
-                };
-            }
-            else
-            {
-               NRF_LOG_INFO("cdc_acm_write failed, error %d", err_code);
-            }
-
-            int waiting = uxQueueMessagesWaitingFromISR(m_rougu_queue);
-            int expect = 0;
-            if (waiting > 60)
-            {
-                expect = 3;
-            }
-            else if (waiting > 48)
-            {
-                expect = 2;
-            }
-            else if (waiting > 36)
-            {
-                expect = 1;
-            }
-
-            if (expect != speed)
-            {
-                uint32_t cc = 5000 - 1; // accurate
-                if (expect == 1)
-                {
-                    cc = 4900 - 1;      // 2%
-                }
-                else if (expect == 2)
-                {
-                    cc = 4500 - 1;      // 10%
-                }
-                else if (expect == 3)
-                {
-                    cc = 2500 - 1;      // 40%
-                }
-
-                nrfx_timer_extended_compare(&timer2, NRF_TIMER_CC_CHANNEL0, cc,
-                    NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK, true);
-
-
-                // NRF_LOG_INFO("waiting %d, %s", waiting, (expect == 0) ? "-" : (expect == 1) ? "+2%" : (expect == 2) ? "+11%" : "+100%");
-                speed = expect;
-            }
-
-
-        }   break;
-        default:
-            break;
-    }
-}
-
-#endif
-
 bool cdc_acm_port_open()
 {
     // return nrfx_timer_is_enabled(&timer2);
     return m_cdc_acm_port_open;
 }
 
-#if 0
-
-void rougu_enqueue(spo2_sample_t * p_smpl)
-{
-    if (pdTRUE != xQueueSend(m_rougu_queue, p_smpl, 0))
-    {
-        NRF_LOG_INFO("samples dropped due to queue full");
-    }
-}
-
-#endif
-
 static void usbcdc_task(void * pvParameters)
 {
     ret_code_t err_code;
 
-#if 0
-    m_rougu_queue = xQueueCreate(ROUGU_QUEUE_LENGTH, ROUGU_QUEUE_ITEM_SIZE);
-    APP_ERROR_CHECK_BOOL(m_rougu_queue != NULL);
-
-    nrfx_err_t err = nrfx_timer_init(&timer2, &timer2_config, timer2_callback);
-    APP_ERROR_CHECK(err);
-
-    nrfx_timer_extended_compare(&timer2, NRF_TIMER_CC_CHANNEL0, (4900),
-        NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK, true);
-#else
-
     m_pending_queue = xQueueCreate(8, sizeof(pending_item_t));
     APP_ERROR_CHECK_BOOL(m_pending_queue != NULL);
-
-#endif
 
     static const app_usbd_config_t usbd_config = {
         .ev_isr_handler = usb_new_event_isr_handler,
@@ -598,8 +419,6 @@ static void usbcdc_task(void * pvParameters)
 
 void cdc_acm_send_packet(uint8_t * p_pkt, uint32_t size)
 {
-#if 0
-#else
     if (!m_cdc_acm_port_open)
     {
         // vPortFree(p_pkt);
@@ -638,7 +457,6 @@ void cdc_acm_send_packet(uint8_t * p_pkt, uint32_t size)
         NRF_LOG_INFO("cdc acm write error %x04x%", err_code);
         // vPortFree(p_pkt);
     }
-#endif
 }
 
 void app_usbcdc_freertos_init(void)

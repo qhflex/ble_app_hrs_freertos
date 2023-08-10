@@ -5,6 +5,8 @@
 #include "nrf_drv_spi.h"
 #include "nrf_spi_mngr.h"
 
+#define MIMIC_ROUGU             1
+
 #define TAGLIST_SIZE            16
 
 //MAX86141 Registry addresses

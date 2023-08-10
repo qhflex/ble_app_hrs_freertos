@@ -20,8 +20,6 @@
 #define NRF_LOG_BACKEND_UART_TEMP_BUFFER_SIZE           1024
 #endif
 
-#define MIMIC_ROUGU                                 1
-
 #define NRFX_CLOCK_CONFIG_LF_SRC                    0
 #define CLOCK_CONFIG_LF_SRC                         0
 #define CLOCK_CONFIG_LF_CAL_ENABLED                 1
