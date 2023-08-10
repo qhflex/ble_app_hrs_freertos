@@ -212,16 +212,6 @@ typedef struct __attribute__((packed)) max86141_cfg
 
 typedef struct max86141_ctx
 {
-  int ledModeSize;
-  int num_photo_diodes;       // number of photo diodes, 1 for single, otherwise dual
-  int *ledMode;
-  int number_leds;
-  int intensity_led;
-  int sample_average;
-  int sample_rate;
-  int pulse_width;
-  int adcRange;
-
   const max86141_cfg_t *        p_maxcfg;
 
   char tags[TAGLIST_SIZE];

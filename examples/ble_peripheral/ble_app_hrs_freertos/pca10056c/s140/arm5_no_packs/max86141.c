@@ -1,3 +1,6 @@
+/*******************************************************************************
+ * INCLUDES
+ */
 #include "FreeRTOS.h"
 #include "task.h"
 #include "semphr.h"
@@ -5,13 +8,9 @@
 #include "nrfx_gpiote.h"
 
 #include "nrf_log.h"
-#include "nrf_assert.h"
+// #include "nrf_assert.h"
 
 #include "nrf_spi_mngr.h"
-
-#include "nrf_uart.h"
-#include "app_uart.h"
-#include "app_fifo.h"
 
 #include "usbcdc.h"
 #include "max86141.h"
@@ -25,7 +24,7 @@
  * CONSTANTS
  */
 
- /*********************************************************************
+/*********************************************************************
  * TYPEDEFS
  */
 
@@ -33,19 +32,19 @@
  * GLOBAL VARIABLES
  */
 
- /*********************************************************************
+/*********************************************************************
  * LOCAL VARIABLES
  */
 
- /*********************************************************************
+/*********************************************************************
  * LOCAL FUNCTIONS
  */
 
- /*********************************************************************
+/*********************************************************************
  * EXTERN FUNCTIONS
  */
 
- /*********************************************************************
+/*********************************************************************
  * PROFILE CALLBACKS
  */
 
@@ -53,20 +52,14 @@
  * PUBLIC FUNCTIONS
  */
 
- /*********************************************************************
-  *
-  *
-  *
-  *********************************************************************/
 
- /*********************************************************************
+/*********************************************************************
  * MACROS
  */
-
 #define REGVAL(x)                           (*((uint8_t *)&x))
 #define CFGVAL(x)                           REGVAL(ctx->p_maxcfg->x)
 
- /*********************************************************************
+/*********************************************************************
  * CONSTANTS
  */
 
@@ -93,8 +86,9 @@
 /* this value only determine when the interrupt is fired */
 #define FIFO_READ_SAMPLES                   MAX86141_NUM_OF_SAMPLES // 60 * 3 + 2 should not exceed 255 (uint8_t of spi rx buf size)
 #define SPI_FIFO_RX_SIZE                    ((FIFO_READ_SAMPLES * 3) + 2)
+#define SPI_FIFO_RX_SIZE_ROUGU              (2 * 3 + 2)
 
- /*********************************************************************
+/*********************************************************************
  * TYPEDEFS
  */
 
@@ -102,7 +96,7 @@
  * GLOBAL VARIABLES
  */
 
- /*********************************************************************
+/**********************************************************************
  * LOCAL VARIABLES
  */
 static TaskHandle_t m_max86141_thread = NULL;
@@ -113,7 +107,14 @@ const static uint8_t spi_fifo_tx[2] = { REG_FIFO_DATA, REG_OP_READ };
 static uint8_t spi_fifo_rx[SPI_FIFO_RX_SIZE] = {0};
 static uint8_t * buf = &spi_fifo_rx[2];
 
+static uint8_t rougu[15] = {0};
+
 const static nrf_spi_mngr_transfer_t max86141_fifo_xfers[] =
+{
+  NRF_SPI_MNGR_TRANSFER(spi_fifo_tx, 2, spi_fifo_rx, SPI_FIFO_RX_SIZE),
+};
+
+const static nrf_spi_mngr_transfer_t max86141_fifo_xfers_rougu[] =
 {
   NRF_SPI_MNGR_TRANSFER(spi_fifo_tx, 2, spi_fifo_rx, SPI_FIFO_RX_SIZE),
 };
@@ -126,7 +127,10 @@ const static max86141_cfg_t spo2_maxcfg = {
     .fifo_a_full  = (128 - FIFO_READ_SAMPLES),
   },
   .fifocfg2 = {
-    .fifo_ro      = 1,      // drop old samples when fifo full
+    .flush_fifo     = 1,    // required
+    .fifo_stat_clr  = 1,    // not sure TODO
+    .a_full_type    = 1,    // not sure TODO
+    .fifo_ro        = 1,    // drop old samples when fifo full
   },
   .sysctrl = {
     .single_ppg   = 1,      // only one channle is used
@@ -277,23 +281,20 @@ static max86141_ctx_t abp_ctx = {
 static void write_reg(max86141_ctx_t * ctx, uint8_t addr, uint8_t data_in);
 static uint8_t read_reg(max86141_ctx_t * ctx, uint8_t addr);
 static void print_registers(max86141_ctx_t * ctx);
-
-// static void spo2_init_packet(void);
 static void max86141_init(max86141_ctx_t * ctx);
 static void max86141_run(max86141_ctx_t * ctx);
 static void read_fifo(max86141_ctx_t * ctx);
-
 static void dynamic(uint32_t ir, uint32_t red);
 
- /*********************************************************************
+/*********************************************************************
  * EXTERN FUNCTIONS
  */
 
- /*********************************************************************
+/*********************************************************************
  * PROFILE CALLBACKS
  */
 
-/**********************************************************************
+/******************************************************************************
  * PUBLIC FUNCTIONS
  */
 
@@ -335,6 +336,13 @@ static void read_fifo(max86141_ctx_t * ctx)
 {
     ret_code_t err_code;
     err_code = nrf_spi_mngr_perform(&m_max86141_spi_mngr, &ctx->spicfg, max86141_fifo_xfers, 1, NULL);
+    APP_ERROR_CHECK(err_code);
+}
+
+static void read_fifo_rougu(max86141_ctx_t * ctx)
+{
+    ret_code_t err_code;
+    err_code = nrf_spi_mngr_perform(&m_max86141_spi_mngr, &ctx->spicfg, max86141_fifo_xfers_rougu, 1, NULL);
     APP_ERROR_CHECK(err_code);
 }
 
@@ -662,9 +670,10 @@ static void spo2_ctx_init()
 #define PA_UP_STEP      0x04
 #define PA_DOWN_STEP    0x10
 
-
 static void dynamic(uint32_t ir, uint32_t red)
 {
+    (void)dynamic;
+
 #if 0
     static uint8_t led1_ir  = 0;
     static uint8_t led2_red = 0;
@@ -727,6 +736,11 @@ static void dynamic(uint32_t ir, uint32_t red)
 #endif
 }
 
+static bool is_invalid(uint8_t msb)
+{
+    return ((msb >> 3) == 0x1e);
+}
+
 static void max86141_task(void * pvParameters)
 {
     // ret_code_t err_code;
@@ -744,17 +758,110 @@ static void max86141_task(void * pvParameters)
 
     NRF_LOG_INFO("max86141 started");
 
-    // int line = 0;
-    // int j = 0;
+#if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
+    // https://www.freertos.org/xtaskdelayuntiltask-control.html    not available
+    // https://www.freertos.org/vtaskdelayuntil.html
+    // TickType_t xLastWakeTime;
+    TickType_t xFrequency = 21;
+    uint8_t count = 0;
+    // xLastWakeTime = xTaskGetTickCount();
+    for (;;)
+    {
+        // vTaskDelayUntil(&xLastWakeTime, xFrequency);
+        vTaskDelay(xFrequency);
+
+        read_fifo_count:
+        count = read_reg(&spo2_ctx, REG_FIFO_DATA_COUNT);
+
+        if (count < 2) {
+            NRF_LOG_INFO("[%d] data count: %d, wait a few ticks", xTaskGetTickCount(),count);
+            vTaskDelay(4);
+            goto read_fifo_count;
+        }
+//        else
+//        {
+//            NRF_LOG_INFO("[%d] data count: %d", xTaskGetTickCount(), count);
+//        }
+
+        read_fifo_rougu(&spo2_ctx);
+
+        rougu[0] = 0x18;
+        rougu[1] = 0xff;
+
+        /* tag 00001 LEDC1 which is IR
+           tag 00010 LEDC2 which is RED
+           tag 00011 LEDC3 which is GREEN */
+
+        /* rougu protocol requires RED @ [2-4] and IR @ [5-7] */
+        /* reversed data observed */
+        if ((buf[0] >> 3) == 1) // if IR first
+        {
+            rougu[2] = buf[3];
+            rougu[3] = buf[4];
+            rougu[4] = buf[5];
+            rougu[5] = buf[0];
+            rougu[6] = buf[1];
+            rougu[7] = buf[2];
+        }
+        else // otherwise
+        {
+            rougu[2] = buf[0];
+            rougu[3] = buf[1];
+            rougu[4] = buf[2];
+            rougu[5] = buf[3];
+            rougu[6] = buf[4];
+            rougu[7] = buf[5];
+        }
+
+        rougu[8] = rougu[2];
+        rougu[9] = rougu[3];
+        rougu[10] = rougu[4];
+        rougu[11] = rougu[5];
+        rougu[12] = rougu[6];
+        rougu[13] = rougu[7];
+
+        uint16_t sum = 0;
+        for (int j = 0; j < 14; j++)
+        {
+            sum += (uint16_t)rougu[j];
+        }
+
+        if (sum < 256)
+        {
+            rougu[14] = sum;
+        }
+        else;
+        {
+            rougu[14] = ((~sum)+1) & 0xff;
+        }
+
+        if (cdc_acm_port_open())
+        {
+            cdc_acm_send_packet(rougu, sizeof(rougu));
+        }
+
+        xFrequency = count > 10 ? 19 : 21;
+    }
+#else
+#endif
+
+
     for (int i = 0;;i++)
     {
-        vTaskDelay(100);
+        vTaskDelay(200);
 
-        // uint8_t intstat1 = ;
-        if (cdc_acm_port_open() && (0x80 & read_reg(&spo2_ctx, REG_INT_STAT_1)))  // A_FULL
+        uint8_t intstat1 = read_reg(&spo2_ctx, REG_INT_STAT_1);
+
+        // NRF_LOG_INFO("intstat1 %02x", intstat1);
+
+        if (0x80 & intstat1)  // A_FULL
         {
-            // static int fifo_count;
+            uint8_t ovrc = read_reg(&spo2_ctx, REG_OVF_COUNTER);
+            uint8_t datc1 = read_reg(&spo2_ctx, REG_FIFO_DATA_COUNT);
             read_fifo(&spo2_ctx);
+            uint8_t datc2 = read_reg(&spo2_ctx, REG_FIFO_DATA_COUNT);
+
+            NRF_LOG_INFO("ovrc: %d, datc1: %d, datac2: %d", ovrc, datc1, datc2);
 
 #if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
             uint32_t total_red = 0;
@@ -767,23 +874,37 @@ static void max86141_task(void * pvParameters)
                 // int tag2 = ( buf[k*6+3] >>  3) & 0x1f;
                 // int led2 = ((buf[k*6+3] << 16) | (buf[k*6+4] << 8) | (buf[k*6+5])) & 0x7ffff;
                 spo2_sample_t smpl;
-                smpl.byte[0] = buf[k * 6 + 0] & 0x07;
+                smpl.byte[0] = buf[k * 6 + 0]; // & 0x07;
                 smpl.byte[1] = buf[k * 6 + 1];
                 smpl.byte[2] = buf[k * 6 + 2];
-                smpl.byte[3] = buf[k * 6 + 3] & 0x07;
+                smpl.byte[3] = buf[k * 6 + 3]; // & 0x07;
                 smpl.byte[4] = buf[k * 6 + 4];
                 smpl.byte[5] = buf[k * 6 + 5];
 
-                // in schematic, led1 is ir, led2 is red
-                total_ir  += ((uint32_t)smpl.byte[0] << 16) + ((uint32_t)smpl.byte[1] << 8) + (uint32_t)smpl.byte[2];
-                total_red += ((uint32_t)smpl.byte[3] << 16) + ((uint32_t)smpl.byte[4] << 8) + (uint32_t)smpl.byte[5];
+                if (is_invalid(buf[k * 6 + 0]) || is_invalid(buf[k * 6 + 3]))
+                {
+                    NRF_LOG_RAW_HEXDUMP_INFO(&smpl.byte[0], 6);
+                }
 
-                rougu_enqueue(&smpl);
+                // in schematic, led1 is ir, led2 is red
+                // total_ir  += ((uint32_t)smpl.byte[0] << 16) + ((uint32_t)smpl.byte[1] << 8) + (uint32_t)smpl.byte[2];
+                // total_red += ((uint32_t)smpl.byte[3] << 16) + ((uint32_t)smpl.byte[4] << 8) + (uint32_t)smpl.byte[5];
+
+
+
+//                if (cdc_acm_port_open())
+//                {
+//                    rougu_enqueue(&smpl);
+//                }
+//                else
+//                {
+//                    NRF_LOG_INFO("cdc acm closed???");
+//                }
             }
 
-            uint32_t ir_avg = total_ir / (FIFO_READ_SAMPLES / 2);
-            uint32_t red_avg = total_red / (FIFO_READ_SAMPLES / 2);
-            dynamic(ir_avg, red_avg);
+            // uint32_t ir_avg = total_ir / (FIFO_READ_SAMPLES / 2);
+            // uint32_t red_avg = total_red / (FIFO_READ_SAMPLES / 2);
+            // dynamic(ir_avg, red_avg);
 #else
 
 #endif

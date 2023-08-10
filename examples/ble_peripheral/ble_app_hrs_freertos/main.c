@@ -638,11 +638,23 @@ int main(void)
     // app_m601z_freertos_init();
     // app_qma6110p_freertos_init();
 
+    // app_ads1292r_freertos_init();
+    // app_max86141_freertos_init();
+    // app_usbcdc_freertos_init();
+
+#if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
+    app_max86141_freertos_init();
+    app_usbcdc_freertos_init();
+    NRF_LOG_INFO("Program started in mimic_rougu mode.");
+#else
+    // app_m601z_freertos_init();
+    // app_qma6110p_freertos_init();
+
     app_ads1292r_freertos_init();
     app_max86141_freertos_init();
     app_usbcdc_freertos_init();
-
-    NRF_LOG_INFO("HRS FreeRTOS example started.");
+    NRF_LOG_INFO("Program started in standard mode.");
+#endif
 
     // Start FreeRTOS scheduler.
     vTaskStartScheduler();

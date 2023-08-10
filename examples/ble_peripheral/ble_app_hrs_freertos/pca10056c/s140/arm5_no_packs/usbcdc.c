@@ -39,7 +39,7 @@
 #define NOT_INSIDE_ISR          (( SCB->ICSR & SCB_ICSR_VECTACTIVE_Msk ) == 0 )
 #define INSIDE_ISR              (!(NOT_INSIDE_ISR))
 
-#if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
+#if 0
 
 #define ROUGU_QUEUE_LENGTH            100
 #define ROUGU_QUEUE_ITEM_SIZE         6
@@ -72,7 +72,7 @@ static uint8_t * p_pkt_sending = NULL;
 #endif
 
 static TaskHandle_t m_usbcdc_thread;
-static  bool usbd_running = false;
+// static  bool usbd_running = false;
 
 #if NRF_CLI_ENABLED
 /**
@@ -142,9 +142,11 @@ APP_USBD_CDC_ACM_GLOBAL_DEF(m_app_cdc_acm,
 
 static bool m_cdc_acm_port_open = false;
 
+// see peripheral/usbd_cdc_acm/main.c:138
+
 static char m_rx_buffer[READ_SIZE];
-static char m_tx_buffer[NRF_DRV_USBD_EPSIZE];
-static bool m_send_flag = 0;
+// static char m_tx_buffer[NRF_DRV_USBD_EPSIZE];
+// static bool m_send_flag = 0;
 
 /**
  * @brief User event handler @ref app_usbd_cdc_acm_user_ev_handler_t (headphones)
@@ -160,7 +162,7 @@ static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const * p_inst,
         {
             NRF_LOG_INFO("cdc acm port open (inside isr %d)", (INSIDE_ISR) ? 1 : 0);
             m_cdc_acm_port_open = true;
-#if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
+#if 0
             xQueueReset(m_rougu_queue);
             nrfx_timer_enable(&timer2);
 #endif
@@ -173,7 +175,7 @@ static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const * p_inst,
         }
         case APP_USBD_CDC_ACM_USER_EVT_PORT_CLOSE: {
             m_cdc_acm_port_open = false;
-#if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
+#if 0
             nrfx_timer_disable(&timer2);
 #else
             if (p_pkt_sending)
@@ -198,7 +200,7 @@ static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const * p_inst,
             break;
         }
         case APP_USBD_CDC_ACM_USER_EVT_TX_DONE: {   // assume this is isr context
-#if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
+#if 0
 #else
             if (p_pkt_sending)
             {
@@ -372,7 +374,7 @@ static void init_cli(void)
 }
 #endif
 
-#if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
+#if 0
 static uint8_t rougu[15] = { 0 };
 
 //          uint16_t sigma = 0;
@@ -497,7 +499,7 @@ bool cdc_acm_port_open()
     return m_cdc_acm_port_open;
 }
 
-#if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
+#if 0
 
 void rougu_enqueue(spo2_sample_t * p_smpl)
 {
@@ -513,7 +515,7 @@ static void usbcdc_task(void * pvParameters)
 {
     ret_code_t err_code;
 
-#if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
+#if 0
     m_rougu_queue = xQueueCreate(ROUGU_QUEUE_LENGTH, ROUGU_QUEUE_ITEM_SIZE);
     APP_ERROR_CHECK_BOOL(m_rougu_queue != NULL);
 
@@ -596,7 +598,7 @@ static void usbcdc_task(void * pvParameters)
 
 void cdc_acm_send_packet(uint8_t * p_pkt, uint32_t size)
 {
-#if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
+#if 0
 #else
     if (!m_cdc_acm_port_open)
     {
