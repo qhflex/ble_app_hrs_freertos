@@ -6,6 +6,7 @@
 !config/
 !examples/
 !external/
+!modules/
 
 examples/*
 !examples/ble_peripheral/
