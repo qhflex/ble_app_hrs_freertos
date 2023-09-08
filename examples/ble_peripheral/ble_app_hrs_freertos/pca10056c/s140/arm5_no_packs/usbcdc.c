@@ -30,9 +30,10 @@
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 
+#include "max86141.h"
 #include "usbcdc.h"
 
-#define TSK_USBCDC_STACK_SIZE   (256)
+#define TSK_USBCDC_STACK_SIZE   (512)
 #define TSK_USBCDC_PRIORITY      1
 
 #define NOT_INSIDE_ISR          (( SCB->ICSR & SCB_ICSR_VECTACTIVE_Msk ) == 0 )
@@ -116,11 +117,19 @@ APP_USBD_CDC_ACM_GLOBAL_DEF(m_app_cdc_acm,
 
 static bool m_cdc_acm_port_open = false;
 
+static void handle_command(uint16_t type, uint16_t length, uint8_t * payload)
+{
+    // this function switch by type, it does not understand instanceId, 
+    // if this is required, we can chaining all handlers, of which only one really works.
+    
+    NRF_LOG_INFO("recv cmd, type: %d, len: %d", type, length);
+}
+
 // see peripheral/usbd_cdc_acm/main.c:138
 
-static char m_rx_buffer[READ_SIZE];
-// static char m_tx_buffer[NRF_DRV_USBD_EPSIZE];
-// static bool m_send_flag = 0;
+// static char m_rx_buffer[50];
+// static int m_rx_bytes_in_buffer = 0;
+// static char m_incomming_
 
 /**
  * @brief User event handler @ref app_usbd_cdc_acm_user_ev_handler_t (headphones)
@@ -128,6 +137,7 @@ static char m_rx_buffer[READ_SIZE];
 static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const * p_inst,
                                     app_usbd_cdc_acm_user_event_t event)
 {
+    static uint8_t rxchar;
     app_usbd_cdc_acm_t const * p_cdc_acm = app_usbd_cdc_acm_class_get(p_inst);
 
     switch (event)
@@ -137,10 +147,8 @@ static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const * p_inst,
             NRF_LOG_INFO("cdc acm port open (inside isr %d)", (INSIDE_ISR) ? 1 : 0);
             m_cdc_acm_port_open = true;
 
-            /*Setup first transfer*/
-            ret_code_t ret = app_usbd_cdc_acm_read(&m_app_cdc_acm,
-                                                   m_rx_buffer,
-                                                   READ_SIZE);
+            /* bootstrap rx */
+            ret_code_t ret = app_usbd_cdc_acm_read(&m_app_cdc_acm, &rxchar, 1);
             UNUSED_VARIABLE(ret);
             break;
         }
@@ -168,6 +176,15 @@ static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const * p_inst,
             break;
         }
         case APP_USBD_CDC_ACM_USER_EVT_TX_DONE: {   // assume this is isr context
+            static int count = 0;
+            
+            count++;
+            
+            if (count % 1000 == 0)
+            {
+                NRF_LOG_INFO("tx count: %d", count++);
+            }
+            
             if (p_pkt_sending)
             {
                 // vPortFree(p_pkt_sending);
@@ -206,20 +223,94 @@ static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const * p_inst,
         case APP_USBD_CDC_ACM_USER_EVT_RX_DONE:
         {
             ret_code_t ret;
-            NRF_LOG_INFO("Bytes waiting: %d", app_usbd_cdc_acm_bytes_stored(p_cdc_acm));
+            
+            static uint8_t payload[512];
+            static uint16_t type;
+            static uint16_t length;
+            static uint8_t cka, ckb;    // CRC: ckb += (cka += rxchar);
+
+            static int pos = 0;         //  0..6 expecting first..seventh byte of preamble (0x55)
+                                        //  7    expecting last byte of preamble (0xd5)
+                                        //  8..9 expecting first..second byte of type (0x01)
+                                        // 10..11 expecting first..second byte of length
+                                        // 12..(12 + length - 1) expecting data blindly
+                                        // 12 + length cka
+                                        // 12 + length + 1 ckb
+
+            // NRF_LOG_INFO("Bytes buffered in cdc_acm: %d", app_usbd_cdc_acm_bytes_stored(p_cdc_acm));
             do
             {
                 /*Get amount of data transfered*/
                 size_t size = app_usbd_cdc_acm_rx_size(p_cdc_acm);
-                NRF_LOG_INFO("RX: size: %lu char: %c", size, m_rx_buffer[0]);
+
+                if (pos < 7)
+                {
+                    pos = (rxchar == 0x55) ? pos + 1 : 0;
+                }
+                else if (pos == 7)
+                {
+                    pos = (rxchar == 0xd5) ? pos + 1 : 0;
+                }
+                else if (pos == 8)
+                {
+                    cka = 0;
+                    ckb = 0;
+                    ckb += (cka += rxchar);
+                    type = rxchar;
+                    pos++;
+                }
+                else if (pos == 9)
+                {
+                    ckb += (cka += rxchar);
+                    type += rxchar * 256;
+                    pos++;
+                }
+                else if (pos == 10)
+                {
+                    ckb += (cka += rxchar);
+                    length = rxchar;
+                    pos++;
+                }
+                else if (pos == 11)
+                {
+                    ckb += (cka += rxchar);
+                    length += rxchar * 256;
+                    pos = length > 512 ? 0 : pos + 1;
+                }
+                else if (pos < length + 12)
+                {
+                    ckb += (cka += rxchar);
+                    payload[pos - 12] = rxchar;
+                    pos++;
+                }
+                else if (pos == length + 12)
+                {
+                    if (rxchar != cka)
+                    {
+                        NRF_LOG_WARNING("bad crc (cka)");
+                        pos = 0;
+                    }
+                    else
+                    {
+                        pos++;
+                    }
+                }
+                else
+                {
+                    if (rxchar != ckb)
+                    {
+                        NRF_LOG_WARNING("bad crc (ckb)")
+                    }
+                    else
+                    {
+                        handle_command(type, length, payload);
+                    }
+                    pos = 0;
+                }
 
                 /* Fetch data until internal buffer is empty */
-                ret = app_usbd_cdc_acm_read(&m_app_cdc_acm,
-                                            m_rx_buffer,
-                                            READ_SIZE);
+                ret = app_usbd_cdc_acm_read(&m_app_cdc_acm, &rxchar, 1);
             } while (ret == NRF_SUCCESS);
-
-            // bsp_board_led_invert(LED_CDC_ACM_RX);
             break;
         }
         default:
@@ -379,7 +470,6 @@ static void usbcdc_task(void * pvParameters)
         app_usbd_start();
     }
 
-    // vTaskDelay(portMAX_DELAY);
     UNUSED_RETURN_VALUE(xTaskNotifyGive(xTaskGetCurrentTaskHandle()));
 
     for (;;)
@@ -441,7 +531,7 @@ void cdc_acm_send_packet(uint8_t * p_pkt, uint32_t size)
 
         if (result != pdTRUE)
         {
-            NRF_LOG_INFO("cdc acm drop packet due to queue full");
+            NRF_LOG_INFO("cdc acm drop packet due to queue full, %d", (NOT_INSIDE_ISR));
             // vPortFree(p_pkt);
         }
         return;

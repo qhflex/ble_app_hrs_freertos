@@ -120,9 +120,11 @@ void sens_init_max86141_packet(max86141_packet_helper_t * p_helper, sens_packet_
         p_helper->p_brief->sensor_id = MAX86141_SENSOR_ID;
         p_helper->p_brief->version = 0;
         p_helper->p_brief->instance_id = p_helper->instance_id;
-        p_helper->p_brief->single_ppg = p_helper->single_ppg;
+        p_helper->p_brief->ppg1_led = p_helper->ppg1_led;
+        p_helper->p_brief->ppg2_led = p_helper->ppg2_led;
+        p_helper->p_brief->ppf_prox = p_helper->ppf_prox;
         p_helper->p_brief->low_power = p_helper->low_power;
-        p_helper->p_brief->num_of_samples = p_helper->num_of_samples;
+        p_helper->p_brief->num_of_samples = MAX86141_NUM_OF_SAMPLES; // p_helper->num_of_samples;
     }
     payload_len += sizeof(max86141_brief_tlv_t);
 
@@ -153,7 +155,6 @@ void sens_init_max86141_packet(max86141_packet_helper_t * p_helper, sens_packet_
     if (p_pkt)
     {
         p_helper->p_crc = &p_pkt->payload_crc[payload_len];
-        p_helper->num_of_samples = 0;
     }
     else
     {

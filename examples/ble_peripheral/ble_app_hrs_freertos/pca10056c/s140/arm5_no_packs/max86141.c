@@ -65,20 +65,22 @@
 #define PRINT_REGISTERS                     0
 #define WRITE_READBACK                      0
 
-#define TSK_MAX86141_STACK_SIZE             64
+#define TSK_MAX86141_STACK_SIZE             512
 #define TSK_MAX86141_PRIORITY               1
 
 #define MAX86141_SPI_INSTANCE_ID            2
 
+// P9 on schematic,
 #define MAX86141_SPO_CS_PIN                 8
 #define MAX86141_SPO_CK_PIN                 11
 #define MAX86141_SPO_DI_PIN                 (32 + 8)
 #define MAX86141_SPO_DO_PIN                 (32 + 9)
 
-#define MAX86141_ABP_CS_PIN
-#define MAX86141_ABP_CK_PIN
-#define MAX86141_ABP_DI_PIN
-#define MAX86141_ABP_DO_PIN
+// P6 on schematic
+#define MAX86141_ABP_CS_PIN                 12
+#define MAX86141_ABP_CK_PIN                 15
+#define MAX86141_ABP_DI_PIN                 13
+#define MAX86141_ABP_DO_PIN                 14
 
 #define MAX_PENDING_TRANSACTIONS            5
 
@@ -86,6 +88,8 @@
 #define FIFO_READ_SAMPLES                   MAX86141_NUM_OF_SAMPLES // 60 * 3 + 2 should not exceed 255 (uint8_t of spi rx buf size)
 #define SPI_FIFO_RX_SIZE                    ((FIFO_READ_SAMPLES * 3) + 2)
 #define SPI_FIFO_RX_SIZE_ROUGU              (2 * 3 + 2)
+
+#define SENS_PACKET_POOL_SIZE               2
 
 /*********************************************************************
  * TYPEDEFS
@@ -106,7 +110,15 @@ const static uint8_t spi_fifo_tx[2] = { REG_FIFO_DATA, REG_OP_READ };
 static uint8_t spi_fifo_rx[SPI_FIFO_RX_SIZE] = {0};
 static uint8_t * buf = &spi_fifo_rx[2];
 
+#if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
 static uint8_t rougu[15] = {0};
+#endif
+
+static uint8_t spo_0x10_0x16_regs[7] = {0}; // for 0x10-0x16
+static uint8_t spo_0x20_0x2B_regs[12] = {0};
+
+static uint8_t abp_0x10_0x16_regs[7] = {0}; // for 0x10-0x16
+static uint8_t abp_0x20_0x2B_regs[12] = {0};
 
 const static nrf_spi_mngr_transfer_t max86141_fifo_xfers[] =
 {
@@ -115,174 +127,235 @@ const static nrf_spi_mngr_transfer_t max86141_fifo_xfers[] =
 
 const static nrf_spi_mngr_transfer_t max86141_fifo_xfers_rougu[] =
 {
-    NRF_SPI_MNGR_TRANSFER(spi_fifo_tx, 2, spi_fifo_rx, 8),
+    NRF_SPI_MNGR_TRANSFER(spi_fifo_tx, 2, spi_fifo_rx, 8), // 6 + 2
 };
 
-const static max86141_cfg_t spo2_maxcfg = {
-  .inten1 = {
-    .a_full_en      = 1,    // enable fifo
-  },
-  .fifocfg1 = {
-    .fifo_a_full  = (128 - FIFO_READ_SAMPLES),
-  },
-  .fifocfg2 = {
-    .flush_fifo     = 1,    // required
-    .fifo_stat_clr  = 1,    // not sure TODO
-    .a_full_type    = 1,    // not sure TODO
-    .fifo_ro        = 1,    // drop old samples when fifo full
-  },
-  .sysctrl = {
-    .single_ppg   = 1,      // only one channle is used
-  },
-  .ppgcfg1 = {
-//  .ppg2_adc_rge = 2,
-    .ppg1_adc_rge = 2,      // 0b00  4.097uA (full scale)
-                            // 0b01  8.192uA
-                            // 0b10 16.384uA
-                            // 0b11 32.768uA <-
+const static max86141_cfg_t spo_maxcfg = {
+    .inten1 = {
+        .a_full_en      = 1,    // enable fifo
+    },
+    .fifocfg1 = {
+        .fifo_a_full    = (128 - FIFO_READ_SAMPLES),
+    },
+    .fifocfg2 = {
+        .flush_fifo     = 1,    // required
+        .fifo_stat_clr  = 1,    // not sure TODO
+        .a_full_type    = 1,    // not sure TODO
+        .fifo_ro        = 1,    // drop old samples when fifo full
+    },
+    .sysctrl = {
+        .single_ppg     = 1,    // only one channle is used
+    },
+    .ppgcfg1 = {
+//      .ppg2_adc_rge   = 3,
+        .ppg1_adc_rge   = 3,    // 0b00  4.097uA (full scale)
+                                // 0b01  8.192uA
+                                // 0b10 16.384uA
+                                // 0b11 32.768uA <-
 
-    .ppg_tint     = 2,      // pulse width = tint + tsetlng + 0.5uS = 129.8uS
-                            // if tsetlng = 01 (6uS, default) then pw = 123.8uS
-                            // as in the value provided in pseudo code
-                            //
-                            // 0b00 integration time is  14.8uS <-
-                            // 0b01 integration time is  29.4uS
-                            // 0b10 integration time is  58.7uS
-                            // 0b11 integration time is 117.3uS
-  },
-  .ppgcfg2 = {
-    .ppg_sr       = 0x05,   // 0x00 25sps
-                            // 0x01 50sps
-                            // 0x02 84sps
-                            // 0x03 100sps
-                            // 0x04 200sps
-                            // 0x05 400sps
-                            // 0x11 1024sps
+        .ppg_tint       = 3,    // pulse width = tint + tsetlng + 0.5uS = 129.8uS
+                                // if tsetlng = 01 (6uS, default) then pw = 123.8uS
+                                // as in the value provided in pseudo code
+                                //
+                                // 0b00 integration time is  14.8uS
+                                // 0b01 integration time is  29.4uS
+                                // 0b10 integration time is  58.7uS 
+                                // 0b11 integration time is 117.3uS
+    },
+    .ppgcfg2 = {
+        .ppg_sr         = 0x05, // 0x00   25sps
+                                // 0x01   50 sps
+                                // 0x02   84 sps
+                                // 0x03  100 sps
+                                // 0x04  200 sps
+                                // 0x05  400 sps
+                                // 0x06   25 sps (2 pulses per sample)
+                                // 0x07   50 sps (2 pulses per sample)
+                                // 0x08   84 sps (2 pulses per sample)
+                                // 0x09  100 sps (2 pulses per sample)
+                                // 0x0a    8 sps
+                                // 0x0b   16 sps
+                                // 0x0c   32 sps
+                                // 0x0d   64 sps
+                                // 0x0e  128 sps
+                                // 0x0f  256 sps
+                                // 0x10  512 sps
+                                // 0x11 1024 sps
+                                // 0x12 2048 sps
+                                // 0x13 4096 sps
 
-    .smp_ave      = 3,      // 0b000 (0) 1  <- (no sample averaging)
-                            // 0b001 (1) 2
-                            // 0b010 (2) 4
-                            // 0b011 (3) 8
-  },
-  .ppgcfg3 = {
-    .led_setlng   = 2,      // 0b00  4.0uS
-                            // 0b01  6.0uS
-                            // 0b10  8.0uS
-                            // 0b11 12.0us  <-
-  },
-  .pdbias = {
-//  .pdbias2      = 1,
-    .pdbias1      = 1,      // 0-64pF, smallest
-  },
-  .ledrge1 = {
-    .led25_rge    = 0,      // 0b00  31mA
-    .led14_rge    = 0,      // 0b01  62mA
-                            // 0b10  93mA
-                            // 0b11 124mA   <-
-  },
-  .led1pa         = 0x28,   // lsb =  0.12 when rge is 00 (0b00)
-                            //        0.24 when rge is 01 (0b01)
-                            //        0.36 when rge is 02 (0b10) <-
-                            //        0.48 when rge is 03 (0b11)
-                            // rge = 0, pa = 0x40 => 0.12 * 64 = 7.68mA
+        .smp_ave        = 3,    // 0b000 (0) 1
+                                // 0b001 (1) 2
+                                // 0b010 (2) 4
+                                // 0b011 (3) 8
+    },
+    .ppgcfg3 = {
+        .led_setlng     = 3,    // 0b00  4.0uS
+                                // 0b01  6.0uS
+                                // 0b10  8.0uS
+                                // 0b11 12.0us
+    },
+    .pdbias = {
+//      .pdbias2        = 1,
+        .pdbias1        = 1,    // 0-64pF, smallest
+    },
+    .ledrge1 = {
+        .led25_rge      = 1,    // 0b00  31mA
+        .led14_rge      = 1,    // 0b01  62mA
+                                // 0b10  93mA
+                                // 0b11 124mA
+    },
+    .led1pa             = 0x24, // lsb =  0.12 when rge is 00 (0b00)
+                                //        0.24 when rge is 01 (0b01)
+                                //        0.36 when rge is 02 (0b10)
+                                //        0.48 when rge is 03 (0b11)
 
-  .led2pa         = 0x38,
-  .ledseq1 = {
-    .ledc135      = 1,      // 0001 LED1
-    .ledc246      = 2,      // 0010 LED2
-  },
+    .led2pa             = 0x32,
+    .ledseq1 = {
+        .ledc135        = 1,      // 0001 LED1
+        .ledc246        = 2,      // 0010 LED2
+    },
 };
 
 const static max86141_cfg_t abp_maxcfg = {
-  .inten1 = {
-    .a_full_en      = 1,    // enable fifo
-  },
-  .fifocfg1 = {
-    .fifo_a_full  = (128 - FIFO_READ_SAMPLES),
-  },
-  .fifocfg2 = {
-    .fifo_ro      = 1,      // drop old samples when fifo full
-  },
-  .sysctrl = {
-    .single_ppg   = 1,      // only one channle is used
-  },
-  .ppgcfg1 = {
-//  .ppg2_adc_rge = 2,
-    .ppg1_adc_rge = 2,      // 0b00  4.097uA (full scale)
-                            // 0b01  8.192uA
-                            // 0b10 16.384uA
-                            // 0b11 32.768uA <-
+    .inten1 = {
+        .a_full_en      = 1,    // enable fifo
+    },
+    .fifocfg1 = {
+        .fifo_a_full    = (128 - FIFO_READ_SAMPLES),    
+    },
+    .fifocfg2 = {
+        .flush_fifo     = 1,    // required
+        .fifo_stat_clr  = 1,    // not sure TODO
+        .a_full_type    = 1,    // not sure TODO        
+        .fifo_ro        = 1,    // drop old samples when fifo full
+    },
+    .sysctrl = {
+        .single_ppg     = 0,    // only one channle is used
+    },
+    .ppgcfg1 = {
+        .ppg2_adc_rge   = 3,
+        .ppg1_adc_rge   = 3,    // 0b00  4.097uA (full scale)
+                                // 0b01  8.192uA
+                                // 0b10 16.384uA 
+                                // 0b11 32.768uA
 
-    .ppg_tint     = 2,      // pulse width = tint + tsetlng + 0.5uS = 129.8uS
-                            // if tsetlng = 01 (6uS, default) then pw = 123.8uS
-                            // as in the value provided in pseudo code
-                            //
-                            // 0b00 integration time is  14.8uS <-
-                            // 0b01 integration time is  29.4uS
-                            // 0b10 integration time is  58.7uS
-                            // 0b11 integration time is 117.3uS
-  },
-  .ppgcfg2 = {
-    .ppg_sr       = 0x05,   // 0x00 25sps
-                            // 0x01 50sps
-                            // 0x02 84sps
-                            // 0x03 100sps
-                            // 0x04 200sps
-                            // 0x05 400sps
-                            // 0x11 1024sps
+        .ppg_tint       = 3,    // pulse width = tint + tsetlng + 0.5uS = 129.8uS
+                                // if tsetlng = 01 (6uS, default) then pw = 123.8uS
+                                // as in the value provided in pseudo code
+                                //
+                                // 0b00 integration time is  14.8uS
+                                // 0b01 integration time is  29.4uS
+                                // 0b10 integration time is  58.7uS <-
+                                // 0b11 integration time is 117.3uS
+    },
+    .ppgcfg2 = {
+        .ppg_sr         = 0x07, // 0x00   25 sps
+                                // 0x01   50 sps
+                                // 0x02   84 sps
+                                // 0x03  100 sps
+                                // 0x04  200 sps
+                                // 0x05  400 sps
+                                // 0x06   25 sps (2 pulses per sample)
+                                // 0x07   50 sps (2 pulses per sample)
+                                // 0x08   84 sps (2 pulses per sample)
+                                // 0x09  100 sps (2 pulses per sample)
+                                // 0x0a    8 sps
+                                // 0x0b   16 sps
+                                // 0x0c   32 sps
+                                // 0x0d   64 sps
+                                // 0x0e  128 sps
+                                // 0x0f  256 sps
+                                // 0x10  512 sps
+                                // 0x11 1024 sps
+                                // 0x12 2048 sps
+                                // 0x13 4096 sps
 
-    .smp_ave      = 3,      // 0b000 (0) 1  <- (no sample averaging)
-                            // 0b001 (1) 2
-                            // 0b010 (2) 4
-                            // 0b011 (3) 8
-  },
-  .ppgcfg3 = {
-    .led_setlng   = 2,      // 0b00  4.0uS
-                            // 0b01  6.0uS
-                            // 0b10  8.0uS
-                            // 0b11 12.0us  <-
-  },
-  .pdbias = {
-//  .pdbias2      = 1,
-    .pdbias1      = 1,      // 0-64pF, smallest
-  },
-  .ledrge1 = {
-    .led25_rge    = 0,      // 0b00  31mA
-    .led14_rge    = 0,      // 0b01  62mA
-                            // 0b10  93mA
-                            // 0b11 124mA   <-
-  },
-  .led1pa         = 0x28,   // lsb =  0.12 when rge is 00 (0b00)
-                            //        0.24 when rge is 01 (0b01)
-                            //        0.36 when rge is 02 (0b10) <-
-                            //        0.48 when rge is 03 (0b11)
-                            // rge = 0, pa = 0x40 => 0.12 * 64 = 7.68mA
+        .smp_ave        = 0,    // 0b000 (0) 1
+                                // 0b001 (1) 2
+                                // 0b010 (2) 4
+                                // 0b011 (3) 8
+                                // 0b100 (4) 16
+                                // 0b101 (5) 32
+                                // 0b110 (6) 64
+                                // 0b111 (7) 128
+    },
+    .ppgcfg3 = {
+        .led_setlng     = 3,    // 0b00  4.0uS
+                                // 0b01  6.0uS
+                                // 0b10  8.0uS
+                                // 0b11 12.0us
+    },
+    .pdbias = {
+        .pdbias2        = 1,
+        .pdbias1        = 1,    // 0-64pF, smallest
+    },
+    .ledrge1 = {
+        .led36_rge      = 1,
+        .led25_rge      = 1,    // 0b00  31mA
+        .led14_rge      = 1,    // 0b01  62mA
+                                // 0b10  93mA
+                                // 0b11 124mA
+    },
+    .led1pa             = 0x24, // lsb =  0.12 when rge is 00 (0b00)
+                                //        0.24 when rge is 01 (0b01)
+                                //        0.36 when rge is 02 (0b10)
+                                //        0.48 when rge is 03 (0b11)
 
-  .led2pa         = 0x38,
-  .ledseq1 = {
-    .ledc135      = 1,      // 0001 LED1
-    .ledc246      = 2,      // 0010 LED2
-  },
+    .led2pa             = 0x32,
+    .led3pa             = 0x40,
+    .ledseq1 = {
+        .ledc135        = 1,    // 0001 LED1
+        .ledc246        = 2,    // 0010 LED2
+    },
+    .ledseq2 = {
+        .ledc135        = 3,    // 0011 LED3
+    },
 };
 
-static max86141_ctx_t spo2_ctx = {
-    .p_maxcfg = &spo2_maxcfg,
+static max86141_ctx_t spo_ctx = {
+    .p_maxcfg = &spo_maxcfg,
 };
 
 static max86141_ctx_t abp_ctx = {
     .p_maxcfg = &abp_maxcfg,
 };
 
+static max86141_packet_helper_t m_spo_packet_helper = {
+    .instance_id = 0,
+    .ppg1_led = 0x03,   // PPG1_LED1, PPG1_LED2
+    .ppg2_led = 0,
+    .ppf_prox = 0,
+    .low_power = 0,
+};
+
+static max86141_packet_helper_t m_abp_packet_helper = {
+    .instance_id = 1,
+    .ppg1_led = 0x07,
+    .ppg2_led = 0x07,
+    .ppf_prox = 0,
+    .low_power = 0,
+};
+
+static sens_packet_t *p_current_spo_packet;
+static sens_packet_t *p_current_abp_packet;
+
 /*********************************************************************
  * LOCAL FUNCTIONS
  */
 static void write_reg(max86141_ctx_t * ctx, uint8_t addr, uint8_t data_in);
+
 static uint8_t read_reg(max86141_ctx_t * ctx, uint8_t addr);
+static void read_registers(max86141_ctx_t * ctx, uint8_t startAddr, int num, uint8_t * outbuf);
 static void print_registers(max86141_ctx_t * ctx);
-static void max86141_init(max86141_ctx_t * ctx);
+static bool max86141_probe(max86141_ctx_t * ctx);
+static void max86141_config(max86141_ctx_t * ctx);
 static void max86141_run(max86141_ctx_t * ctx);
 static void read_fifo(max86141_ctx_t * ctx);
 static void dynamic(uint32_t ir, uint32_t red);
+
+static sens_packet_t * next_spo_packet(void);
+static sens_packet_t * next_abp_packet(void);
 
 /*********************************************************************
  * EXTERN FUNCTIONS
@@ -341,6 +414,49 @@ static uint8_t read_reg(max86141_ctx_t * ctx, uint8_t addr)
   return ctx->rxbuf[2];
 }
 
+static void read_registers(max86141_ctx_t * ctx, uint8_t startAddr, int num, uint8_t * outbuf)
+{
+    for (int i = 0; i < num; i++)
+    {
+        int addr = startAddr + i;
+        uint8_t val = read_reg(ctx, addr);
+
+        if (ctx == &spo_ctx)
+        {
+            NRF_LOG_INFO("spo reg %02x: %02x", addr, val);
+        }
+        else if (ctx == &abp_ctx)
+        {
+            NRF_LOG_INFO("abp reg %02x: %02x", addr, val);
+        }
+
+        if (outbuf)
+        {
+            outbuf[i] = val;
+        }
+    }
+}
+
+static bool max86141_probe(max86141_ctx_t *ctx)
+{
+    uint8_t val = read_reg(ctx, 0xff);
+    NRF_LOG_INFO("max86141 probe 0xff returns: %02x", val);
+    
+    if (val == 0x25) {
+        if (ctx == &spo_ctx)
+        {
+            NRF_LOG_INFO("spo max86141 probed");
+        }
+
+        if (ctx == &abp_ctx)
+        {
+            NRF_LOG_INFO("abp max86141 probed");
+        }
+    }
+
+    return (val == 0x25);
+}
+
 /*
  * This function sets
  * 1. Photo diode
@@ -350,7 +466,7 @@ static uint8_t read_reg(max86141_ctx_t * ctx, uint8_t addr)
  * 3. fifo configuration
  * 4. led exposure timing (sequence)
  */
-static void max86141_init(max86141_ctx_t * ctx)
+static void max86141_config(max86141_ctx_t * ctx)
 {
   /*
     Pseudo code from max86141 datasheet
@@ -416,6 +532,11 @@ static void max86141_init(max86141_ctx_t * ctx)
     write_reg(ctx, REG_LED_RANGE_2,   CFGVAL(ledrge2) );  // 0x2B, not 0x15
     write_reg(ctx, REG_LED1_PA,       CFGVAL(led1pa)  );
     write_reg(ctx, REG_LED2_PA,       CFGVAL(led2pa)  );
+    write_reg(ctx, REG_LED3_PA,       CFGVAL(led3pa)  );
+    write_reg(ctx, REG_LED4_PA,       CFGVAL(led4pa)  );
+    write_reg(ctx, REG_LED5_PA,       CFGVAL(led5pa)  );
+    write_reg(ctx, REG_LED6_PA,       CFGVAL(led6pa)  );
+    write_reg(ctx, REG_LED_PILOT_PA,  CFGVAL(pilotpa) );
 
     write_reg(ctx, REG_FIFO_CONFIG_1, CFGVAL(fifocfg1));
     write_reg(ctx, REG_FIFO_CONFIG_2, CFGVAL(fifocfg2));
@@ -496,23 +617,42 @@ static void print_registers(max86141_ctx_t * ctx)
     NRF_LOG_INFO("      part id: 0x%02x", read_reg(ctx, 0xff));
 }
 
-static void spo2_ctx_init()
+static void spo_ctx_init()
 {
-    spo2_ctx.xfer.p_tx_data = spo2_ctx.txbuf;
-    spo2_ctx.xfer.tx_length = 3;
-    spo2_ctx.xfer.p_rx_data = spo2_ctx.rxbuf;
-    spo2_ctx.xfer.rx_length = 3;
+    spo_ctx.xfer.p_tx_data = spo_ctx.txbuf;
+    spo_ctx.xfer.tx_length = 3;
+    spo_ctx.xfer.p_rx_data = spo_ctx.rxbuf;
+    spo_ctx.xfer.rx_length = 3;
 
-    // spo2_ctx.spicfg = NRF_DRV_SPI_DEFAULT_CONFIG;
-    spo2_ctx.spicfg.ss_pin        = MAX86141_SPO_CS_PIN;
-    spo2_ctx.spicfg.sck_pin       = MAX86141_SPO_CK_PIN;
-    spo2_ctx.spicfg.mosi_pin      = MAX86141_SPO_DI_PIN;
-    spo2_ctx.spicfg.miso_pin      = MAX86141_SPO_DO_PIN;
-    spo2_ctx.spicfg.orc           = 0xff;
-    spo2_ctx.spicfg.mode          = NRF_DRV_SPI_MODE_0;
-    spo2_ctx.spicfg.irq_priority  = APP_IRQ_PRIORITY_LOWEST;
-    spo2_ctx.spicfg.frequency     = NRF_DRV_SPI_FREQ_1M;
-    spo2_ctx.spicfg.bit_order     = NRF_DRV_SPI_BIT_ORDER_MSB_FIRST;
+    // spo_ctx.spicfg = NRF_DRV_SPI_DEFAULT_CONFIG;
+    spo_ctx.spicfg.ss_pin        = MAX86141_SPO_CS_PIN;
+    spo_ctx.spicfg.sck_pin       = MAX86141_SPO_CK_PIN;
+    spo_ctx.spicfg.mosi_pin      = MAX86141_SPO_DI_PIN;
+    spo_ctx.spicfg.miso_pin      = MAX86141_SPO_DO_PIN;
+    spo_ctx.spicfg.orc           = 0xff;
+    spo_ctx.spicfg.mode          = NRF_DRV_SPI_MODE_0;
+    spo_ctx.spicfg.irq_priority  = APP_IRQ_PRIORITY_LOWEST;
+    spo_ctx.spicfg.frequency     = NRF_DRV_SPI_FREQ_1M;
+    spo_ctx.spicfg.bit_order     = NRF_DRV_SPI_BIT_ORDER_MSB_FIRST;
+}
+
+static void abp_ctx_init()
+{
+    abp_ctx.xfer.p_tx_data = abp_ctx.txbuf;
+    abp_ctx.xfer.tx_length = 3;
+    abp_ctx.xfer.p_rx_data = abp_ctx.rxbuf;
+    abp_ctx.xfer.rx_length = 3;
+
+    // abp_ctx.spicfg = NRF_DRV_SPI_DEFAULT_CONFIG;
+    abp_ctx.spicfg.ss_pin        = MAX86141_ABP_CS_PIN;
+    abp_ctx.spicfg.sck_pin       = MAX86141_ABP_CK_PIN;
+    abp_ctx.spicfg.mosi_pin      = MAX86141_ABP_DI_PIN;
+    abp_ctx.spicfg.miso_pin      = MAX86141_ABP_DO_PIN;
+    abp_ctx.spicfg.orc           = 0xff;
+    abp_ctx.spicfg.mode          = NRF_DRV_SPI_MODE_0;
+    abp_ctx.spicfg.irq_priority  = APP_IRQ_PRIORITY_LOWEST;
+    abp_ctx.spicfg.frequency     = NRF_DRV_SPI_FREQ_1M;
+    abp_ctx.spicfg.bit_order     = NRF_DRV_SPI_BIT_ORDER_MSB_FIRST;
 }
 
 //void uart_error_handle(app_uart_evt_t * p_event)
@@ -544,12 +684,12 @@ static void dynamic(uint32_t ir, uint32_t red)
     static uint8_t led2_red = 0;
 
     if (led1_ir == 0) {
-        led1_ir = read_reg(&spo2_ctx, REG_LED1_PA);
+        led1_ir = read_reg(&spo_ctx, REG_LED1_PA);
         // TODO
     }
 
     if (led2_red == 0) {
-        led2_red = read_reg(&spo2_ctx, REG_LED2_PA);
+        led2_red = read_reg(&spo_ctx, REG_LED2_PA);
         // TODO
     }
 
@@ -561,7 +701,7 @@ static void dynamic(uint32_t ir, uint32_t red)
         if (led2_red > MIN_RED_PA)
         {
             led2_red = (led2_red - PA_DOWN_STEP) > MIN_RED_PA ? (led2_red - PA_DOWN_STEP) : MIN_RED_PA;
-            write_reg(&spo2_ctx, REG_LED2_PA, led2_red);
+            write_reg(&spo_ctx, REG_LED2_PA, led2_red);
         }
     }
     else if (red < 0x030000)
@@ -569,7 +709,7 @@ static void dynamic(uint32_t ir, uint32_t red)
         if (led2_red < MAX_RED_PA)
         {
             led2_red = (led2_red + PA_UP_STEP) < MAX_RED_PA ? (led2_red + PA_UP_STEP) : MAX_RED_PA;
-            write_reg(&spo2_ctx, REG_LED2_PA, led2_red);
+            write_reg(&spo_ctx, REG_LED2_PA, led2_red);
         }
     }
 
@@ -579,7 +719,7 @@ static void dynamic(uint32_t ir, uint32_t red)
         if (led1_ir > MIN_IR_PA)
         {
             led1_ir = (led1_ir - PA_DOWN_STEP) > MIN_IR_PA ? (led1_ir - PA_DOWN_STEP) : MIN_IR_PA;
-            write_reg(&spo2_ctx, REG_LED1_PA, led1_ir);
+            write_reg(&spo_ctx, REG_LED1_PA, led1_ir);
         }
     }
     else if (ir < 0x030000)
@@ -587,7 +727,7 @@ static void dynamic(uint32_t ir, uint32_t red)
         if (led1_ir < MAX_IR_PA)
         {
             led1_ir = (led1_ir + PA_UP_STEP) < MAX_IR_PA ? (led1_ir + PA_UP_STEP) : MAX_IR_PA;
-            write_reg(&spo2_ctx, REG_LED1_PA, led1_ir);
+            write_reg(&spo_ctx, REG_LED1_PA, led1_ir);
         }
     }
 
@@ -606,30 +746,25 @@ static bool is_invalid(uint8_t msb)
     return ((msb >> 3) == 0x1e);
 }
 
+#if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
+
 static void max86141_task(void * pvParameters)
 {
-    spo2_ctx_init();
-    if (PRINT_REGISTERS)
-    {
-        print_registers(&spo2_ctx);
-        print_registers(&abp_ctx);
-    }
-
-    max86141_init(&spo2_ctx);
-    // spo2_packet_init(false);
-    max86141_run(&spo2_ctx);
-
-    NRF_LOG_INFO("max86141 started");
-
-#if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
     TickType_t xFrequency = 20;
     uint8_t count = 0;
+
+    spo_ctx_init();
+    max86141_config(&spo_ctx);
+    max86141_run(&spo_ctx);
+
+    NRF_LOG_INFO("spo max86141 (rougu version) started");
+
     for (;;)
     {
         vTaskDelay(xFrequency);
 
         read_fifo_count:
-        count = read_reg(&spo2_ctx, REG_FIFO_DATA_COUNT);
+        count = read_reg(&spo_ctx, REG_FIFO_DATA_COUNT);
 
         if (count < 2) {
             NRF_LOG_INFO("[%d] data count: %d, wait a few ticks", xTaskGetTickCount(),count);
@@ -640,8 +775,8 @@ static void max86141_task(void * pvParameters)
         {
             // NRF_LOG_INFO("[%d] data count: %d", xTaskGetTickCount(),count);
         }
-        
-        read_fifo_rougu(&spo2_ctx);
+
+        read_fifo_rougu(&spo_ctx);
 
         rougu[0] = 0x18;
         rougu[1] = 0xff;
@@ -700,28 +835,107 @@ static void max86141_task(void * pvParameters)
 
         xFrequency = count > 10 ? 19 : 20;
     }
+}
+
 #else
-    TickType_t xFrequency = 21;
+
+static void max86141_task(void * pvParameters)
+{
+    TickType_t xFrequency = 50;
+
     uint8_t spo_count = 0;
     uint8_t abp_count = 0;
+    int spo_pkt_count = 0;
+    int abp_pkt_count = 0;
+    
+    vTaskDelay(1000);
+
+    spo_ctx_init();
+    abp_ctx_init();
+
+    p_current_spo_packet = max86141_probe(&spo_ctx) ? next_spo_packet() : NULL;
+    if (p_current_spo_packet)
+    {
+        max86141_config(&spo_ctx);
+        
+        read_registers(&spo_ctx, 0x10, 7, spo_0x10_0x16_regs);
+        read_registers(&spo_ctx, 0x20, 12, spo_0x20_0x2B_regs);
+        max86141_run(&spo_ctx);
+
+        NRF_LOG_INFO("spo max86141 started");
+    }
+
+    p_current_abp_packet = max86141_probe(&abp_ctx) ? next_abp_packet() : NULL;
+    if (p_current_abp_packet)
+    {
+        max86141_config(&abp_ctx);
+        read_registers(&abp_ctx, 0x10, 7, abp_0x10_0x16_regs);
+        read_registers(&abp_ctx, 0x20, 12, abp_0x20_0x2B_regs);
+        max86141_run(&abp_ctx);
+
+        NRF_LOG_INFO("abp max86141 started");
+    }
+    
+    // vTaskDelay(portMAX_DELAY);
+
     for (;;)
     {
         vTaskDelay(xFrequency);
-        
-        spo_count = read_reg(&spo2_ctx, REG_FIFO_DATA_COUNT);
-        if (spo_count >= 60)
-        {
-            
-        }
-        
-       
-    }
-    
-#endif
 
+        if (p_current_spo_packet)
+        {
+            spo_count = read_reg(&spo_ctx, REG_FIFO_DATA_COUNT);
+            
+            // NRF_LOG_INFO("spo_count: %d", spo_count);
+           
+            if (spo_count >= MAX86141_NUM_OF_SAMPLES)
+            {
+                read_fifo(&spo_ctx);
+
+                // fill samples (type and length correct?)
+                memcpy(&m_spo_packet_helper.p_sample->value, buf, MAX86141_NUM_OF_SAMPLES * 3);
+                memcpy(&m_spo_packet_helper.p_ppgcfg->value, spo_0x10_0x16_regs, 7);
+                memcpy(&m_spo_packet_helper.p_ledcfg->value, spo_0x20_0x2B_regs, 12);
+
+                simple_crc((uint8_t *)&p_current_spo_packet->type, &m_spo_packet_helper.p_crc[0], &m_spo_packet_helper.p_crc[1]);
+                cdc_acm_send_packet((uint8_t *)p_current_spo_packet, m_spo_packet_helper.packet_size);
+                p_current_spo_packet = next_spo_packet();
+                
+                spo_pkt_count++;
+                if ((spo_pkt_count % 100) == 0)
+                {
+                    NRF_LOG_INFO("spo: %d packets sent", spo_pkt_count);
+                }
+            }
+        }
+
+        if (p_current_abp_packet)
+        {
+            abp_count = read_reg(&abp_ctx, REG_FIFO_DATA_COUNT);
+            if (abp_count >= MAX86141_NUM_OF_SAMPLES)
+            {
+                read_fifo(&abp_ctx);
+
+                // fill samples (type and length correct?)
+                memcpy(&m_abp_packet_helper.p_sample->value, buf, MAX86141_NUM_OF_SAMPLES * 3);
+                memcpy(&m_abp_packet_helper.p_ppgcfg->value, abp_0x10_0x16_regs, 7);
+                memcpy(&m_abp_packet_helper.p_ledcfg->value, abp_0x20_0x2B_regs, 12);
+
+                simple_crc((uint8_t *)&p_current_abp_packet->type, &m_abp_packet_helper.p_crc[0], &m_abp_packet_helper.p_crc[1]);
+                cdc_acm_send_packet((uint8_t *)p_current_abp_packet, m_abp_packet_helper.packet_size);
+                p_current_abp_packet = next_abp_packet();
+                
+                abp_pkt_count++;
+                if (abp_pkt_count % 100 == 0)
+                {
+                    NRF_LOG_INFO("abp: %d packets sent", abp_pkt_count);
+                }                
+            }
+        }
+    }
 }
 
-
+#endif
 
 void app_max86141_freertos_init(void)
 {
@@ -754,4 +968,70 @@ void app_max86141_freertos_init(void)
     {
         NRF_LOG_INFO("[max86141] task created.");
     }
+}
+
+static sens_packet_t * next_spo_packet(void)
+{
+    static bool initialized = false;
+    static sens_packet_t * p_packet_pool[SENS_PACKET_POOL_SIZE] = {0};
+    static int next_modulo = 0;
+
+    if (!initialized)
+    {
+        // init m_packet helper
+        sens_init_max86141_packet(&m_spo_packet_helper, NULL);
+
+        // alloc mem
+        for (int i = 0; i < SENS_PACKET_POOL_SIZE; i++)
+        {
+            p_packet_pool[i] = pvPortMalloc(m_spo_packet_helper.packet_size);
+            APP_ERROR_CHECK_BOOL(p_packet_pool[i] != NULL);
+        }
+
+        initialized = true;
+
+        NRF_LOG_INFO("spo packets init, len: %d, size: %d, %d samples",
+            m_spo_packet_helper.payload_len,
+            m_spo_packet_helper.packet_size,
+            MAX86141_NUM_OF_SAMPLES);
+    }
+
+    // init next packet
+    sens_init_max86141_packet(&m_spo_packet_helper, p_packet_pool[next_modulo]);
+    sens_packet_t * next = p_packet_pool[next_modulo];
+    next_modulo = (next_modulo + 1) % SENS_PACKET_POOL_SIZE;
+    return next;
+}
+
+static sens_packet_t * next_abp_packet(void)
+{
+    static bool initialized = false;
+    static sens_packet_t * p_packet_pool[SENS_PACKET_POOL_SIZE] = {0};
+    static int next_modulo = 0;
+
+    if (!initialized)
+    {
+        // init m_packet helper
+        sens_init_max86141_packet(&m_abp_packet_helper, NULL);
+
+        // alloc mem
+        for (int i = 0; i < SENS_PACKET_POOL_SIZE; i++)
+        {
+            p_packet_pool[i] = pvPortMalloc(m_abp_packet_helper.packet_size);
+            APP_ERROR_CHECK_BOOL(p_packet_pool[i] != NULL);
+        }
+
+        initialized = true;
+
+        NRF_LOG_INFO("abp packets init, len: %d, size: %d, %d samples",
+            m_abp_packet_helper.payload_len,
+            m_abp_packet_helper.packet_size,
+            MAX86141_NUM_OF_SAMPLES);
+    }
+
+    // init next packet
+    sens_init_max86141_packet(&m_abp_packet_helper, p_packet_pool[next_modulo]);
+    sens_packet_t * next = p_packet_pool[next_modulo];
+    next_modulo = (next_modulo + 1) % SENS_PACKET_POOL_SIZE;
+    return next;
 }

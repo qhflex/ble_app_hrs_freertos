@@ -31,7 +31,7 @@
 
 #define ADS129X_USE_ROG_LIB             (!!ADS129X_HAS_ROG_ECG || !!ADS129X_HAS_ROG_RESP || !!ADS129X_HAS_ROG_INTERNAL)
 
-#define MAX86141_BRIEF_TLV_LEN          7
+#define MAX86141_BRIEF_TLV_LEN          9
 #define MAX86141_BRIEF_TLV_SIZE         (3 + MAX86141_BRIEF_TLV_LEN)
 #define MAX86141_NUM_OF_SAMPLES         60      // It is possible but not necessarily to change this value.
                                                 // For maximum number of spi tx bytes is 255. 60 * 3 plus 2 leading characters is 182,
@@ -109,9 +109,11 @@ typedef struct __attribute__((packed)) {
     uint8_t type;
     uint16_t length;
     uint16_t sensor_id;
-    uint8_t version;
     uint8_t instance_id;
-    uint8_t single_ppg;
+    uint8_t version;
+    uint8_t ppg1_led;
+    uint8_t ppg2_led;
+    uint8_t ppf_prox;
     uint8_t low_power;
     uint8_t num_of_samples;
 } max86141_brief_tlv_t;
@@ -146,9 +148,10 @@ typedef struct max86141_packet_helper
 {
     uint16_t                payload_len;
     uint16_t                packet_size;
-    uint16_t                num_of_samples;
     uint8_t                 instance_id;
-    bool                    single_ppg;
+    uint8_t                 ppg1_led;
+    uint8_t                 ppg2_led;
+    uint8_t                 ppf_prox;
     bool                    low_power;
 
     max86141_brief_tlv_t    *p_brief;

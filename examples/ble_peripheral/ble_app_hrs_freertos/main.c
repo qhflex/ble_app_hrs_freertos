@@ -1,52 +1,3 @@
-/**
- * Copyright (c) 2014 - 2021, Nordic Semiconductor ASA
- *
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form, except as embedded into a Nordic
- *    Semiconductor ASA integrated circuit in a product or a software update for
- *    such product, must reproduce the above copyright notice, this list of
- *    conditions and the following disclaimer in the documentation and/or other
- *    materials provided with the distribution.
- *
- * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
- *    contributors may be used to endorse or promote products derived from this
- *    software without specific prior written permission.
- *
- * 4. This software, with or without modification, must only be used with a
- *    Nordic Semiconductor ASA integrated circuit.
- *
- * 5. Any software provided in binary form under this license must not be reverse
- *    engineered, decompiled, modified and/or disassembled.
- *
- * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
- * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL NORDIC SEMICONDUCTOR ASA OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
- * GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
- * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- */
-// Board/nrf6310/ble/ble_app_hrs_rtx/main.c
-/**
- *
- * @brief Heart Rate Service Sample Application with RTX main file.
- *
- * This file contains the source code for a sample application using RTX and the
- * Heart Rate service (and also Battery and Device Information services).
- * This application uses the @ref srvlib_conn_params module.
- */
-
 #include <stdint.h>
 #include <string.h>
 #include "nordic_common.h"
@@ -79,7 +30,9 @@
 #include "nrf_ble_gatt.h"
 #include "nrf_ble_qwr.h"
 
+#include "nrfx_systick.h"
 #include "nrfx_gpiote.h"
+#include "nrfx_uart.h"
 
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -87,15 +40,26 @@
 
 #include "app_usbd_serial_num.h"
 
-#include "m601z.h"
+// #include "m601z.h"
 #include "qma6110p.h"
 #include "ads1292r.h"
 #include "max86141.h"
+#include "owuart.h"
 
 #include "usbcdc.h"
 
-#define DEVICE_NAME                         "Nordic_HRM"                            /**< Name of device. Will be included in the advertising data. */
-#define MANUFACTURER_NAME                   "NordicSemiconductor"                   /**< Manufacturer. Will be passed to Device Information Service. */
+#include "ble_spp.h"
+
+ /**********************************************************************
+ * MACROS
+ */
+
+/**********************************************************************
+ * CONSTANTS
+ */
+
+#define DEVICE_NAME                         "Smart Wearable"                        /**< Name of device. Will be included in the advertising data. */
+#define MANUFACTURER_NAME                   "ifet-tsinghua"                         /**< Manufacturer. Will be passed to Device Information Service. */
 
 #define APP_BLE_OBSERVER_PRIO               3                                       /**< Application's BLE observer priority. You shouldn't need to modify this value. */
 #define APP_BLE_CONN_CFG_TAG                1                                       /**< A tag identifying the SoftDevice BLE configuration. */
@@ -103,10 +67,16 @@
 #define APP_ADV_INTERVAL                    300                                     /**< The advertising interval (in units of 0.625 ms. This value corresponds to 187.5 ms). */
 #define APP_ADV_DURATION                    18000                                       /**< The advertising duration (180 seconds) in units of 10 milliseconds. */
 
+#define APP_ADV_FAST_INTERVAL               300                                     /**< The advertising interval (in units of 0.625 ms. This value corresponds to 187.5 ms). */
+#define APP_ADV_FAST_DURATION               6000                                    /**< The advertising duration (60 seconds) in units of 10 milliseconds. */
+#define APP_ADV_SLOW_INTERVAL               3000                                    // 1.875s
+#define APP_ADV_SLOW_DURATION               0
+
+
 #define SENSOR_CONTACT_DETECTED_INTERVAL    5000                                    /**< Sensor Contact Detected toggle interval (ms). */
 
-#define MIN_CONN_INTERVAL                   MSEC_TO_UNITS(400, UNIT_1_25_MS)        /**< Minimum acceptable connection interval (0.4 seconds). */
-#define MAX_CONN_INTERVAL                   MSEC_TO_UNITS(650, UNIT_1_25_MS)        /**< Maximum acceptable connection interval (0.65 second). */
+#define MIN_CONN_INTERVAL                   MSEC_TO_UNITS(15, UNIT_1_25_MS)         /**< Minimum acceptable connection interval (0.4 seconds). */
+#define MAX_CONN_INTERVAL                   MSEC_TO_UNITS(40, UNIT_1_25_MS)         /**< Maximum acceptable connection interval (0.65 second). */
 #define SLAVE_LATENCY                       0                                       /**< Slave latency. */
 #define CONN_SUP_TIMEOUT                    MSEC_TO_UNITS(4000, UNIT_10_MS)         /**< Connection supervisory time-out (4 seconds). */
 
@@ -118,25 +88,121 @@
 
 #define OSTIMER_WAIT_FOR_QUEUE              2                                       /**< Number of ticks to wait for the timer queue to be ready */
 
-NRF_BLE_GATT_DEF(m_gatt);                                           /**< GATT module instance. */
-NRF_BLE_QWR_DEF(m_qwr);                                             /**< Context for the Queued Write module.*/
-BLE_ADVERTISING_DEF(m_advertising);                                 /**< Advertising module instance. */
+/*********************************************************************
+ * TYPEDEFS
+ */
 
-static uint16_t m_conn_handle         = BLE_CONN_HANDLE_INVALID;    /**< Handle of the current connection. */
+/**********************************************************************
+ * GLOBAL VARIABLES
+ */
 
-static ble_uuid_t m_adv_uuids[] =                                   /**< Universally unique service identifiers. */
+/*********************************************************************
+ * LOCAL VARIABLES
+ */
+
+BLE_SPP_DEF(m_spp);
+NRF_BLE_GATT_DEF(m_gatt);                                                           /**< GATT module instance. */
+NRF_BLE_QWR_DEF(m_qwr);                                                             /**< Context for the Queued Write module.*/
+BLE_ADVERTISING_DEF(m_advertising);                                                 /**< Advertising module instance. */
+
+static uint16_t m_conn_handle         = BLE_CONN_HANDLE_INVALID;                    /**< Handle of the current connection. */
+
+static ble_uuid_t m_adv_uuids[] =                                                   /**< Universally unique service identifiers. */
 {
-    {BLE_UUID_HEART_RATE_SERVICE, BLE_UUID_TYPE_BLE},
-    {BLE_UUID_BATTERY_SERVICE, BLE_UUID_TYPE_BLE},
+    /* {BLE_UUID_HEART_RATE_SERVICE, BLE_UUID_TYPE_BLE}, */
+    /* {BLE_UUID_BATTERY_SERVICE, BLE_UUID_TYPE_BLE}, */
     {BLE_UUID_DEVICE_INFORMATION_SERVICE, BLE_UUID_TYPE_BLE}
 };
 
 #if NRF_LOG_ENABLED
-static TaskHandle_t m_logger_thread;                                /**< Definition of Logger thread. */
+static TaskHandle_t m_logger_thread;                                                /**< Definition of Logger thread. */
 #endif
 
+/*********************************************************************
+ * LOCAL FUNCTIONS
+ */
 static void advertising_start(void * p_erase_bonds);
 
+/*********************************************************************
+ * EXTERN FUNCTIONS
+ */
+
+/*********************************************************************
+ * PROFILE FUNCTIONS AND CALLBACKS
+ */
+static void on_spp_evt(ble_spp_t * p_eeg, ble_spp_evt_t * p_evt) {};
+static void spp_command_handler (uint16_t conn_handle, ble_spp_t * p_spp, uint8_t new_sps);
+
+/**********************************************************************
+ * PUBLIC FUNCTIONS
+ */
+
+static void spp_command_handler (uint16_t conn_handle, ble_spp_t * p_spp, uint8_t new_sps)
+{
+    ret_code_t err_code;
+    ble_gatts_value_t gatts_value;
+
+    if (new_sps > 1) return;
+
+    gatts_value.len = sizeof(uint8_t);
+    gatts_value.offset = 0;
+    gatts_value.p_value = &new_sps;
+
+    err_code = sd_ble_gatts_value_set(conn_handle, p_spp->sps_handles.value_handle, &gatts_value);
+    if (err_code != NRF_SUCCESS)
+    {
+      NRF_LOG_WARNING("failed to write sps value, error code: %d", err_code);
+    }
+    else
+    {
+      m_spp.sps_shadow = new_sps;
+      NRF_LOG_INFO("sps set to %d", new_sps);
+    }
+}
+
+static void spp_sample_notification_enabled()
+{
+    m_spp.sample_notifying = true;
+//    BottomEvent_t be = {
+//        .type = BE_NOTIFICATION_ENABLED,
+//    };
+//    xQueueSendFromISR(m_beq, &be, NULL);
+}
+
+static void spp_sample_notification_disabled()
+{
+    if (m_spp.sample_notifying == true) {
+//        BottomEvent_t be = {
+//            .type = BE_NOTIFICATION_DISABLED,
+//        };
+
+//        xQueueSendFromISR(m_beq, &be, NULL);
+        m_spp.sample_notifying = false;
+    }
+}
+
+static bool spp_sample_notifying()
+{
+    return m_spp.sample_notifying;
+}
+
+static void spp_init(void)
+{
+    ret_code_t      err_code;
+    ble_spp_init_t  spp_init_obj;
+
+    memset(&spp_init_obj, 0, sizeof(spp_init_obj));
+
+    spp_init_obj.evt_handler          = on_spp_evt;
+    spp_init_obj.initial_sps          = 1;
+
+    spp_init_obj.command_handler = spp_command_handler;
+    spp_init_obj.sample_notification_enabled = spp_sample_notification_enabled;
+    spp_init_obj.sample_notification_disabled = spp_sample_notification_disabled;
+
+    err_code = ble_spp_init(&m_spp, &spp_init_obj);
+    APP_ERROR_CHECK(err_code);
+}
 
 /**@brief Callback function for asserts in the SoftDevice.
  *
@@ -248,6 +314,8 @@ static void services_init(void)
 
     err_code = nrf_ble_qwr_init(&m_qwr, &qwr_init);
     APP_ERROR_CHECK(err_code);
+
+    spp_init();
 }
 
 /**@brief Function for handling the Connection Parameters Module.
@@ -294,7 +362,7 @@ static void conn_params_init(void)
     cp_init.first_conn_params_update_delay = FIRST_CONN_PARAMS_UPDATE_DELAY;
     cp_init.next_conn_params_update_delay  = NEXT_CONN_PARAMS_UPDATE_DELAY;
     cp_init.max_conn_params_update_count   = MAX_CONN_PARAMS_UPDATE_COUNT;
-    // cp_init.start_on_notify_cccd_handle    = m_hrs.hrm_handles.cccd_handle;
+    cp_init.start_on_notify_cccd_handle    = BLE_GATT_HANDLE_INVALID; // set nordic template
     cp_init.disconnect_on_fail             = false;
     cp_init.evt_handler                    = on_conn_params_evt;
     cp_init.error_handler                  = conn_params_error_handler;
@@ -327,13 +395,24 @@ static void sleep_mode_enter(void)
  */
 static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
 {
+    ret_code_t err_code;
+
     switch (ble_adv_evt)
     {
         case BLE_ADV_EVT_FAST:
-            NRF_LOG_INFO("fast advertising.");
+            NRF_LOG_INFO("Fast advertising.");
+            // err_code = bsp_indication_set(BSP_INDICATE_ADVERTISING);
+            // APP_ERROR_CHECK(err_code);
+            break;
+
+        case BLE_ADV_EVT_SLOW:
+            NRF_LOG_INFO("Slow advertising.");
+            // err_code = bsp_indication_set(BSP_INDICATE_ADVERTISING_SLOW);
+            // APP_ERROR_CHECK(err_code);
             break;
 
         case BLE_ADV_EVT_IDLE:
+            NRF_LOG_INFO("Idle advertising. no connectable advertising ongoing.");
             // sleep_mode_enter();
             break;
 
@@ -359,11 +438,16 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
             err_code = nrf_ble_qwr_conn_handle_assign(&m_qwr, m_conn_handle);
             APP_ERROR_CHECK(err_code);
+
+            m_spp.conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
             break;
 
         case BLE_GAP_EVT_DISCONNECTED:
             NRF_LOG_INFO("Disconnected");
             m_conn_handle = BLE_CONN_HANDLE_INVALID;
+
+            spp_sample_notification_disabled();
+            m_spp.conn_handle = BLE_CONN_HANDLE_INVALID;
             break;
 
         case BLE_GAP_EVT_PHY_UPDATE_REQUEST:
@@ -393,7 +477,8 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
                                              BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
             APP_ERROR_CHECK(err_code);
             break;
-
+        case BLE_GATTS_EVT_HVN_TX_COMPLETE:
+            break;
         default:
             // No implementation needed.
             break;
@@ -459,15 +544,19 @@ static void advertising_init(void)
 
     memset(&init, 0, sizeof(init));
 
-    init.advdata.name_type               = BLE_ADVDATA_FULL_NAME;
-    init.advdata.include_appearance      = true;
-    init.advdata.flags                   = BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE;
-    init.advdata.uuids_complete.uuid_cnt = sizeof(m_adv_uuids) / sizeof(m_adv_uuids[0]);
-    init.advdata.uuids_complete.p_uuids  = m_adv_uuids;
+    init.advdata.name_type                  = BLE_ADVDATA_FULL_NAME;
+    init.advdata.include_appearance         = true;
+    init.advdata.flags                      = BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE;
+    init.advdata.uuids_complete.uuid_cnt    = sizeof(m_adv_uuids) / sizeof(m_adv_uuids[0]);
+    init.advdata.uuids_complete.p_uuids     = m_adv_uuids;
 
-    init.config.ble_adv_fast_enabled  = true;
-    init.config.ble_adv_fast_interval = APP_ADV_INTERVAL;
-    init.config.ble_adv_fast_timeout  = APP_ADV_DURATION;
+    init.config.ble_adv_fast_enabled        = true;
+    init.config.ble_adv_fast_interval       = APP_ADV_FAST_INTERVAL;
+    init.config.ble_adv_fast_timeout        = APP_ADV_FAST_DURATION;
+
+    init.config.ble_adv_slow_enabled        = true;
+    init.config.ble_adv_slow_interval       = APP_ADV_SLOW_INTERVAL;
+    init.config.ble_adv_slow_timeout        = APP_ADV_SLOW_DURATION;
 
     init.evt_handler = on_adv_evt;
 
@@ -577,7 +666,7 @@ static void clock_init(void)
     ret_code_t err_code = nrf_drv_clock_init();
     APP_ERROR_CHECK(err_code);
 
-//    nrf_drv_clock_lfclk_request(NULL);
+//    nrf_drv_clock_lfclk_request(NULL); // is this related to initial xPortPendSVHandler crash?
 //    while (!nrf_drv_clock_lfclk_is_running())
 //    {
 //        // just waiting
@@ -599,6 +688,8 @@ int main(void)
 
     err_code = nrf_drv_power_init(NULL);
     APP_ERROR_CHECK(err_code);
+    
+    // nrfx_systick_init();
 
     clock_init();
 
@@ -606,6 +697,8 @@ int main(void)
     // APP_ERROR_CHECK(err_code);
 
     nrfx_gpiote_init();
+
+
 
     // Do not start any interrupt that uses system functions before system initialisation.
     // The best solution is to start the OS before any other initalisation.
@@ -631,6 +724,10 @@ int main(void)
     conn_params_init();
     peer_manager_init();
 
+    // NRF_SDH_BLE_GATT_MAX_MTU_SIZE is definedin sdk_config.h
+    err_code = nrf_ble_gatt_att_mtu_periph_set(&m_gatt, NRF_SDH_BLE_GATT_MAX_MTU_SIZE);
+    APP_ERROR_CHECK(err_code);
+
     // Create a FreeRTOS task for the BLE stack.
     // The task will run advertising_start() before entering its loop.
     nrf_sdh_freertos_init(advertising_start, &erase_bonds);
@@ -650,11 +747,15 @@ int main(void)
     // app_m601z_freertos_init();
     // app_qma6110p_freertos_init();
 
+    owuart_freertos_init();
     app_ads1292r_freertos_init();
     app_max86141_freertos_init();
     app_usbcdc_freertos_init();
+    
     NRF_LOG_INFO("Program started in standard mode.");
 #endif
+
+    // onewire_probe();
 
     // Start FreeRTOS scheduler.
     vTaskStartScheduler();

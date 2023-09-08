@@ -144,7 +144,9 @@ unsigned char CRC8(unsigned char *serial, unsigned char length)
  */
 static void mdq_out()
 {
-  nrf_gpio_cfg(MDQ,
+\
+
+    nrf_gpio_cfg(MDQ,
                NRF_GPIO_PIN_DIR_OUTPUT,
                NRF_GPIO_PIN_INPUT_DISCONNECT,
                NRF_GPIO_PIN_NOPULL,

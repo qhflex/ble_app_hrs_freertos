@@ -10,6 +10,7 @@
 
 #ifdef NRF_LOG_USE_RTT
 #define NRF_LOG_BACKEND_RTT_ENABLED                     1
+#define NRF_LOG_BACKEND_RTT_TEMP_BUFFER_SIZE            1024
 #define NRF_LOG_BACKEND_UART_ENABLED                    0
 #define NRF_FPRINTF_FLAG_AUTOMATIC_CR_ON_LF_ENABLED     0
 #else
@@ -34,6 +35,11 @@
 #define NRF_PWR_MGMT_ENABLED                        1
 #define NRF_PWR_MGMT_CONFIG_FPU_SUPPORT_ENABLED     1
 
+// check this: 
+// https://devzone.nordicsemi.com/f/nordic-q-a/82192/freertos-configtick_source
+
+// Timer 1 is used by m601z (old module)
+// Timer 2 is used by usbcdc (deprecated)
 // ==== TIMER ====
 #define NRFX_TIMER_ENABLED                          1
 #define NRFX_TIMER1_ENABLED                         1
@@ -99,5 +105,14 @@
 #define NRF_SORTLIST_ENABLED                        0
 #define APP_SCHEDULER_ENABLED                       0
 #define APP_TIMER_CONFIG_RTC_FREQUENCY              0
+
+// ble service
+#define NRF_SDH_BLE_VS_UUID_COUNT                   1
+#define NRF_SDH_BLE_GATT_MAX_MTU_SIZE               247                             // this is not the maximum possible value, just for experiment
+                                                                                    // https://infocenter.nordicsemi.com/topic/sdk_nrf5_v17.1.0/ble_sdk_app_att_mtu.html
+
+#define BLE_SPP_ENABLED                             1
+#define BLE_SPP_BLE_OBSERVER_PRIO                   2
+
 
 #endif

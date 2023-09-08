@@ -5,7 +5,7 @@
 #include "nrf_drv_spi.h"
 #include "nrf_spi_mngr.h"
 
-#define MIMIC_ROUGU             1
+#define MIMIC_ROUGU             0
 
 #define TAGLIST_SIZE            16
 
@@ -81,7 +81,7 @@
 #define REG_MEM_DATA           (0xF4)
 #define REG_PART_ID            (0xFF)
 
-typedef struct __attribute__((packed)) reg_intstat1  // 0x00
+typedef struct __attribute__((packed)) reg_intstat1  // 0x00 STATIC_ASSERT(sizeof(reg_intstat1_t) == 1);
 {
   unsigned int pwr_rdy          : 1;
   unsigned int vdd_oor          : 1;
@@ -191,26 +191,55 @@ typedef struct __attribute__((packed)) reg_ledseq
 
 typedef struct __attribute__((packed)) max86141_cfg
 {
-  reg_inten1_t    inten1;
-  reg_fifocfg1_t  fifocfg1;
-  reg_fifocfg2_t  fifocfg2;
-  reg_sysctrl_t   sysctrl;
-  reg_ppgcfg1_t   ppgcfg1;
-  reg_ppgcfg2_t   ppgcfg2;
-  reg_ppgcfg3_t   ppgcfg3;
-  reg_pdbias_t    pdbias;
-  uint8_t         led1pa;
-  uint8_t         led2pa;
-  uint8_t         led3pa;
-  uint8_t         led4pa;
-  uint8_t         led5pa;
-  uint8_t         led6pa;
-  reg_ledrge_t    ledrge1;
-  reg_ledrge_t    ledrge2;
-  reg_ledseq_t    ledseq1;
-  reg_ledseq_t    ledseq2;
-  reg_ledseq_t    ledseq3;
+    reg_inten1_t    inten1;
+    reg_fifocfg1_t  fifocfg1;
+    reg_fifocfg2_t  fifocfg2;
+    reg_sysctrl_t   sysctrl;        // 0x0d
+    reg_ppgcfg1_t   ppgcfg1;        // 0x11
+    reg_ppgcfg2_t   ppgcfg2;        // 0x12
+    reg_ppgcfg3_t   ppgcfg3;        // 0x13
+    uint8_t         proxth;         // 0x14
+    reg_pdbias_t    pdbias;         // 0x15
+    uint8_t         picket;         // 0x16
+    reg_ledseq_t    ledseq1;        // 0x20
+    reg_ledseq_t    ledseq2;        // 0x21
+    reg_ledseq_t    ledseq3;        // 0x22
+    uint8_t         led1pa;         // 0x23
+    uint8_t         led2pa;         // 0x24
+    uint8_t         led3pa;         // 0x25
+    uint8_t         led4pa;         // 0x26
+    uint8_t         led5pa;         // 0x27
+    uint8_t         led6pa;         // 0x28
+    uint8_t         pilotpa;        // 0x29
+    reg_ledrge_t    ledrge1;        // 0x2a
+    reg_ledrge_t    ledrge2;        // 0x2b
 } max86141_cfg_t;
+
+typedef struct __attribute__((packed)) max86141_cmd
+{
+    uint8_t id;
+    uint8_t sysctrl;
+    uint8_t ppgcfg1;
+    uint8_t ppgcfg2;
+    uint8_t ppgcfg3;
+    uint8_t proxth;
+    uint8_t pdbias;
+    uint8_t picket;
+    uint8_t ledseq1;
+    uint8_t ledseq2;
+    uint8_t ledseq3;
+    uint8_t led1pa;
+    uint8_t led2pa;
+    uint8_t led3pa;
+    uint8_t led4pa;
+    uint8_t led5pa;
+    uint8_t led6pa;
+    uint8_t pilotpa;
+    uint8_t ledreg1;
+    uint8_t ledreg2;
+} max86141_cmd_t;
+
+STATIC_ASSERT(sizeof(max86141_cmd_t) == 20);
 
 typedef struct max86141_ctx
 {

@@ -1308,6 +1308,8 @@ static void ads1292r_task(void * pvParameters)
     }
     NRF_LOG_INFO("---- formatted print test end ----");
 #endif
+    
+    vTaskDelay(2000);
 
     NRF_LOG_INFO("ads129x_brief_tlv_t size: %d", sizeof(ads129x_brief_tlv_t));
 
