@@ -63,20 +63,24 @@
 #include "task.h"
 
 #include "owuart.h"
+#include "sens-proto.h"
+#include "usbcdc.h"
 
-#define HIGH				1
-#define LOW					0
+#define HIGH				    1
+#define LOW					    0
 
-#define OWWRITEBIT1         0xFF
-#define OWWRITEBIT0         0x00
+#define OWWRITEBIT1             0xFF
+#define OWWRITEBIT0             0x00
 
-#define OWREADBIT1			0xFF
-#define OWREADBIT0	        0xFE
+#define OWREADBIT1			    0xFF
+#define OWREADBIT0	            0xFE
 
-#define OWRESET             0xF0
-#define OWSEARCHROM			0xF0
+#define OWRESET                 0xF0
+#define OWSEARCHROM			    0xF0
 
-#define OWROMTOTALBITS 		64
+#define OWROMTOTALBITS 		    64
+
+#define SENS_PACKET_POOL_SIZE   2
 
 static TaskHandle_t m_owuart_thread;
 
@@ -116,6 +120,9 @@ static nrfx_uart_config_t fast_config = {
     .interrupt_priority = NRFX_UART_DEFAULT_CONFIG_IRQ_PRIORITY,
 };
 
+ow_m601z_packet_helper_t m_m601z_packet_helper = {0};
+static sens_packet_t * p_current_m601z_packet = NULL;
+
 static char * hexstr(uint8_t serial[], int num);
 static uint8_t bits2byte(uint8_t * bits);
 static void bits2bytes(uint8_t * bits, uint8_t * bytes);
@@ -128,6 +135,8 @@ static int onewire_writebyte(uint8_t byte);
 static int onewire_reset(void);
 static int onewire_search(unsigned char *ROMCodes);
 static int onewire_m601z_readtemp(uint8_t buf[9]);
+
+static sens_packet_t * next_m601z_packet(void);
 
 static char * hexstr(uint8_t serial[], int num)
 {
@@ -404,13 +413,18 @@ static uint8_t CRC8(uint8_t *buf, int length)
   return result;
 }
 
-#define OW_CHECK(x)             if ((ret = x) < 0) { continue; }                  
+#define OW_CHECK(x)             if ((ret = x) < 0) { goto fail; }                  
 
 void owuart_task(void * pvParameters)
 {
     int ret;
     
     onewire_probe();
+    
+    m_m601z_packet_helper.num_of_devices = m_device_count;
+    m_m601z_packet_helper.p_serial = &m_device_serial;
+    
+    p_current_m601z_packet = next_m601z_packet();
     
     for (int n = 0;;n++)
     {
@@ -419,7 +433,7 @@ void owuart_task(void * pvParameters)
         for (int j = 0; j < m_device_count; j++)
         {
             OW_CHECK(onewire_reset());
-            if (ret == 0) continue;
+            if (ret == 0) goto fail;
             OW_CHECK(onewire_writebyte(0x55));
             OW_CHECK(onewire_writebyte(m_device_serial[j][0]));
             OW_CHECK(onewire_writebyte(m_device_serial[j][1]));
@@ -435,7 +449,7 @@ void owuart_task(void * pvParameters)
             vTaskDelay(12);
             
             OW_CHECK(onewire_reset());
-            if (ret == 0) continue;
+            if (ret == 0) goto fail;
 
             OW_CHECK(onewire_writebyte(0x55));
             OW_CHECK(onewire_writebyte(m_device_serial[j][0]));
@@ -457,12 +471,25 @@ void owuart_task(void * pvParameters)
                 float tempf = (float)(*st)/256 + 40;
                 snprintf(buf, 8, "%.4f", tempf);
                 NRF_LOG_INFO("  T(%d): %s (%d)", j+1, buf, n);
+                
+                m_m601z_packet_helper.p_templist->id_temp[j].temp[0] = temp[0];
+                m_m601z_packet_helper.p_templist->id_temp[j].temp[1] = temp[1];
+                
+                continue;
             }
             else
             {
                 NRF_LOG_WARNING("    BAD CRC: %s", hexstr(temp, 9));
-            }            
+            }
+
+            fail:
+            m_m601z_packet_helper.p_templist->id_temp[j].temp[0] = 0xff;
+            m_m601z_packet_helper.p_templist->id_temp[j].temp[1] = 0xff;
         }
+        
+        simple_crc((uint8_t *)&p_current_m601z_packet->type, &m_m601z_packet_helper.p_crc[0], &m_m601z_packet_helper.p_crc[1]);
+        cdc_acm_send_packet((uint8_t *)p_current_m601z_packet, m_m601z_packet_helper.packet_size);
+        p_current_m601z_packet = next_m601z_packet();
     }
 }
 
@@ -518,4 +545,36 @@ void onewire_probe(void)
         NRF_LOG_INFO("(%d) SN: %s", i + 1, hexstr(m_device_serial[i], 8));
         NRF_LOG_FLUSH();    // this is important!
     }
+}
+
+static sens_packet_t * next_m601z_packet(void)
+{
+    static bool initialized = false;
+    static sens_packet_t * p_packet_pool[SENS_PACKET_POOL_SIZE] = {0};
+    static int next_modulo = 0;
+
+    if (!initialized)
+    {
+        // init m_packet helper
+        sens_init_ow_m601z_packet(&m_m601z_packet_helper, NULL);
+
+        // alloc mem
+        for (int i = 0; i < SENS_PACKET_POOL_SIZE; i++)
+        {
+            p_packet_pool[i] = pvPortMalloc(m_m601z_packet_helper.packet_size);
+            APP_ERROR_CHECK_BOOL(p_packet_pool[i] != NULL);
+        }
+
+        initialized = true;
+
+        NRF_LOG_INFO("m601z packets init, len: %d, size: %d",
+            m_m601z_packet_helper.payload_len,
+            m_m601z_packet_helper.packet_size);
+    }
+
+    // init next packet
+    sens_init_ow_m601z_packet(&m_m601z_packet_helper, p_packet_pool[next_modulo]);
+    sens_packet_t * next = p_packet_pool[next_modulo];
+    next_modulo = (next_modulo + 1) % SENS_PACKET_POOL_SIZE;
+    return next;
 }

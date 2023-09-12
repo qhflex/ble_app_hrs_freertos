@@ -50,6 +50,17 @@
 #define MAX86141_LEDCFG_TLV_LEN         12
 #define MAX86141_LEDCFG_TLV_SIZE        (3 + MAX86141_LEDCFG_TLV_LEN)
 
+#define OW_M601Z_SENSOR_ID              4
+
+#define OW_M601Z_BRIEF_TLV_LEN          5
+#define OW_M601Z_BRIEF_TLV_SIZE         (3 + OW_M601Z_BRIEF_TLV_LEN)
+
+#define OW_M601Z_TEMPLIST_TLV_TYPE      0x00
+#define OW_M601Z_TEMPLIST_TLV_LEN       80
+#define OW_M601Z_TEMPLIST_TLV_SIZE      (3 + OW_M601Z_TEMPLIST_TLV_LEN)
+
+
+
 typedef struct __attribute__((packed)) tlv
 {
     uint8_t type;
@@ -163,8 +174,51 @@ typedef struct max86141_packet_helper
 
 } max86141_packet_helper_t;
 
+typedef struct __attribute__((packed)) ow_m601z_brief_tlv
+{
+    uint8_t type;
+    uint16_t length;
+    uint16_t sensor_id;
+    uint8_t instance_id;
+    uint8_t version;
+    uint8_t num_of_devices;    
+} ow_m601z_brief_tlv_t;
+
+STATIC_ASSERT(sizeof(ow_m601z_brief_tlv_t) == OW_M601Z_BRIEF_TLV_SIZE);
+
+typedef struct __attribute__((packed)) ow_m601z_id_temp
+{
+    uint8_t id[8];
+    uint8_t temp[2];
+} ow_m601z_id_temp_t;
+
+STATIC_ASSERT(sizeof(ow_m601z_id_temp_t) == 10);
+
+typedef struct __attribute__((packed)) ow_m601z_templist_tlv
+{
+    uint8_t type;
+    uint16_t length;
+    ow_m601z_id_temp_t id_temp[8];
+} ow_m601z_templist_tlv_t;
+
+STATIC_ASSERT(sizeof(ow_m601z_templist_tlv_t) == OW_M601Z_TEMPLIST_TLV_SIZE);
+
+typedef struct ow_m601z_packet_helper
+{
+    uint16_t                payload_len;        // set by init 
+    uint16_t                packet_size;        // set by init
+    uint8_t                 instance_id;        // set by user before init
+    uint8_t                 num_of_devices;     // set by user before init
+    uint8_t                 (*p_serial)[8][8];
+    
+    ow_m601z_brief_tlv_t    *p_brief;
+    ow_m601z_templist_tlv_t *p_templist;
+    uint8_t                 *p_crc;
+} ow_m601z_packet_helper_t;
+
 void sens_init_ads129x_packet(ads129x_packet_helper_t * p_helper, sens_packet_t * p_pkt);
 void sens_init_max86141_packet(max86141_packet_helper_t * p_helper, sens_packet_t * p_pkt);
+void sens_init_ow_m601z_packet(ow_m601z_packet_helper_t * p_helper, sens_packet_t * p_pkt);
 void simple_crc(uint8_t * buf, uint8_t * cka, uint8_t * ckb);
 
 #endif
