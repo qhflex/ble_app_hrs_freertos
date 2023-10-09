@@ -5,6 +5,8 @@
 #include "nrf_drv_spi.h"
 #include "nrf_spi_mngr.h"
 
+#include "BO_bloodoxygen.h"
+
 #define MIMIC_ROUGU             0
 
 #define TAGLIST_SIZE            16

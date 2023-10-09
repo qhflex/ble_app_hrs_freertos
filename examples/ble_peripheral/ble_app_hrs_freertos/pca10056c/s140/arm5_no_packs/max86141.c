@@ -8,6 +8,7 @@
 #include "nrfx_gpiote.h"
 
 #include "nrf_log.h"
+#include "nrf_log_ctrl.h"
 
 #include "nrf_spi_mngr.h"
 
@@ -231,7 +232,7 @@ const static max86141_cfg_t abp_maxcfg = {
         .fifo_ro        = 1,    // drop old samples when fifo full
     },
     .sysctrl = {
-        .single_ppg     = 0,    // only one channle is used
+        .single_ppg     = 0,    // both channels are used
     },
     .ppgcfg1 = {
         .ppg2_adc_rge   = 3,
@@ -240,7 +241,7 @@ const static max86141_cfg_t abp_maxcfg = {
                                 // 0b10 16.384uA 
                                 // 0b11 32.768uA
 
-        .ppg_tint       = 3,    // pulse width = tint + tsetlng + 0.5uS = 129.8uS
+        .ppg_tint       = 0,    // pulse width = tint + tsetlng + 0.5uS = 129.8uS
                                 // if tsetlng = 01 (6uS, default) then pw = 123.8uS
                                 // as in the value provided in pseudo code
                                 //
@@ -250,7 +251,8 @@ const static max86141_cfg_t abp_maxcfg = {
                                 // 0b11 integration time is 117.3uS
     },
     .ppgcfg2 = {
-        .ppg_sr         = 0x07, // 0x00   25 sps
+        // .ppg_sr         = 0x13  // max
+        .ppg_sr         = 0x01, // 0x00   25 sps
                                 // 0x01   50 sps
                                 // 0x02   84 sps
                                 // 0x03  100 sps
@@ -291,26 +293,27 @@ const static max86141_cfg_t abp_maxcfg = {
         .pdbias1        = 1,    // 0-64pF, smallest
     },
     .ledrge1 = {
-        .led36_rge      = 1,
+//      .led36_rge      = 1,
         .led25_rge      = 1,    // 0b00  31mA
         .led14_rge      = 1,    // 0b01  62mA
                                 // 0b10  93mA
                                 // 0b11 124mA
     },
-    .led1pa             = 0x24, // lsb =  0.12 when rge is 00 (0b00)
+    .led1pa             = 0x30, // lsb =  0.12 when rge is 00 (0b00)
                                 //        0.24 when rge is 01 (0b01)
                                 //        0.36 when rge is 02 (0b10)
                                 //        0.48 when rge is 03 (0b11)
 
-    .led2pa             = 0x32,
-    .led3pa             = 0x40,
+    .led2pa             = 0x30,
+//  .led3pa             = 0x40,
     .ledseq1 = {
-        .ledc135        = 1,    // 0001 LED1
-        .ledc246        = 2,    // 0010 LED2
+        .ledc135        = 4,    // 0001 LED1
+//      .ledc246        = 2,    // 0010 LED2
+                                // 0100 LED1 + LED2
     },
-    .ledseq2 = {
-        .ledc135        = 3,    // 0011 LED3
-    },
+//  .ledseq2 = {
+//      .ledc135        = 3,    // 0011 LED3
+//  },
 };
 
 static max86141_ctx_t spo_ctx = {
@@ -326,7 +329,7 @@ static max86141_packet_helper_t m_spo_packet_helper = {
     .ppg1_led = 0x03,   // PPG1_LED1, PPG1_LED2
     .ppg2_led = 0,
     .ppf_prox = 0,
-    .low_power = 0,
+    .use_rougu_spo = 1,
 };
 
 static max86141_packet_helper_t m_abp_packet_helper = {
@@ -334,7 +337,7 @@ static max86141_packet_helper_t m_abp_packet_helper = {
     .ppg1_led = 0x07,
     .ppg2_led = 0x07,
     .ppf_prox = 0,
-    .low_power = 0,
+    .use_rougu_spo = 0,
 };
 
 static sens_packet_t *p_current_spo_packet;
@@ -423,11 +426,11 @@ static void read_registers(max86141_ctx_t * ctx, uint8_t startAddr, int num, uin
 
         if (ctx == &spo_ctx)
         {
-            NRF_LOG_INFO("spo reg %02x: %02x", addr, val);
+            // NRF_LOG_INFO("spo reg %02x: %02x", addr, val);
         }
         else if (ctx == &abp_ctx)
         {
-            NRF_LOG_INFO("abp reg %02x: %02x", addr, val);
+            // NRF_LOG_INFO("abp reg %02x: %02x", addr, val);
         }
 
         if (outbuf)
@@ -632,7 +635,7 @@ static void spo_ctx_init()
     spo_ctx.spicfg.orc           = 0xff;
     spo_ctx.spicfg.mode          = NRF_DRV_SPI_MODE_0;
     spo_ctx.spicfg.irq_priority  = APP_IRQ_PRIORITY_LOWEST;
-    spo_ctx.spicfg.frequency     = NRF_DRV_SPI_FREQ_1M;
+    spo_ctx.spicfg.frequency     = NRF_DRV_SPI_FREQ_4M;
     spo_ctx.spicfg.bit_order     = NRF_DRV_SPI_BIT_ORDER_MSB_FIRST;
 }
 
@@ -651,7 +654,7 @@ static void abp_ctx_init()
     abp_ctx.spicfg.orc           = 0xff;
     abp_ctx.spicfg.mode          = NRF_DRV_SPI_MODE_0;
     abp_ctx.spicfg.irq_priority  = APP_IRQ_PRIORITY_LOWEST;
-    abp_ctx.spicfg.frequency     = NRF_DRV_SPI_FREQ_1M;
+    abp_ctx.spicfg.frequency     = NRF_DRV_SPI_FREQ_4M;
     abp_ctx.spicfg.bit_order     = NRF_DRV_SPI_BIT_ORDER_MSB_FIRST;
 }
 
@@ -841,7 +844,8 @@ static void max86141_task(void * pvParameters)
 
 static void max86141_task(void * pvParameters)
 {
-    TickType_t xFrequency = 50;
+    // very fast, change this to interrupt driven?
+    TickType_t xFrequency = 2;
 
     uint8_t spo_count = 0;
     uint8_t abp_count = 0;
@@ -849,6 +853,11 @@ static void max86141_task(void * pvParameters)
     int abp_pkt_count = 0;
     
     vTaskDelay(1000);
+    
+	bloodoxygenInit();
+	set_spo2_cofe(-7.1984,33.5650,60.5454,-46.3775,130.3776,0.9044);
+	BLOOD_OXYGEN_INFO_STRU light_data = {0};
+	BLOOD_OXYGEN_RESULT_STRU blood_result = {0};
 
     spo_ctx_init();
     abp_ctx_init();
@@ -866,6 +875,7 @@ static void max86141_task(void * pvParameters)
     }
 
     p_current_abp_packet = max86141_probe(&abp_ctx) ? next_abp_packet() : NULL;
+    // p_current_abp_packet = NULL;
     if (p_current_abp_packet)
     {
         max86141_config(&abp_ctx);
@@ -875,8 +885,6 @@ static void max86141_task(void * pvParameters)
 
         NRF_LOG_INFO("abp max86141 started");
     }
-    
-    // vTaskDelay(portMAX_DELAY);
 
     for (;;)
     {
@@ -896,6 +904,24 @@ static void max86141_task(void * pvParameters)
                 memcpy(&m_spo_packet_helper.p_sample->value, buf, MAX86141_NUM_OF_SAMPLES * 3);
                 memcpy(&m_spo_packet_helper.p_ppgcfg->value, spo_0x10_0x16_regs, 7);
                 memcpy(&m_spo_packet_helper.p_ledcfg->value, spo_0x20_0x2B_regs, 12);
+                
+                for (int i = 0; i < MAX86141_NUM_OF_SAMPLES / 2; i++)
+                {
+                    light_data.ir = (((unsigned int)(buf[i * 6 + 0] & 0x07)) << 16) + (((unsigned int)buf[i * 6 + 1]) << 8) + (unsigned int)buf[i * 6 + 2];
+                    light_data.rd = (((unsigned int)(buf[i * 6 + 3] & 0x07)) << 16) + (((unsigned int)buf[i * 6 + 4]) << 8) + (unsigned int)buf[i * 6 + 5];
+                        
+                    getBOResult(light_data, &blood_result);
+                    max86141_rougu_data_t *p_data_base = (max86141_rougu_data_t *)&m_spo_packet_helper.p_rougu_spo->value;
+                    max86141_rougu_data_t *p_data = &p_data_base[i];
+                    p_data->ir = light_data.ir;
+                    p_data->rd = light_data.rd;
+                    p_data->irdc = light_data.irdc;
+                    p_data->rddc = light_data.rddc;
+                    p_data->irFilt = blood_result.filterIr;
+                    p_data->rdFilt = blood_result.filterRd;
+                    p_data->spo = blood_result.saO2;
+                    p_data->hr = blood_result.heartRate;
+                }
 
                 simple_crc((uint8_t *)&p_current_spo_packet->type, &m_spo_packet_helper.p_crc[0], &m_spo_packet_helper.p_crc[1]);
                 cdc_acm_send_packet((uint8_t *)p_current_spo_packet, m_spo_packet_helper.packet_size);

@@ -50,7 +50,7 @@
 
 // #include "app_error.h"
 
-#define TSK_OWUART_STACK_SIZE           (128)	// the unit is word, 4-bytes
+#define TSK_OWUART_STACK_SIZE           (256)	// the unit is word, 4-bytes
 #define TSK_OWUART_PRIORITY             (1)
 
 /** this function should be called before freertos started */

@@ -40,6 +40,8 @@
 
 #include "app_usbd_serial_num.h"
 
+#include "ble_bios.h"
+
 // #include "m601z.h"
 #include "qma6110p.h"
 #include "ads1292r.h"
@@ -99,8 +101,8 @@
 /*********************************************************************
  * LOCAL VARIABLES
  */
-
-BLE_SPP_DEF(m_spp);
+BLE_BIOSENS_DEF(m_biosens);
+// BLE_SPP_DEF(m_spp);
 NRF_BLE_GATT_DEF(m_gatt);                                                           /**< GATT module instance. */
 NRF_BLE_QWR_DEF(m_qwr);                                                             /**< Context for the Queued Write module.*/
 BLE_ADVERTISING_DEF(m_advertising);                                                 /**< Advertising module instance. */
@@ -136,7 +138,7 @@ static void spp_command_handler (uint16_t conn_handle, ble_spp_t * p_spp, uint8_
 /**********************************************************************
  * PUBLIC FUNCTIONS
  */
-
+/**
 static void spp_command_handler (uint16_t conn_handle, ble_spp_t * p_spp, uint8_t new_sps)
 {
     ret_code_t err_code;
@@ -202,7 +204,7 @@ static void spp_init(void)
 
     err_code = ble_spp_init(&m_spp, &spp_init_obj);
     APP_ERROR_CHECK(err_code);
-}
+} */
 
 /**@brief Callback function for asserts in the SoftDevice.
  *
@@ -298,6 +300,47 @@ static void nrf_qwr_error_handler(uint32_t nrf_error)
     APP_ERROR_HANDLER(nrf_error);
 }
 
+static void on_eeg_evt(ble_biosens_t * p_eeg, ble_biosens_evt_t * p_evt)
+{
+}
+
+static void biosens_sps_write_handler (uint16_t conn_handle, ble_biosens_t * p_eeg, uint8_t new_sps)
+{}
+    
+static void biosens_gain_write_handler (uint16_t conn_handle, ble_biosens_t * p_eeg, uint8_t new_sps)
+{}
+
+static void biosens_stim_write_handler (uint16_t conn_handle, ble_biosens_t * p_eeg, uint8_t new_sps)
+{}    
+    
+static void biosens_sample_notification_enabled()
+{} 
+
+static void biosens_sample_notification_disabled()
+{}    
+
+static void biosens_init(void)
+{
+    ret_code_t      err_code;
+    ble_biosens_init_t  biosens_init_obj;
+
+    memset(&biosens_init_obj, 0, sizeof(biosens_init_obj));
+
+    biosens_init_obj.evt_handler                    = on_eeg_evt;
+    biosens_init_obj.initial_sps                    = 1;
+    biosens_init_obj.initial_gain                   = 0;
+    biosens_init_obj.initial_stim                   = 0;
+
+    biosens_init_obj.sps_write_handler              = biosens_sps_write_handler;
+    biosens_init_obj.gain_write_handler             = biosens_gain_write_handler;
+    biosens_init_obj.stim_write_handler             = biosens_stim_write_handler;
+    biosens_init_obj.sample_notification_enabled    = biosens_sample_notification_enabled;
+    biosens_init_obj.sample_notification_disabled   = biosens_sample_notification_disabled;
+
+    //eeg_init_obj.
+    err_code = ble_biosens_init(&m_biosens, &biosens_init_obj);
+    APP_ERROR_CHECK(err_code);
+}
 
 /**@brief Function for initializing services that will be used by the application.
  *
@@ -315,7 +358,7 @@ static void services_init(void)
     err_code = nrf_ble_qwr_init(&m_qwr, &qwr_init);
     APP_ERROR_CHECK(err_code);
 
-    spp_init();
+    biosens_init();
 }
 
 /**@brief Function for handling the Connection Parameters Module.
@@ -439,15 +482,15 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             err_code = nrf_ble_qwr_conn_handle_assign(&m_qwr, m_conn_handle);
             APP_ERROR_CHECK(err_code);
 
-            m_spp.conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
+            // m_spp.conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
             break;
 
         case BLE_GAP_EVT_DISCONNECTED:
             NRF_LOG_INFO("Disconnected");
             m_conn_handle = BLE_CONN_HANDLE_INVALID;
 
-            spp_sample_notification_disabled();
-            m_spp.conn_handle = BLE_CONN_HANDLE_INVALID;
+            // spp_sample_notification_disabled();
+            // m_spp.conn_handle = BLE_CONN_HANDLE_INVALID;
             break;
 
         case BLE_GAP_EVT_PHY_UPDATE_REQUEST:
@@ -697,8 +740,6 @@ int main(void)
     // APP_ERROR_CHECK(err_code);
 
     nrfx_gpiote_init();
-
-
 
     // Do not start any interrupt that uses system functions before system initialisation.
     // The best solution is to start the OS before any other initalisation.

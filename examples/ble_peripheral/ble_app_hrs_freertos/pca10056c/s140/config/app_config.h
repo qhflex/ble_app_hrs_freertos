@@ -114,5 +114,7 @@
 #define BLE_SPP_ENABLED                             1
 #define BLE_SPP_BLE_OBSERVER_PRIO                   2
 
+#define BLE_BIOSENS_ENABLED                         1
+#define BLE_BIOSENS_BLE_OBSERVER_PRIO               2
 
 #endif

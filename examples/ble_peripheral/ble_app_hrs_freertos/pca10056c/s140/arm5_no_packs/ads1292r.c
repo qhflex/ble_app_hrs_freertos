@@ -1108,7 +1108,7 @@ static void spi_config(void)
        .ss_pin             = NRF_DRV_SPI_PIN_NOT_USED,
        .irq_priority       = APP_IRQ_PRIORITY_LOWEST,
        .orc                = 0x00,
-       .frequency          = NRF_DRV_SPI_FREQ_500K,
+       .frequency          = NRF_DRV_SPI_FREQ_1M,
 
        // https://devzone.nordicsemi.com/f/nordic-q-a/39942/nrf52840---ads1292/155794
        // also datasheet

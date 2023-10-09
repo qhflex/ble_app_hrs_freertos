@@ -84,8 +84,8 @@
 
 static TaskHandle_t m_owuart_thread;
 
-static uint8_t  OW_DeviceROMCodes[OWROMTOTALBITS * 8];
-static uint8_t  m_device_serial[8][8];
+static uint8_t  OW_DeviceROMCodes[OWROMTOTALBITS * 16];
+static uint8_t  m_device_serial[16][8];
 static int      m_device_count = 0;
 static uint8_t  temp[9];
 
@@ -237,11 +237,11 @@ int onewire_search(unsigned char *ROMCodes)
 	unsigned char OW_FirstBit		 = 0;
 	unsigned char OW_SecondBit		 = 0;
 	unsigned char OW_ErrorFlag		 = 0;
- 	unsigned char OW_BitIndex		 = 0;
+ 	int           OW_BitIndex		 = 0;
 	unsigned char OW_NewDeviation	 = 0;
 	unsigned char OW_LastDeviation	 = 0;
-	unsigned char OW_NumberOfDevices = 0;
-	unsigned char OW_Loop			 = 0;
+    int           OW_NumberOfDevices = 0;
+	int           OW_Loop			 = 0;
 
 	unsigned char OW_BitPattern[64];										    // ROM code Container 64*3 Wide
 
@@ -329,6 +329,9 @@ int onewire_search(unsigned char *ROMCodes)
 			OW_NumberOfDevices = 0;												// else set it to ZERO
 		}
 		OW_LastDeviation = OW_NewDeviation;										// Set Last Deviation to New Deviation
+        
+        // NRF_LOG_INFO("numOfDevices: %d", OW_NumberOfDevices);
+        // NRF_LOG_FLUSH();
 
 		for(OW_Loop = ((OW_NumberOfDevices - 1) * OWROMTOTALBITS);				// Post process ROM Code and Save.
 			OW_Loop < (OWROMTOTALBITS * OW_NumberOfDevices);
@@ -421,6 +424,11 @@ void owuart_task(void * pvParameters)
     
     onewire_probe();
     
+//    for (int i = 0;; i++)
+//    {
+//        vTaskDelay(1024);
+//    }
+    
     m_m601z_packet_helper.num_of_devices = m_device_count;
     m_m601z_packet_helper.p_serial = &m_device_serial;
     
@@ -471,6 +479,7 @@ void owuart_task(void * pvParameters)
                 float tempf = (float)(*st)/256 + 40;
                 snprintf(buf, 8, "%.4f", tempf);
                 NRF_LOG_INFO("  T(%d): %s (%d)", j+1, buf, n);
+                NRF_LOG_FLUSH();
                 
                 m_m601z_packet_helper.p_templist->id_temp[j].temp[0] = temp[0];
                 m_m601z_packet_helper.p_templist->id_temp[j].temp[1] = temp[1];
@@ -538,12 +547,14 @@ void onewire_probe(void)
 
     m_device_count = ret;
     NRF_LOG_INFO("%d onewire %s found", m_device_count, m_device_count == 1 ? "device" : "devices");
+    NRF_LOG_FLUSH();    // this is important!
     
     for (int i = 0; i < ret; i++)
     {
         bits2bytes(&OW_DeviceROMCodes[i * 64], m_device_serial[i]);
         NRF_LOG_INFO("(%d) SN: %s", i + 1, hexstr(m_device_serial[i], 8));
         NRF_LOG_FLUSH();    // this is important!
+        vTaskDelay(1);
     }
 }
 

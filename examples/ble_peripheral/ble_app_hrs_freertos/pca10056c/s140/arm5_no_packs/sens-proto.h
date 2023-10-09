@@ -50,6 +50,11 @@
 #define MAX86141_LEDCFG_TLV_LEN         12
 #define MAX86141_LEDCFG_TLV_SIZE        (3 + MAX86141_LEDCFG_TLV_LEN)
 
+#define MAX86141_ROUGU_SPO_DATA_SIZE    32
+#define MAX86141_ROUGU_SPO_TLV_TYPE     0xf5
+#define MAX86141_ROUGU_SPO_TLV_LEN      (MAX86141_NUM_OF_SAMPLES * MAX86141_ROUGU_SPO_DATA_SIZE / 2)
+#define MAX86141_ROUGU_SPO_TLV_SIZE     (3 + MAX86141_ROUGU_SPO_TLV_LEN)
+
 #define OW_M601Z_SENSOR_ID              4
 
 #define OW_M601Z_BRIEF_TLV_LEN          5
@@ -58,7 +63,6 @@
 #define OW_M601Z_TEMPLIST_TLV_TYPE      0x00
 #define OW_M601Z_TEMPLIST_TLV_LEN       80
 #define OW_M601Z_TEMPLIST_TLV_SIZE      (3 + OW_M601Z_TEMPLIST_TLV_LEN)
-
 
 
 typedef struct __attribute__((packed)) tlv
@@ -116,6 +120,22 @@ typedef struct ads129x_packet_helper
     uint8_t                 *p_crc;
 } ads129x_packet_helper_t;
 
+typedef struct __attribute__((packed)) max86141_rougu_data
+{
+    int ir;
+    int rd;
+    int irdc;
+    int rddc;
+    int irFilt;
+    int rdFilt;
+    int spo;
+    int hr;
+    // int hrpeak;
+    // unsigned int rsvd;
+} max86141_rougu_data_t;
+
+STATIC_ASSERT(sizeof(max86141_rougu_data_t) == MAX86141_ROUGU_SPO_DATA_SIZE);
+
 typedef struct __attribute__((packed)) {
     uint8_t type;
     uint16_t length;
@@ -155,20 +175,27 @@ typedef struct __attribute__((packed)) max86141_ledcfg_tlv {
 
 STATIC_ASSERT(sizeof(max86141_ledcfg_tlv_t) == MAX86141_LEDCFG_TLV_SIZE);
 
+typedef struct __attribute__((packed)) max86141_rougu_spo_tlv {
+    uint8_t type;
+    uint16_t length;
+    uint8_t value[MAX86141_ROUGU_SPO_TLV_LEN];
+} max86141_rougu_spo_tlv_t;
+
 typedef struct max86141_packet_helper
 {
-    uint16_t                payload_len;
-    uint16_t                packet_size;
-    uint8_t                 instance_id;
-    uint8_t                 ppg1_led;
-    uint8_t                 ppg2_led;
-    uint8_t                 ppf_prox;
-    bool                    low_power;
+    uint16_t                    payload_len;
+    uint16_t                    packet_size;
+    uint8_t                     instance_id;
+    uint8_t                     ppg1_led;
+    uint8_t                     ppg2_led;
+    uint8_t                     ppf_prox;
+    bool                        use_rougu_spo;
 
     max86141_brief_tlv_t    *p_brief;
     max86141_sample_tlv_t   *p_sample;
     max86141_ppgcfg_tlv_t   *p_ppgcfg;  // with picket fence
     max86141_ledcfg_tlv_t   *p_ledcfg;  //
+    max86141_rougu_spo_tlv_t    *p_rougu_spo;
 
     uint8_t                 *p_crc;
 
@@ -209,7 +236,7 @@ typedef struct ow_m601z_packet_helper
     uint16_t                packet_size;        // set by init
     uint8_t                 instance_id;        // set by user before init
     uint8_t                 num_of_devices;     // set by user before init
-    uint8_t                 (*p_serial)[8][8];
+    uint8_t                 (*p_serial)[16][8];
     
     ow_m601z_brief_tlv_t    *p_brief;
     ow_m601z_templist_tlv_t *p_templist;

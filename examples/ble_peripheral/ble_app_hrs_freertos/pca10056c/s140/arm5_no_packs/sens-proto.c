@@ -123,7 +123,7 @@ void sens_init_max86141_packet(max86141_packet_helper_t * p_helper, sens_packet_
         p_helper->p_brief->ppg1_led = p_helper->ppg1_led;
         p_helper->p_brief->ppg2_led = p_helper->ppg2_led;
         p_helper->p_brief->ppf_prox = p_helper->ppf_prox;
-        p_helper->p_brief->low_power = p_helper->low_power;
+        p_helper->p_brief->low_power = 0;
         p_helper->p_brief->num_of_samples = MAX86141_NUM_OF_SAMPLES; // p_helper->num_of_samples;
     }
     payload_len += sizeof(max86141_brief_tlv_t);
@@ -151,6 +151,17 @@ void sens_init_max86141_packet(max86141_packet_helper_t * p_helper, sens_packet_
         p_helper->p_ledcfg->length = MAX86141_LEDCFG_TLV_LEN;
     }
     payload_len += sizeof(max86141_ledcfg_tlv_t);
+
+    if (p_helper->use_rougu_spo)
+    {
+        if (p_pkt)
+        {
+            p_helper->p_rougu_spo = (max86141_rougu_spo_tlv_t *)&p_pkt->payload_crc[payload_len];
+            p_helper->p_rougu_spo->type = MAX86141_ROUGU_SPO_TLV_TYPE;
+            p_helper->p_rougu_spo->length = MAX86141_ROUGU_SPO_TLV_LEN;
+        }
+        payload_len += sizeof(max86141_rougu_spo_tlv_t);
+    }
 
     if (p_pkt)
     {

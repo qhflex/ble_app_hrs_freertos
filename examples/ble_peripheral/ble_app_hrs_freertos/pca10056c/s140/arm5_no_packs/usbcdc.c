@@ -33,7 +33,7 @@
 #include "max86141.h"
 #include "usbcdc.h"
 
-#define TSK_USBCDC_STACK_SIZE   (512)
+#define TSK_USBCDC_STACK_SIZE   (1024)
 #define TSK_USBCDC_PRIORITY      1
 
 #define NOT_INSIDE_ISR          (( SCB->ICSR & SCB_ICSR_VECTACTIVE_Msk ) == 0 )
