@@ -204,27 +204,19 @@ int onewire_reset(void)
 {
     uint8_t wd = OWRESET, rd;
 
+    // rx disable/enabled cannot be removed
     nrfx_uart_rx_disable(&m_owuart);                    // Set Baud Rate to 9600
-    nrfx_uart_uninit(&m_owuart);
-    nrfx_uart_init(&m_owuart, &slow_config, NULL);
+    NRF_UART0->BAUDRATE = (UART_BAUDRATE_BAUDRATE_Baud9600 << UART_BAUDRATE_BAUDRATE_Pos);
     nrfx_uart_rx_enable(&m_owuart);
 
 	nrfx_uart_tx(&m_owuart, &wd, 1);                    // Send F0
     nrfx_uart_rx(&m_owuart, &rd, 1);                    // Read returned data
 
     nrfx_uart_rx_disable(&m_owuart);                    // Set UART to 115200Kbps
-    nrfx_uart_uninit(&m_owuart);
-    nrfx_uart_init(&m_owuart, &fast_config, NULL);
+    NRF_UART0->BAUDRATE = (UART_BAUDRATE_BAUDRATE_Baud115200 << UART_BAUDRATE_BAUDRATE_Pos);
     nrfx_uart_rx_enable(&m_owuart);
-
-	if(rd != wd)			                            // if send data is equal to the recieved data
-	{
-		return (HIGH);								    // Return 1
-	}
-	else
-	{
-		return (LOW);								    // Return 0
-	}
+    
+    return (rd != wd) ? HIGH : LOW;
 }// OW_Reset
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -331,7 +323,6 @@ int onewire_search(unsigned char *ROMCodes)
 		OW_LastDeviation = OW_NewDeviation;										// Set Last Deviation to New Deviation
         
         // NRF_LOG_INFO("numOfDevices: %d", OW_NumberOfDevices);
-        // NRF_LOG_FLUSH();
 
 		for(OW_Loop = ((OW_NumberOfDevices - 1) * OWROMTOTALBITS);				// Post process ROM Code and Save.
 			OW_Loop < (OWROMTOTALBITS * OW_NumberOfDevices);
@@ -376,7 +367,6 @@ static int onewire_m601z_readtemp(uint8_t buf[9])
     {
         ret = onewire_readbit();
         // NRF_LOG_INFO("readbit: %d", ret);
-        // NRF_LOG_FLUSH();
 
         if (ret < 0) return -1;
         if (ret == 1)
@@ -479,7 +469,6 @@ void owuart_task(void * pvParameters)
                 float tempf = (float)(*st)/256 + 40;
                 snprintf(buf, 8, "%.4f", tempf);
                 NRF_LOG_INFO("  T(%d): %s (%d)", j+1, buf, n);
-                NRF_LOG_FLUSH();
                 
                 m_m601z_packet_helper.p_templist->id_temp[j].temp[0] = temp[0];
                 m_m601z_packet_helper.p_templist->id_temp[j].temp[1] = temp[1];
@@ -547,13 +536,13 @@ void onewire_probe(void)
 
     m_device_count = ret;
     NRF_LOG_INFO("%d onewire %s found", m_device_count, m_device_count == 1 ? "device" : "devices");
-    NRF_LOG_FLUSH();    // this is important!
+    // NRF_LOG_FLUSH();
     
     for (int i = 0; i < ret; i++)
     {
         bits2bytes(&OW_DeviceROMCodes[i * 64], m_device_serial[i]);
         NRF_LOG_INFO("(%d) SN: %s", i + 1, hexstr(m_device_serial[i], 8));
-        NRF_LOG_FLUSH();    // this is important!
+        // NRF_LOG_FLUSH();    // this is important!
         vTaskDelay(1);
     }
 }

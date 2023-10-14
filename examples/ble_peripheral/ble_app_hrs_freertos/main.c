@@ -443,19 +443,19 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
     switch (ble_adv_evt)
     {
         case BLE_ADV_EVT_FAST:
-            NRF_LOG_INFO("Fast advertising.");
+            NRF_LOG_INFO("[BLE] Fast advertising.");
             // err_code = bsp_indication_set(BSP_INDICATE_ADVERTISING);
             // APP_ERROR_CHECK(err_code);
             break;
 
         case BLE_ADV_EVT_SLOW:
-            NRF_LOG_INFO("Slow advertising.");
+            NRF_LOG_INFO("[BLE] Slow advertising.");
             // err_code = bsp_indication_set(BSP_INDICATE_ADVERTISING_SLOW);
             // APP_ERROR_CHECK(err_code);
             break;
 
         case BLE_ADV_EVT_IDLE:
-            NRF_LOG_INFO("Idle advertising. no connectable advertising ongoing.");
+            NRF_LOG_INFO("[BLE] Idle advertising. no connectable advertising ongoing.");
             // sleep_mode_enter();
             break;
 
@@ -477,7 +477,7 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
     switch (p_ble_evt->header.evt_id)
     {
         case BLE_GAP_EVT_CONNECTED:
-            NRF_LOG_INFO("ble connected");
+            NRF_LOG_INFO("[BLE] Connected");
             m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
             err_code = nrf_ble_qwr_conn_handle_assign(&m_qwr, m_conn_handle);
             APP_ERROR_CHECK(err_code);
@@ -486,7 +486,7 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             break;
 
         case BLE_GAP_EVT_DISCONNECTED:
-            NRF_LOG_INFO("Disconnected");
+            NRF_LOG_INFO("[BLE] Disconnected");
             m_conn_handle = BLE_CONN_HANDLE_INVALID;
 
             // spp_sample_notification_disabled();
@@ -495,7 +495,7 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
 
         case BLE_GAP_EVT_PHY_UPDATE_REQUEST:
         {
-            NRF_LOG_DEBUG("PHY update request.");
+            NRF_LOG_DEBUG("[BLE] PHY update request.");
             ble_gap_phys_t const phys =
             {
                 .rx_phys = BLE_GAP_PHY_AUTO,
@@ -507,7 +507,7 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
 
         case BLE_GATTC_EVT_TIMEOUT:
             // Disconnect on GATT Client timeout event.
-            NRF_LOG_DEBUG("GATT Client Timeout.");
+            NRF_LOG_DEBUG("[BLE] GATT Client Timeout.");
             err_code = sd_ble_gap_disconnect(p_ble_evt->evt.gattc_evt.conn_handle,
                                              BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
             APP_ERROR_CHECK(err_code);
@@ -515,7 +515,7 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
 
         case BLE_GATTS_EVT_TIMEOUT:
             // Disconnect on GATT Server timeout event.
-            NRF_LOG_DEBUG("GATT Server Timeout.");
+            NRF_LOG_DEBUG("[BLE] GATT Server Timeout.");
             err_code = sd_ble_gap_disconnect(p_ble_evt->evt.gatts_evt.conn_handle,
                                              BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
             APP_ERROR_CHECK(err_code);
@@ -571,9 +571,7 @@ static void peer_manager_init(void)
 static void delete_bonds(void)
 {
     ret_code_t err_code;
-
-    NRF_LOG_INFO("Erase bonds!");
-
+    // NRF_LOG_INFO("Erase bonds!");
     err_code = pm_peers_delete();
     APP_ERROR_CHECK(err_code);
 }
@@ -660,25 +658,13 @@ static void logger_thread(void * arg)
 }
 #endif //NRF_LOG_ENABLED
 
+/*
+ * https://devzone.nordicsemi.com/f/nordic-q-a/95398/nrf52840-correct-freertos-logging-using-nrf_log-module
+ */
 #if NRF_LOG_ENABLED && NRF_LOG_DEFERRED
  void log_pending_hook( void )
  {
-//     BaseType_t result = pdFAIL;
 
-//    if ( __get_IPSR() != 0 )
-//    {
-//        BaseType_t higherPriorityTaskWoken = pdFALSE;
-//        result = xTaskNotifyFromISR( m_logger_thread, 0, eSetValueWithoutOverwrite, &higherPriorityTaskWoken );
-
-//        if ( pdFAIL != result )
-//        {
-//        portYIELD_FROM_ISR( higherPriorityTaskWoken );
-//        }
-//    }
-//    else
-//    {
-//        UNUSED_RETURN_VALUE(xTaskNotify( m_logger_thread, 0, eSetValueWithoutOverwrite ));
-//    }
     BaseType_t YieldRequired = pdFAIL;
     if ( __get_IPSR() != 0 )
     {
@@ -773,27 +759,19 @@ int main(void)
     // The task will run advertising_start() before entering its loop.
     nrf_sdh_freertos_init(advertising_start, &erase_bonds);
 
-    // app_m601z_freertos_init();
-    // app_qma6110p_freertos_init();
-
-    // app_ads1292r_freertos_init();
-    // app_max86141_freertos_init();
-    // app_usbcdc_freertos_init();
-
 #if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
     app_max86141_freertos_init();
     app_usbcdc_freertos_init();
     NRF_LOG_INFO("Program started in mimic_rougu mode.");
 #else
-    // app_m601z_freertos_init();
     // app_qma6110p_freertos_init();
-
     owuart_freertos_init();
     app_ads1292r_freertos_init();
     app_max86141_freertos_init();
     app_usbcdc_freertos_init();
     
     NRF_LOG_INFO("Program started in standard mode.");
+
 #endif
 
     // onewire_probe();

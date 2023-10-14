@@ -5,12 +5,13 @@
 // CONFIG_NFCT_PINS_AS_GPIOS
 
 // RTT does not work yet
-#define NRF_LOG_USE_RTT
+// #define NRF_LOG_USE_RTT
 // -DAPP_TIMER_V2,-DAPP_TIMER_V2_RTC1_ENABLED,-DCONFIG_GPIO_AS_PINRESET,
 
 #ifdef NRF_LOG_USE_RTT
 #define NRF_LOG_BACKEND_RTT_ENABLED                     1
-#define NRF_LOG_BACKEND_RTT_TEMP_BUFFER_SIZE            1024
+#define NRF_LOG_BACKEND_RTT_TEMP_BUFFER_SIZE            64
+#define NRF_LOG_BACKEND_RTT_OUTPUT_BUFFER_SIZE          4096
 #define NRF_LOG_BACKEND_UART_ENABLED                    0
 #define NRF_FPRINTF_FLAG_AUTOMATIC_CR_ON_LF_ENABLED     0
 #else
@@ -18,7 +19,7 @@
 #define NRF_LOG_BACKEND_UART_ENABLED                    1
 #define NRF_LOG_BACKEND_UART_TX_PIN                     16
 #define NRF_FPRINTF_FLAG_AUTOMATIC_CR_ON_LF_ENABLED     1
-#define NRF_LOG_BACKEND_UART_TEMP_BUFFER_SIZE           1024
+#define NRF_LOG_BACKEND_UART_TEMP_BUFFER_SIZE           64
 #endif
 
 #define NRFX_CLOCK_CONFIG_LF_SRC                    0
@@ -71,8 +72,9 @@
 #define NRFX_UART_ENABLED                           1
 #define UART_ENABLED                                1
 #define UART0_ENABLED                               1
-#define UART0_CONFIG_USE_EASY_DMA                   1
+#define UART0_CONFIG_USE_EASY_DMA                   0
 #define UART1_ENABLED                               1
+// #define UART_EASY_DMA_SUPPORT                       0
 
 // === USBDCDC ===
 #define NRFX_USBD_ENABLED                           1
@@ -110,9 +112,6 @@
 #define NRF_SDH_BLE_VS_UUID_COUNT                   1
 #define NRF_SDH_BLE_GATT_MAX_MTU_SIZE               247                             // this is not the maximum possible value, just for experiment
                                                                                     // https://infocenter.nordicsemi.com/topic/sdk_nrf5_v17.1.0/ble_sdk_app_att_mtu.html
-
-#define BLE_SPP_ENABLED                             1
-#define BLE_SPP_BLE_OBSERVER_PRIO                   2
 
 #define BLE_BIOSENS_ENABLED                         1
 #define BLE_BIOSENS_BLE_OBSERVER_PRIO               2

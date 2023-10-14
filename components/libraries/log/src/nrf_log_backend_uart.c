@@ -45,7 +45,11 @@
 #include "nrf_drv_uart.h"
 #include "app_error.h"
 
-nrf_drv_uart_t m_uart = NRF_DRV_UART_INSTANCE(0);
+//#ifndef NRF_LOG_BACKEND_UART_INSTANCE
+//#define NRF_LOG_BACKEND_UART_INSTANCE 0
+//#endif
+
+nrf_drv_uart_t m_uart = NRF_DRV_UART_INSTANCE(1);
 
 static uint8_t m_string_buff[NRF_LOG_BACKEND_UART_TEMP_BUFFER_SIZE];
 static volatile bool m_xfer_done;

@@ -314,7 +314,7 @@
           </ArmAdsMisc>
           <Cads>
             <interw>1</interw>
-            <Optim>3</Optim>
+            <Optim>1</Optim>
             <oTime>1</oTime>
             <SplitLS>0</SplitLS>
             <OneElfS>1</OneElfS>
@@ -405,24 +405,9 @@
               <FilePath>..\..\..\main.c</FilePath>
             </File>
             <File>
-              <FileName>m601z.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\m601z.c</FilePath>
-            </File>
-            <File>
-              <FileName>m601z.h</FileName>
+              <FileName>ads1292r.h</FileName>
               <FileType>5</FileType>
-              <FilePath>.\m601z.h</FilePath>
-            </File>
-            <File>
-              <FileName>qma6110p.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\qma6110p.c</FilePath>
-            </File>
-            <File>
-              <FileName>qma6110p.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\qma6110p.h</FilePath>
+              <FilePath>.\ads1292r.h</FilePath>
             </File>
             <File>
               <FileName>ads1292r.c</FileName>
@@ -430,9 +415,9 @@
               <FilePath>.\ads1292r.c</FilePath>
             </File>
             <File>
-              <FileName>ads1292r.h</FileName>
+              <FileName>max86141.h</FileName>
               <FileType>5</FileType>
-              <FilePath>.\ads1292r.h</FilePath>
+              <FilePath>.\max86141.h</FilePath>
             </File>
             <File>
               <FileName>max86141.c</FileName>
@@ -440,19 +425,85 @@
               <FilePath>.\max86141.c</FilePath>
             </File>
             <File>
-              <FileName>max86141.h</FileName>
+              <FileName>m601z.h</FileName>
               <FileType>5</FileType>
-              <FilePath>.\max86141.h</FilePath>
+              <FilePath>.\m601z.h</FilePath>
             </File>
             <File>
-              <FileName>usbcdc.c</FileName>
+              <FileName>m601z.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\usbcdc.c</FilePath>
+              <FilePath>.\m601z.c</FilePath>
+              <FileOption>
+                <CommonProperty>
+                  <UseCPPCompiler>2</UseCPPCompiler>
+                  <RVCTCodeConst>0</RVCTCodeConst>
+                  <RVCTZI>0</RVCTZI>
+                  <RVCTOtherData>0</RVCTOtherData>
+                  <ModuleSelection>0</ModuleSelection>
+                  <IncludeInBuild>0</IncludeInBuild>
+                  <AlwaysBuild>2</AlwaysBuild>
+                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
+                  <PublicsOnly>2</PublicsOnly>
+                  <StopOnExitCode>11</StopOnExitCode>
+                  <CustomArgument></CustomArgument>
+                  <IncludeLibraryModules></IncludeLibraryModules>
+                  <ComprImg>1</ComprImg>
+                </CommonProperty>
+                <FileArmAds>
+                  <Cads>
+                    <interw>2</interw>
+                    <Optim>0</Optim>
+                    <oTime>2</oTime>
+                    <SplitLS>2</SplitLS>
+                    <OneElfS>2</OneElfS>
+                    <Strict>2</Strict>
+                    <EnumInt>2</EnumInt>
+                    <PlainCh>2</PlainCh>
+                    <Ropi>2</Ropi>
+                    <Rwpi>2</Rwpi>
+                    <wLevel>0</wLevel>
+                    <uThumb>2</uThumb>
+                    <uSurpInc>2</uSurpInc>
+                    <uC99>2</uC99>
+                    <uGnu>2</uGnu>
+                    <useXO>2</useXO>
+                    <v6Lang>0</v6Lang>
+                    <v6LangP>0</v6LangP>
+                    <vShortEn>2</vShortEn>
+                    <vShortWch>2</vShortWch>
+                    <v6Lto>2</v6Lto>
+                    <v6WtE>2</v6WtE>
+                    <v6Rtti>2</v6Rtti>
+                    <VariousControls>
+                      <MiscControls></MiscControls>
+                      <Define></Define>
+                      <Undefine></Undefine>
+                      <IncludePath></IncludePath>
+                    </VariousControls>
+                  </Cads>
+                </FileArmAds>
+              </FileOption>
             </File>
             <File>
-              <FileName>usbcdc.h</FileName>
+              <FileName>owuart.h</FileName>
               <FileType>5</FileType>
-              <FilePath>.\usbcdc.h</FilePath>
+              <FilePath>.\owuart.h</FilePath>
+            </File>
+            <File>
+              <FileName>owuart.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\owuart.c</FilePath>
+            </File>
+            <File>
+              <FileName>qma6110p.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\qma6110p.h</FilePath>
+            </File>
+            <File>
+              <FileName>qma6110p.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\qma6110p.c</FilePath>
             </File>
             <File>
               <FileName>sens-proto.h</FileName>
@@ -465,14 +516,14 @@
               <FilePath>.\sens-proto.c</FilePath>
             </File>
             <File>
-              <FileName>owuart.h</FileName>
+              <FileName>usbcdc.h</FileName>
               <FileType>5</FileType>
-              <FilePath>.\owuart.h</FilePath>
+              <FilePath>.\usbcdc.h</FilePath>
             </File>
             <File>
-              <FileName>owuart.c</FileName>
+              <FileName>usbcdc.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\owuart.c</FilePath>
+              <FilePath>.\usbcdc.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -2373,7 +2424,7 @@
                   <RVCTZI>0</RVCTZI>
                   <RVCTOtherData>0</RVCTOtherData>
                   <ModuleSelection>0</ModuleSelection>
-                  <IncludeInBuild>1</IncludeInBuild>
+                  <IncludeInBuild>0</IncludeInBuild>
                   <AlwaysBuild>2</AlwaysBuild>
                   <GenerateAssemblyFile>2</GenerateAssemblyFile>
                   <AssembleAssemblyFile>2</AssembleAssemblyFile>
@@ -2429,7 +2480,7 @@
                   <RVCTZI>0</RVCTZI>
                   <RVCTOtherData>0</RVCTOtherData>
                   <ModuleSelection>0</ModuleSelection>
-                  <IncludeInBuild>1</IncludeInBuild>
+                  <IncludeInBuild>0</IncludeInBuild>
                   <AlwaysBuild>2</AlwaysBuild>
                   <GenerateAssemblyFile>2</GenerateAssemblyFile>
                   <AssembleAssemblyFile>2</AssembleAssemblyFile>
@@ -2485,7 +2536,7 @@
                   <RVCTZI>0</RVCTZI>
                   <RVCTOtherData>0</RVCTOtherData>
                   <ModuleSelection>0</ModuleSelection>
-                  <IncludeInBuild>1</IncludeInBuild>
+                  <IncludeInBuild>0</IncludeInBuild>
                   <AlwaysBuild>2</AlwaysBuild>
                   <GenerateAssemblyFile>2</GenerateAssemblyFile>
                   <AssembleAssemblyFile>2</AssembleAssemblyFile>
@@ -2534,6 +2585,57 @@
               <FileName>ble_spp.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\..\..\..\components\ble\ble_services\ble_spp\ble_spp.c</FilePath>
+              <FileOption>
+                <CommonProperty>
+                  <UseCPPCompiler>2</UseCPPCompiler>
+                  <RVCTCodeConst>0</RVCTCodeConst>
+                  <RVCTZI>0</RVCTZI>
+                  <RVCTOtherData>0</RVCTOtherData>
+                  <ModuleSelection>0</ModuleSelection>
+                  <IncludeInBuild>0</IncludeInBuild>
+                  <AlwaysBuild>2</AlwaysBuild>
+                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
+                  <PublicsOnly>2</PublicsOnly>
+                  <StopOnExitCode>11</StopOnExitCode>
+                  <CustomArgument></CustomArgument>
+                  <IncludeLibraryModules></IncludeLibraryModules>
+                  <ComprImg>1</ComprImg>
+                </CommonProperty>
+                <FileArmAds>
+                  <Cads>
+                    <interw>2</interw>
+                    <Optim>0</Optim>
+                    <oTime>2</oTime>
+                    <SplitLS>2</SplitLS>
+                    <OneElfS>2</OneElfS>
+                    <Strict>2</Strict>
+                    <EnumInt>2</EnumInt>
+                    <PlainCh>2</PlainCh>
+                    <Ropi>2</Ropi>
+                    <Rwpi>2</Rwpi>
+                    <wLevel>0</wLevel>
+                    <uThumb>2</uThumb>
+                    <uSurpInc>2</uSurpInc>
+                    <uC99>2</uC99>
+                    <uGnu>2</uGnu>
+                    <useXO>2</useXO>
+                    <v6Lang>0</v6Lang>
+                    <v6LangP>0</v6LangP>
+                    <vShortEn>2</vShortEn>
+                    <vShortWch>2</vShortWch>
+                    <v6Lto>2</v6Lto>
+                    <v6WtE>2</v6WtE>
+                    <v6Rtti>2</v6Rtti>
+                    <VariousControls>
+                      <MiscControls></MiscControls>
+                      <Define></Define>
+                      <Undefine></Undefine>
+                      <IncludePath></IncludePath>
+                    </VariousControls>
+                  </Cads>
+                </FileArmAds>
+              </FileOption>
             </File>
             <File>
               <FileName>ble_bios.c</FileName>
@@ -3440,6 +3542,16 @@
                   </Cads>
                 </FileArmAds>
               </FileOption>
+            </File>
+            <File>
+              <FileName>nrf_drv_uart.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\integration\nrfx\legacy\nrf_drv_uart.c</FilePath>
+            </File>
+            <File>
+              <FileName>nrfx_uarte.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\modules\nrfx\drivers\src\nrfx_uarte.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -6562,24 +6674,9 @@
               <FilePath>..\..\..\main.c</FilePath>
             </File>
             <File>
-              <FileName>m601z.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\m601z.c</FilePath>
-            </File>
-            <File>
-              <FileName>m601z.h</FileName>
+              <FileName>ads1292r.h</FileName>
               <FileType>5</FileType>
-              <FilePath>.\m601z.h</FilePath>
-            </File>
-            <File>
-              <FileName>qma6110p.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\qma6110p.c</FilePath>
-            </File>
-            <File>
-              <FileName>qma6110p.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\qma6110p.h</FilePath>
+              <FilePath>.\ads1292r.h</FilePath>
             </File>
             <File>
               <FileName>ads1292r.c</FileName>
@@ -6587,9 +6684,9 @@
               <FilePath>.\ads1292r.c</FilePath>
             </File>
             <File>
-              <FileName>ads1292r.h</FileName>
+              <FileName>max86141.h</FileName>
               <FileType>5</FileType>
-              <FilePath>.\ads1292r.h</FilePath>
+              <FilePath>.\max86141.h</FilePath>
             </File>
             <File>
               <FileName>max86141.c</FileName>
@@ -6597,19 +6694,34 @@
               <FilePath>.\max86141.c</FilePath>
             </File>
             <File>
-              <FileName>max86141.h</FileName>
+              <FileName>m601z.h</FileName>
               <FileType>5</FileType>
-              <FilePath>.\max86141.h</FilePath>
+              <FilePath>.\m601z.h</FilePath>
             </File>
             <File>
-              <FileName>usbcdc.c</FileName>
+              <FileName>m601z.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\usbcdc.c</FilePath>
+              <FilePath>.\m601z.c</FilePath>
             </File>
             <File>
-              <FileName>usbcdc.h</FileName>
+              <FileName>owuart.h</FileName>
               <FileType>5</FileType>
-              <FilePath>.\usbcdc.h</FilePath>
+              <FilePath>.\owuart.h</FilePath>
+            </File>
+            <File>
+              <FileName>owuart.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\owuart.c</FilePath>
+            </File>
+            <File>
+              <FileName>qma6110p.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\qma6110p.h</FilePath>
+            </File>
+            <File>
+              <FileName>qma6110p.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\qma6110p.c</FilePath>
             </File>
             <File>
               <FileName>sens-proto.h</FileName>
@@ -6622,14 +6734,14 @@
               <FilePath>.\sens-proto.c</FilePath>
             </File>
             <File>
-              <FileName>owuart.h</FileName>
+              <FileName>usbcdc.h</FileName>
               <FileType>5</FileType>
-              <FilePath>.\owuart.h</FilePath>
+              <FilePath>.\usbcdc.h</FilePath>
             </File>
             <File>
-              <FileName>owuart.c</FileName>
+              <FileName>usbcdc.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\owuart.c</FilePath>
+              <FilePath>.\usbcdc.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -9036,6 +9148,16 @@
               <FileName>nrfx_power.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\..\..\..\modules\nrfx\drivers\src\nrfx_power.c</FilePath>
+            </File>
+            <File>
+              <FileName>nrf_drv_uart.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\integration\nrfx\legacy\nrf_drv_uart.c</FilePath>
+            </File>
+            <File>
+              <FileName>nrfx_uarte.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\modules\nrfx\drivers\src\nrfx_uarte.c</FilePath>
             </File>
           </Files>
         </Group>
