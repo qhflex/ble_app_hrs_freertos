@@ -60,7 +60,7 @@
  * CONSTANTS
  */
 
-#define DEVICE_NAME                         "Smart Wearable"                        /**< Name of device. Will be included in the advertising data. */
+#define DEVICE_NAME                         "ifet-wearable"                         /**< Name of device. Will be included in the advertising data. */
 #define MANUFACTURER_NAME                   "ifet-tsinghua"                         /**< Manufacturer. Will be passed to Device Information Service. */
 
 #define APP_BLE_OBSERVER_PRIO               3                                       /**< Application's BLE observer priority. You shouldn't need to modify this value. */
