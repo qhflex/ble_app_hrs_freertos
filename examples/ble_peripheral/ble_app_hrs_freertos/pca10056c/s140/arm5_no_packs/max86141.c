@@ -19,7 +19,7 @@
 /**********************************************************************
  * MACROS
  */
- 
+
  #define COMBO_MODE
 
 /**********************************************************************
@@ -71,7 +71,7 @@
 #define TSK_MAX86141_STACK_SIZE             512
 #define TSK_MAX86141_PRIORITY               1
 
-#define SPI_INSTANCE_ID            2
+#define SPI_INSTANCE_ID                     2
 
 #ifdef COMBO_MODE
 
@@ -106,7 +106,10 @@
 #define SPI_FIFO_RX_SIZE                    ((FIFO_READ_SAMPLES * 3) + 2)
 #define SPI_FIFO_RX_SIZE_ROUGU              (2 * 3 + 2)
 
+#define NUM_OF_RDBUF                        8      
 #define SENS_PACKET_POOL_SIZE               2
+
+#define RDBUF_SIZE                          ((MAX86141_NUM_OF_SAMPLES / 2) * 3 + 2)
 
 /*********************************************************************
  * TYPEDEFS
@@ -118,8 +121,12 @@
 
 /**********************************************************************
  * LOCAL VARIABLES
- */
+ */ 
 static TaskHandle_t m_max86141_thread = NULL;
+
+static QueueHandle_t rdbuf_idle = NULL;
+static QueueHandle_t rdbuf_pending = NULL;
+static uint8_t rdbuf[NUM_OF_RDBUF][RDBUF_SIZE];
 
 NRF_SPI_MNGR_DEF(m_max86141_spi_mngr, MAX_PENDING_TRANSACTIONS, SPI_INSTANCE_ID);
 
@@ -163,12 +170,12 @@ const static max86141_cfg_t combo_maxcfg = {
         .a_full_en      = 1,    // enable fifo
     },
     .fifocfg1 = {
-        .fifo_a_full    = (128 - FIFO_READ_SAMPLES),    
+        .fifo_a_full    = (128 - (MAX86141_NUM_OF_SAMPLES / 2)),
     },
     .fifocfg2 = {
         .flush_fifo     = 1,    // required
-        .fifo_stat_clr  = 1,    // not sure TODO
-        .a_full_type    = 1,    // not sure TODO        
+        .fifo_stat_clr  = 1,    // set to 1 to clear interrup when reading fifo (no need to read status reg)
+        .a_full_type    = 0,    // this is the default value
         .fifo_ro        = 1,    // drop old samples when fifo full
     },
     .sysctrl = {
@@ -178,7 +185,7 @@ const static max86141_cfg_t combo_maxcfg = {
         .ppg2_adc_rge   = 3,
         .ppg1_adc_rge   = 3,    // 0b00  4.097uA (full scale)
                                 // 0b01  8.192uA
-                                // 0b10 16.384uA 
+                                // 0b10 16.384uA
                                 // 0b11 32.768uA
 
         .ppg_tint       = 0,    // pulse width = tint + tsetlng + 0.5uS = 129.8uS
@@ -231,7 +238,7 @@ const static max86141_cfg_t combo_maxcfg = {
         .pdbias2        = 1,
         .pdbias1        = 1,    // 0-64pF, smallest
     },
-    
+
     // all leds (ir1, red1, ir2) are set to certain range
     .ledrge1 = {
         .led36_rge      = 1,
@@ -240,7 +247,7 @@ const static max86141_cfg_t combo_maxcfg = {
                                 // 0b10  93mA
                                 // 0b11 124mA
     },
-    
+
     // all leds (ir1, red1, ir2) are set to certain power amplifier ratio.
     .led1pa             = 0x30, // lsb =  0.12 when rge is 00 (0b00)
                                 //        0.24 when rge is 01 (0b01)
@@ -249,12 +256,12 @@ const static max86141_cfg_t combo_maxcfg = {
 
     .led2pa             = 0x30,
     .led3pa             = 0x30,
-    
+
     /*
      * only LED Sequence Register 1 (0x20) needs to be set
      *  .ledc135 (LEDC1[3:0]) set to 5 (0101)
      *  .ledc246 (LEDC2[3:0]) set to 2 (0010)
-     */ 
+     */
     .ledseq1 = {
         .ledc135        = 5,    // 0101 LED1 + LED3
         .ledc246        = 2,    // 0010 LED2
@@ -292,7 +299,7 @@ const static max86141_cfg_t spo_maxcfg = {
                                 //
                                 // 0b00 integration time is  14.8uS
                                 // 0b01 integration time is  29.4uS
-                                // 0b10 integration time is  58.7uS 
+                                // 0b10 integration time is  58.7uS
                                 // 0b11 integration time is 117.3uS
     },
     .ppgcfg2 = {
@@ -355,12 +362,12 @@ const static max86141_cfg_t abp_maxcfg = {
         .a_full_en      = 1,    // enable fifo
     },
     .fifocfg1 = {
-        .fifo_a_full    = (128 - FIFO_READ_SAMPLES),    
+        .fifo_a_full    = (128 - FIFO_READ_SAMPLES),
     },
     .fifocfg2 = {
         .flush_fifo     = 1,    // required
         .fifo_stat_clr  = 1,    // not sure TODO
-        .a_full_type    = 1,    // not sure TODO        
+        .a_full_type    = 1,    // not sure TODO
         .fifo_ro        = 1,    // drop old samples when fifo full
     },
     .sysctrl = {
@@ -370,7 +377,7 @@ const static max86141_cfg_t abp_maxcfg = {
         .ppg2_adc_rge   = 3,
         .ppg1_adc_rge   = 3,    // 0b00  4.097uA (full scale)
                                 // 0b01  8.192uA
-                                // 0b10 16.384uA 
+                                // 0b10 16.384uA
                                 // 0b11 32.768uA
 
         .ppg_tint       = 0,    // pulse width = tint + tsetlng + 0.5uS = 129.8uS
@@ -456,7 +463,7 @@ max86141_ctx_t combo_ctx = {
     .p_maxcfg = &combo_maxcfg,
 };
 
-#else    
+#else
 
 static max86141_ctx_t spo_ctx = {
     .p_maxcfg = &spo_maxcfg,
@@ -595,7 +602,7 @@ static void read_registers(max86141_ctx_t * ctx, uint8_t startAddr, int num, uin
         uint8_t val = read_reg(ctx, addr);
 
 #ifdef COMBO_MODE
-#else        
+#else
         if (ctx == &spo_ctx)
         {
             // NRF_LOG_INFO("spo reg %02x: %02x", addr, val);
@@ -616,14 +623,14 @@ static bool max86141_probe(max86141_ctx_t *ctx)
 {
     uint8_t val = read_reg(ctx, 0xff);
     NRF_LOG_INFO("max86141 probe 0xff returns: %02x", val);
-    
+
     if (val == 0x25) {
 #ifdef COMBO_MODE
         if (ctx == &combo_ctx)
         {
             NRF_LOG_INFO("combo max86141 probed");
         }
-#else        
+#else
         if (ctx == &spo_ctx)
         {
             NRF_LOG_INFO("spo max86141 probed");
@@ -633,7 +640,7 @@ static bool max86141_probe(max86141_ctx_t *ctx)
         {
             NRF_LOG_INFO("abp max86141 probed");
         }
-#endif        
+#endif
     }
 
     return (val == 0x25);
@@ -720,7 +727,7 @@ static void max86141_config(max86141_ctx_t * ctx)
     write_reg(ctx, REG_LED6_PA,       CFGVAL(led6pa)  );
     write_reg(ctx, REG_LED_PILOT_PA,  CFGVAL(pilotpa) );
 
-    write_reg(ctx, REG_FIFO_CONFIG_1, CFGVAL(fifocfg1));
+    write_reg(ctx, REG_FIFO_CONFIG_1, CFGVAL(fifocfg1));    
     write_reg(ctx, REG_FIFO_CONFIG_2, CFGVAL(fifocfg2));
 
     write_reg(ctx, REG_INT_EN_1,      CFGVAL(inten1)  );
@@ -801,7 +808,7 @@ static void print_registers(max86141_ctx_t * ctx)
 
 #ifdef COMBO_MODE
 
-static void combo_ctx_init() 
+static void combo_ctx_init()
 {
     combo_ctx.xfer.p_tx_data = combo_ctx.txbuf;
     combo_ctx.xfer.tx_length = 3;
@@ -1046,103 +1053,145 @@ static void max86141_task(void * pvParameters)
 
 #else
 
-static void spi_read_fifo_end_callback(ret_code_t result, void * p_user_data)
-{
-}
-
-static nrf_spi_mngr_transfer_t spi_read_fifo_xfers[] =
+static nrf_spi_mngr_transfer_t read_fifo_xfers[] =
 {
     {
         .p_tx_data = spi_fifo_tx,
         .tx_length = 2,
-        .p_rx_data = spi_fifo_rx,
-        .rx_length = SPI_FIFO_RX_SIZE
+        .p_rx_data = NULL,
+        .rx_length = RDBUF_SIZE
     }
 };
 
+static void read_fifo_end_callback(ret_code_t result, void * p_user_data)
+{
+    // NRF_LOG_INFO("read fifo end");
+    xQueueSendFromISR(rdbuf_pending, &read_fifo_xfers[0].p_rx_data, NULL); 
+}
+
 static nrf_spi_mngr_transaction_t read_fifo_trans = {
     .begin_callback = NULL,
-    .end_callback = spi_read_fifo_end_callback,
+    .end_callback = read_fifo_end_callback,
     .p_user_data = NULL,
-    .p_transfers = spi_read_fifo_xfers,
-    .number_of_transfers = sizeof(spi_read_fifo_xfers) / sizeof(spi_read_fifo_xfers[0]),
-    .p_required_spi_cfg = NULL
+    .p_transfers = read_fifo_xfers,
+    .number_of_transfers = sizeof(read_fifo_xfers) / sizeof(read_fifo_xfers[0]),
+    .p_required_spi_cfg = &combo_ctx.spicfg
 };
 
-static uint8_t int_status_tx[3] = { REG_INT_STAT_1,   REG_OP_READ, 0x00 };    
-static uint8_t int_status_rx[3] = {0};
+static uint8_t int_status_tx[2] = { REG_INT_STAT_1, REG_OP_READ };
+static uint8_t int_status_rx[3] = { 0 };
 
-// typedef void (* nrf_spi_mngr_callback_end_t)(ret_code_t result, void * p_user_data);
-static void spi_read_int_status_callback(ret_code_t result, void * p_user_data)
+static nrf_spi_mngr_transfer_t read_int_status_xfers[] =
 {
-    if (result != NRF_SUCCESS) return;
+    {
+        .p_tx_data = int_status_tx,
+        .tx_length = 2,
+        .p_rx_data = int_status_rx,
+        .rx_length = 3
+    }
+};
+
+static void read_int_status_end_callback(ret_code_t esult, void * p_user_data)
+{
     if (int_status_rx[2] & 0x80)
     {
         nrf_spi_mngr_schedule(&m_max86141_spi_mngr, &read_fifo_trans);
     }
+    else 
+    {
+        // TODO do something
+    }
 }
 
-static nrf_spi_mngr_transfer_t spi_read_int_status_xfers[] = 
-{
-    {
-        .p_tx_data = int_status_tx,
-        .tx_length = 3,
-        .p_rx_data = int_status_rx,
-        .rx_length = 3,
-    }
-};
-
-static nrf_spi_mngr_transaction_t int_status_trans = {
+static nrf_spi_mngr_transaction_t read_int_status_trans = {
     .begin_callback = NULL,
-    .end_callback = spi_read_int_status_callback,
+    .end_callback = read_int_status_end_callback,
     .p_user_data = NULL,
-    .p_transfers = spi_read_int_status_xfers,
-    .number_of_transfers = sizeof(spi_read_int_status_xfers) / sizeof(spi_read_int_status_xfers[0]),
-    .p_required_spi_cfg = NULL
+    .p_transfers = read_int_status_xfers,
+    .number_of_transfers = 1,
+    .p_required_spi_cfg = &combo_ctx.spicfg
 };
-
-/**
- * void irqHandler(void)
- * {
- *   uint8_t intStatus;
- *   //Read Status
- *   ReadReg(0x00, &intStatus);
- *   if ( intStatus& 0x80 ) { //A FULL RDY
- *     device_data_read(); //Data Read Routine
- *   }
- * }
- */
 
 // function type (nrfx_gpiote_evt_handler_t) defined in nrfx_gpiote.h, line 209
 static void max86141_int_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
-    nrf_spi_mngr_schedule(&m_max86141_spi_mngr, &int_status_trans);
+    static int count = 0;
+    NRF_LOG_INFO("int handler %d", count++);
+    
+    // TODO this is an error condition
+    if (pdTRUE == xQueueReceiveFromISR(rdbuf_idle, &read_fifo_xfers[0].p_rx_data, NULL))
+    {
+        nrf_spi_mngr_schedule(&m_max86141_spi_mngr, &read_int_status_trans);        
+    }
+    else
+    {
+        NRF_LOG_INFO("rdbuf_idle empty, data lost");
+    }
 }
 
-static void max86141_init_gpio(void)
+static void max86141_enable_int_pin(void)
 {
     ret_code_t ret;
     nrfx_gpiote_in_config_t int_cfg = NRFX_GPIOTE_CONFIG_IN_SENSE_HITOLO(true);
     ret = nrfx_gpiote_in_init(MAX86141_COMBO_INT_PIN, &int_cfg, max86141_int_handler);
     APP_ERROR_CHECK(ret);
+    
+    nrfx_gpiote_in_event_enable(MAX86141_COMBO_INT_PIN, true);
+    NRF_LOG_INFO("max86141 int pin %d initialized and enabled", MAX86141_COMBO_INT_PIN);
+}
+
+static void spi_config(void)
+{
+    uint32_t err_code;
+
+    nrf_drv_spi_config_t const config = {
+       .sck_pin            = MAX86141_COMBO_CK_PIN,
+       .mosi_pin           = MAX86141_COMBO_DI_PIN,
+       .miso_pin           = MAX86141_COMBO_DO_PIN,
+       .ss_pin             = MAX86141_COMBO_CS_PIN,
+       .irq_priority       = APP_IRQ_PRIORITY_LOWEST,
+       .orc                = 0xff,
+       .frequency          = NRF_DRV_SPI_FREQ_4M,
+
+       // https://devzone.nordicsemi.com/f/nordic-q-a/39942/nrf52840---ads1292/155794
+       // also datasheet
+       .mode               = NRF_DRV_SPI_MODE_0,
+       .bit_order          = NRF_DRV_SPI_BIT_ORDER_MSB_FIRST
+    };
+
+    err_code = nrf_spi_mngr_init(&m_max86141_spi_mngr, &config);
+    APP_ERROR_CHECK(err_code);
 }
 
 static void max86141_task(void * pvParameters)
 {
     // very fast, change this to interrupt driven?
     TickType_t xFrequency = 1;
-    
+
 #ifdef COMBO_MODE
+    
+    rdbuf_idle = xQueueCreate(NUM_OF_RDBUF, sizeof(void *));
+    ASSERT(rdbuf_idle != NULL);
+    rdbuf_pending = xQueueCreate(NUM_OF_RDBUF, sizeof(void *));
+    ASSERT(rdbuf_pending != NULL);
+    
+    for (int i = 0; i < NUM_OF_RDBUF; i++)
+    {
+        uint8_t *p = &rdbuf[i][0];
+        xQueueSend(rdbuf_idle, &p, portMAX_DELAY);
+    }
+    
+    // spi_config();
     
     uint8_t combo_count = 0;
     int combo_pkt_count = 0;
-#else    
+#else
     uint8_t spo_count = 0;
     uint8_t abp_count = 0;
     int spo_pkt_count = 0;
     int abp_pkt_count = 0;
 #endif
-    
+
 	bloodoxygenInit();
 	set_spo2_cofe(-7.1984,33.5650,60.5454,-46.3775,130.3776,0.9044);
 	BLOOD_OXYGEN_INFO_STRU light_data = {0};
@@ -1150,28 +1199,33 @@ static void max86141_task(void * pvParameters)
 
 #ifdef COMBO_MODE
     combo_ctx_init();
-#else    
+#else
     spo_ctx_init();
     abp_ctx_init();
 #endif
-    
-#ifdef COMBO_MODE    
+
+#ifdef COMBO_MODE
     p_current_combo_packet = max86141_probe(&combo_ctx) ? next_combo_packet() : NULL;
     if (p_current_combo_packet)
     {
+        // max86141_init_gpio();
+        
         max86141_config(&combo_ctx);
         read_registers(&combo_ctx, 0x10, 7, combo_0x10_0x16_regs);
         read_registers(&combo_ctx, 0x20, 12, combo_0x20_0x2B_regs);
+        
+        
+        max86141_enable_int_pin();
         max86141_run(&combo_ctx);
 
-        NRF_LOG_INFO("combo max86141 started");        
+        NRF_LOG_INFO("combo max86141 started");
     }
-#else    
+#else
     p_current_spo_packet = max86141_probe(&spo_ctx) ? next_spo_packet() : NULL;
     if (p_current_spo_packet)
     {
         max86141_config(&spo_ctx);
-        
+
         read_registers(&spo_ctx, 0x10, 7, spo_0x10_0x16_regs);
         read_registers(&spo_ctx, 0x20, 12, spo_0x20_0x2B_regs);
         max86141_run(&spo_ctx);
@@ -1196,41 +1250,74 @@ static void max86141_task(void * pvParameters)
     {
         vTaskDelay(portMAX_DELAY);
     }
-
+    
+    // vTaskDelay(portMAX_DELAY);
+    
+    uint8_t *rdbuf;
+    
     for (;;)
+    {
+        uint8_t *p = (uint8_t *)&m_combo_packet_helper.p_sample->value;
+        int len = MAX86141_NUM_OF_SAMPLES / 2 * 3;
+        
+        // first half
+        xQueueReceive(rdbuf_pending, &rdbuf, portMAX_DELAY);
+        memcpy(p, &rdbuf[2], len);
+        xQueueSend(rdbuf_idle, &rdbuf, portMAX_DELAY);
+        
+        // second half
+        xQueueReceive(rdbuf_pending, &rdbuf, portMAX_DELAY);
+        memcpy(&p[len], &rdbuf[2], len);
+        xQueueSend(rdbuf_idle, &rdbuf, portMAX_DELAY);
+        
+        // TODO use multiple helper
+        memcpy(&m_combo_packet_helper.p_ppgcfg->value, combo_0x10_0x16_regs, 7);
+        memcpy(&m_combo_packet_helper.p_ledcfg->value, combo_0x20_0x2B_regs, 12);
+
+        simple_crc((uint8_t *)&p_current_combo_packet->type, &m_combo_packet_helper.p_crc[0], &m_combo_packet_helper.p_crc[1]);
+        cdc_acm_send_packet((uint8_t *)p_current_combo_packet, m_combo_packet_helper.packet_size);
+        p_current_combo_packet = next_combo_packet();            
+    }
+
+    for (int rf = 0;; rf++)
     {
         vTaskDelay(xFrequency);
 #ifdef COMBO_MODE
-        
-        combo_count = read_reg(&combo_ctx, REG_FIFO_DATA_COUNT);
+
+        // combo_count = read_reg(&combo_ctx, REG_FIFO_DATA_COUNT);
         if (combo_count < MAX86141_NUM_OF_SAMPLES) continue;
+        // NRF_LOG_INFO("[%d], int status %d", combo_count, read_reg(&combo_ctx, REG_INT_STAT_1));
+
+        // uint8_t int_status = read_reg(&combo_ctx, REG_INT_STAT_1);
+        // if (!(int_status & 0x80)) continue;
+        // NRF_LOG_INFO("r f %d", rf);
         
         read_fifo(&combo_ctx);
-        
+
         memcpy(&m_combo_packet_helper.p_sample->value, buf, MAX86141_NUM_OF_SAMPLES * 3);
         memcpy(&m_combo_packet_helper.p_ppgcfg->value, combo_0x10_0x16_regs, 7);
         memcpy(&m_combo_packet_helper.p_ledcfg->value, combo_0x20_0x2B_regs, 12);
-        
+
         for (int i = 0; i < MAX86141_NUM_OF_SAMPLES / 2; i++)
         {
         }
-        
+
         simple_crc((uint8_t *)&p_current_combo_packet->type, &m_combo_packet_helper.p_crc[0], &m_combo_packet_helper.p_crc[1]);
         cdc_acm_send_packet((uint8_t *)p_current_combo_packet, m_combo_packet_helper.packet_size);
         p_current_combo_packet = next_combo_packet();
-        
+
 //        combo_pkt_count++;
 //        if ((combo_pkt_count % 1000) == 0)
 //        {
 //            NRF_LOG_INFO("combo: %d packets sent", combo_pkt_count);
-//        }        
-#else        
+//        }
+#else
         if (p_current_spo_packet)
         {
             spo_count = read_reg(&spo_ctx, REG_FIFO_DATA_COUNT);
-            
+
             // NRF_LOG_INFO("spo_count: %d", spo_count);
-           
+
             if (spo_count >= MAX86141_NUM_OF_SAMPLES)
             {
                 read_fifo(&spo_ctx);
@@ -1239,12 +1326,12 @@ static void max86141_task(void * pvParameters)
                 memcpy(&m_spo_packet_helper.p_sample->value, buf, MAX86141_NUM_OF_SAMPLES * 3);
                 memcpy(&m_spo_packet_helper.p_ppgcfg->value, spo_0x10_0x16_regs, 7);
                 memcpy(&m_spo_packet_helper.p_ledcfg->value, spo_0x20_0x2B_regs, 12);
-                
+
                 for (int i = 0; i < MAX86141_NUM_OF_SAMPLES / 2; i++)
                 {
                     light_data.ir = (((unsigned int)(buf[i * 6 + 0] & 0x07)) << 16) + (((unsigned int)buf[i * 6 + 1]) << 8) + (unsigned int)buf[i * 6 + 2];
                     light_data.rd = (((unsigned int)(buf[i * 6 + 3] & 0x07)) << 16) + (((unsigned int)buf[i * 6 + 4]) << 8) + (unsigned int)buf[i * 6 + 5];
-                        
+
                     getBOResult(light_data, &blood_result);
                     max86141_rougu_data_t *p_data_base = (max86141_rougu_data_t *)&m_spo_packet_helper.p_rougu_spo->value;
                     max86141_rougu_data_t *p_data = &p_data_base[i];
@@ -1261,7 +1348,7 @@ static void max86141_task(void * pvParameters)
                 simple_crc((uint8_t *)&p_current_spo_packet->type, &m_spo_packet_helper.p_crc[0], &m_spo_packet_helper.p_crc[1]);
                 cdc_acm_send_packet((uint8_t *)p_current_spo_packet, m_spo_packet_helper.packet_size);
                 p_current_spo_packet = next_spo_packet();
-                
+
                 spo_pkt_count++;
                 if ((spo_pkt_count % 100) == 0)
                 {
@@ -1285,15 +1372,15 @@ static void max86141_task(void * pvParameters)
                 simple_crc((uint8_t *)&p_current_abp_packet->type, &m_abp_packet_helper.p_crc[0], &m_abp_packet_helper.p_crc[1]);
                 cdc_acm_send_packet((uint8_t *)p_current_abp_packet, m_abp_packet_helper.packet_size);
                 p_current_abp_packet = next_abp_packet();
-                
+
                 abp_pkt_count++;
                 if (abp_pkt_count % 100 == 0)
                 {
                     NRF_LOG_INFO("abp: %d packets sent", abp_pkt_count);
-                }                
+                }
             }
-        
-#endif        
+
+#endif
     }
 }
 

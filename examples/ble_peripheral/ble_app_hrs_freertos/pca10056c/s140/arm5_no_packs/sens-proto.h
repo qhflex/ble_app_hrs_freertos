@@ -33,7 +33,7 @@
 
 #define MAX86141_BRIEF_TLV_LEN          9
 #define MAX86141_BRIEF_TLV_SIZE         (3 + MAX86141_BRIEF_TLV_LEN)
-#define MAX86141_NUM_OF_SAMPLES         (41 * 2)    // 60
+#define MAX86141_NUM_OF_SAMPLES         (41 * 4)    // 60
                                                     // It is possible but not necessarily to change this value.
                                                     // For maximum number of spi tx bytes is 255. 60 * 3 plus 2 leading characters is 182,
                                                     // which is large enough.
