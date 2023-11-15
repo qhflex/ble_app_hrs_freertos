@@ -1,23 +1,26 @@
 #ifndef __APP_CONFIG_H__
 #define __APP_CONFIG_H__
 
-// CONFIG_GPIO_AS_PINRESET
-// CONFIG_NFCT_PINS_AS_GPIOS
+/** 
+ * This macros are defiend in compiler option
+ */
+// CONFIG_GPIO_AS_PINRESET          not configured
+// CONFIG_NFCT_PINS_AS_GPIOS        
 
 // RTT does not work yet
-// #define NRF_LOG_USE_RTT
+#define NRF_LOG_USE_RTT
 // -DAPP_TIMER_V2,-DAPP_TIMER_V2_RTC1_ENABLED,-DCONFIG_GPIO_AS_PINRESET,
 
 #ifdef NRF_LOG_USE_RTT
 #define NRF_LOG_BACKEND_RTT_ENABLED                     1
-#define NRF_LOG_BACKEND_RTT_TEMP_BUFFER_SIZE            64
+#define NRF_LOG_BACKEND_RTT_TEMP_BUFFER_SIZE            1024
 #define NRF_LOG_BACKEND_RTT_OUTPUT_BUFFER_SIZE          4096
 #define NRF_LOG_BACKEND_UART_ENABLED                    0
 #define NRF_FPRINTF_FLAG_AUTOMATIC_CR_ON_LF_ENABLED     0
 #else
 #define NRF_LOG_BACKEND_RTT_ENABLED                     0
 #define NRF_LOG_BACKEND_UART_ENABLED                    1
-#define NRF_LOG_BACKEND_UART_TX_PIN                     16
+#define NRF_LOG_BACKEND_UART_TX_PIN                     28  // P1.04
 #define NRF_FPRINTF_FLAG_AUTOMATIC_CR_ON_LF_ENABLED     1
 #define NRF_LOG_BACKEND_UART_TEMP_BUFFER_SIZE           64
 #endif
@@ -89,8 +92,6 @@
 
 // ==== PRINT ====
 #define RETARGET_ENABLED                            0
-
-
 
 // == NRF QUEUE ==
 // required by twi manager

@@ -19,6 +19,8 @@
 /**********************************************************************
  * MACROS
  */
+ 
+ #define COMBO_MODE
 
 /**********************************************************************
  * CONSTANTS
@@ -71,7 +73,19 @@
 
 #define MAX86141_SPI_INSTANCE_ID            2
 
-// P9 on schematic,
+#ifdef COMBO_MODE
+
+#define MAX86141_COMBO_INT_PIN              ( 0 + 24)       // MAX-INT-P0.24
+                                                            // This signal is pulled up to nRF MCU VDD
+                                                            // on max side it's open-drain driven
+#define MAX86141_COMBO_CS_PIN               ( 0 + 17)       // MAX-CS-P0.17
+#define MAX86141_COMBO_CK_PIN               ( 0 + 14)       // MAX-SCLK-P0.14
+#define MAX86141_COMBO_DI_PIN               ( 0 + 15)       // MAX-SDI-P0.15
+#define MAX86141_COMBO_DO_PIN               ( 0 + 13)       // MAX-SDO-P0.13
+
+#else
+
+// P9 on schematic
 #define MAX86141_SPO_CS_PIN                 8
 #define MAX86141_SPO_CK_PIN                 11
 #define MAX86141_SPO_DI_PIN                 (32 + 8)
@@ -83,10 +97,12 @@
 #define MAX86141_ABP_DI_PIN                 13
 #define MAX86141_ABP_DO_PIN                 14
 
+#endif // COMBO_MODE
+
 #define MAX_PENDING_TRANSACTIONS            5
 
 /* this value only determine when the interrupt is fired */
-#define FIFO_READ_SAMPLES                   MAX86141_NUM_OF_SAMPLES // 60 * 3 + 2 should not exceed 255 (uint8_t of spi rx buf size)
+#define FIFO_READ_SAMPLES                   MAX86141_NUM_OF_SAMPLES         // 60 * 3 + 2 should not exceed 255 (uint8_t of spi rx buf size)
 #define SPI_FIFO_RX_SIZE                    ((FIFO_READ_SAMPLES * 3) + 2)
 #define SPI_FIFO_RX_SIZE_ROUGU              (2 * 3 + 2)
 
@@ -115,11 +131,20 @@ static uint8_t * buf = &spi_fifo_rx[2];
 static uint8_t rougu[15] = {0};
 #endif
 
+#ifdef COMBO_MODE
+
+static uint8_t combo_0x10_0x16_regs[7] = {0};
+static uint8_t combo_0x20_0x2B_regs[12] = {0};
+
+#else
+
 static uint8_t spo_0x10_0x16_regs[7] = {0}; // for 0x10-0x16
 static uint8_t spo_0x20_0x2B_regs[12] = {0};
 
 static uint8_t abp_0x10_0x16_regs[7] = {0}; // for 0x10-0x16
 static uint8_t abp_0x20_0x2B_regs[12] = {0};
+
+#endif
 
 const static nrf_spi_mngr_transfer_t max86141_fifo_xfers[] =
 {
@@ -130,6 +155,113 @@ const static nrf_spi_mngr_transfer_t max86141_fifo_xfers_rougu[] =
 {
     NRF_SPI_MNGR_TRANSFER(spi_fifo_tx, 2, spi_fifo_rx, 8), // 6 + 2
 };
+
+#ifdef COMBO_MODE
+
+const static max86141_cfg_t combo_maxcfg = {
+    .inten1 = {
+        .a_full_en      = 1,    // enable fifo
+    },
+    .fifocfg1 = {
+        .fifo_a_full    = (128 - FIFO_READ_SAMPLES),    
+    },
+    .fifocfg2 = {
+        .flush_fifo     = 1,    // required
+        .fifo_stat_clr  = 1,    // not sure TODO
+        .a_full_type    = 1,    // not sure TODO        
+        .fifo_ro        = 1,    // drop old samples when fifo full
+    },
+    .sysctrl = {
+        .single_ppg     = 0,    // both channels are used
+    },
+    .ppgcfg1 = {
+        .ppg2_adc_rge   = 3,
+        .ppg1_adc_rge   = 3,    // 0b00  4.097uA (full scale)
+                                // 0b01  8.192uA
+                                // 0b10 16.384uA 
+                                // 0b11 32.768uA
+
+        .ppg_tint       = 0,    // pulse width = tint + tsetlng + 0.5uS = 129.8uS
+                                // if tsetlng = 01 (6uS, default) then pw = 123.8uS
+                                // as in the value provided in pseudo code
+                                //
+                                // 0b00 integration time is  14.8uS
+                                // 0b01 integration time is  29.4uS
+                                // 0b10 integration time is  58.7uS <-
+                                // 0b11 integration time is 117.3uS
+    },
+    .ppgcfg2 = {
+        .ppg_sr         = 0x12, // 0x00   25 sps
+                                // 0x01   50 sps
+                                // 0x02   84 sps
+                                // 0x03  100 sps
+                                // 0x04  200 sps
+                                // 0x05  400 sps
+                                // 0x06   25 sps (2 pulses per sample)
+                                // 0x07   50 sps (2 pulses per sample)
+                                // 0x08   84 sps (2 pulses per sample)
+                                // 0x09  100 sps (2 pulses per sample)
+                                // 0x0a    8 sps
+                                // 0x0b   16 sps
+                                // 0x0c   32 sps
+                                // 0x0d   64 sps
+                                // 0x0e  128 sps
+                                // 0x0f  256 sps
+                                // 0x10  512 sps
+                                // 0x11 1024 sps
+                                // 0x12 2048 sps
+                                // 0x13 4096 sps
+
+        .smp_ave        = 0,    // 0b000 (0) 1
+                                // 0b001 (1) 2
+                                // 0b010 (2) 4
+                                // 0b011 (3) 8
+                                // 0b100 (4) 16
+                                // 0b101 (5) 32
+                                // 0b110 (6) 64
+                                // 0b111 (7) 128
+    },
+    .ppgcfg3 = {
+        .led_setlng     = 0,    // 0b00  4.0uS
+                                // 0b01  6.0uS
+                                // 0b10  8.0uS
+                                // 0b11 12.0us
+    },
+    .pdbias = {
+        .pdbias2        = 1,
+        .pdbias1        = 1,    // 0-64pF, smallest
+    },
+    
+    // all leds (ir1, red1, ir2) are set to certain range
+    .ledrge1 = {
+        .led36_rge      = 1,
+        .led25_rge      = 1,    // 0b00  31mA
+        .led14_rge      = 1,    // 0b01  62mA
+                                // 0b10  93mA
+                                // 0b11 124mA
+    },
+    
+    // all leds (ir1, red1, ir2) are set to certain power amplifier ratio.
+    .led1pa             = 0x30, // lsb =  0.12 when rge is 00 (0b00)
+                                //        0.24 when rge is 01 (0b01)
+                                //        0.36 when rge is 02 (0b10)
+                                //        0.48 when rge is 03 (0b11)
+
+    .led2pa             = 0x30,
+    .led3pa             = 0x30,
+    
+    /*
+     * only LED Sequence Register 1 (0x20) needs to be set
+     *  .ledc135 (LEDC1[3:0]) set to 5 (0101)
+     *  .ledc246 (LEDC2[3:0]) set to 2 (0010)
+     */ 
+    .ledseq1 = {
+        .ledc135        = 5,    // 0101 LED1 + LED3
+        .ledc246        = 2,    // 0010 LED2
+    },
+};
+
+#else
 
 const static max86141_cfg_t spo_maxcfg = {
     .inten1 = {
@@ -316,6 +448,16 @@ const static max86141_cfg_t abp_maxcfg = {
 //  },
 };
 
+#endif
+
+#ifdef COMBO_MODE
+
+max86141_ctx_t combo_ctx = {
+    .p_maxcfg = &combo_maxcfg,
+};
+
+#else    
+
 static max86141_ctx_t spo_ctx = {
     .p_maxcfg = &spo_maxcfg,
 };
@@ -323,6 +465,20 @@ static max86141_ctx_t spo_ctx = {
 static max86141_ctx_t abp_ctx = {
     .p_maxcfg = &abp_maxcfg,
 };
+
+#endif
+
+#ifdef COMBO_MODE
+
+static max86141_packet_helper_t m_combo_packet_helper = {
+    .instance_id = 0x80,
+    .ppg1_led = 0,
+    .ppg2_led = 0,
+    .ppf_prox = 0,
+    .use_rougu_spo = 0,
+};
+
+#else
 
 static max86141_packet_helper_t m_spo_packet_helper = {
     .instance_id = 0,
@@ -340,8 +496,18 @@ static max86141_packet_helper_t m_abp_packet_helper = {
     .use_rougu_spo = 0,
 };
 
+#endif
+
+#ifdef COMBO_MODE
+
+static sens_packet_t *p_current_combo_packet;
+
+#else
+
 static sens_packet_t *p_current_spo_packet;
 static sens_packet_t *p_current_abp_packet;
+
+#endif
 
 /*********************************************************************
  * LOCAL FUNCTIONS
@@ -355,10 +521,14 @@ static bool max86141_probe(max86141_ctx_t * ctx);
 static void max86141_config(max86141_ctx_t * ctx);
 static void max86141_run(max86141_ctx_t * ctx);
 static void read_fifo(max86141_ctx_t * ctx);
-static void dynamic(uint32_t ir, uint32_t red);
+// static void dynamic(uint32_t ir, uint32_t red);
 
+#ifdef COMBO_MODE
+static sens_packet_t * next_combo_packet(void);
+#else
 static sens_packet_t * next_spo_packet(void);
 static sens_packet_t * next_abp_packet(void);
+#endif
 
 /*********************************************************************
  * EXTERN FUNCTIONS
@@ -424,6 +594,8 @@ static void read_registers(max86141_ctx_t * ctx, uint8_t startAddr, int num, uin
         int addr = startAddr + i;
         uint8_t val = read_reg(ctx, addr);
 
+#ifdef COMBO_MODE
+#else        
         if (ctx == &spo_ctx)
         {
             // NRF_LOG_INFO("spo reg %02x: %02x", addr, val);
@@ -432,7 +604,7 @@ static void read_registers(max86141_ctx_t * ctx, uint8_t startAddr, int num, uin
         {
             // NRF_LOG_INFO("abp reg %02x: %02x", addr, val);
         }
-
+#endif
         if (outbuf)
         {
             outbuf[i] = val;
@@ -446,6 +618,12 @@ static bool max86141_probe(max86141_ctx_t *ctx)
     NRF_LOG_INFO("max86141 probe 0xff returns: %02x", val);
     
     if (val == 0x25) {
+#ifdef COMBO_MODE
+        if (ctx == &combo_ctx)
+        {
+            NRF_LOG_INFO("combo max86141 probed");
+        }
+#else        
         if (ctx == &spo_ctx)
         {
             NRF_LOG_INFO("spo max86141 probed");
@@ -455,6 +633,7 @@ static bool max86141_probe(max86141_ctx_t *ctx)
         {
             NRF_LOG_INFO("abp max86141 probed");
         }
+#endif        
     }
 
     return (val == 0x25);
@@ -620,6 +799,29 @@ static void print_registers(max86141_ctx_t * ctx)
     NRF_LOG_INFO("      part id: 0x%02x", read_reg(ctx, 0xff));
 }
 
+#ifdef COMBO_MODE
+
+static void combo_ctx_init() 
+{
+    combo_ctx.xfer.p_tx_data = combo_ctx.txbuf;
+    combo_ctx.xfer.tx_length = 3;
+    combo_ctx.xfer.p_rx_data = combo_ctx.rxbuf;
+    combo_ctx.xfer.rx_length = 3;
+
+    // abp_ctx.spicfg = NRF_DRV_SPI_DEFAULT_CONFIG;
+    combo_ctx.spicfg.ss_pin        = MAX86141_COMBO_CS_PIN;
+    combo_ctx.spicfg.sck_pin       = MAX86141_COMBO_CK_PIN;
+    combo_ctx.spicfg.mosi_pin      = MAX86141_COMBO_DI_PIN;
+    combo_ctx.spicfg.miso_pin      = MAX86141_COMBO_DO_PIN;
+    combo_ctx.spicfg.orc           = 0xff;
+    combo_ctx.spicfg.mode          = NRF_DRV_SPI_MODE_0;
+    combo_ctx.spicfg.irq_priority  = APP_IRQ_PRIORITY_LOWEST;
+    combo_ctx.spicfg.frequency     = NRF_DRV_SPI_FREQ_4M;
+    combo_ctx.spicfg.bit_order     = NRF_DRV_SPI_BIT_ORDER_MSB_FIRST;
+}
+
+#else
+
 static void spo_ctx_init()
 {
     spo_ctx.xfer.p_tx_data = spo_ctx.txbuf;
@@ -658,6 +860,8 @@ static void abp_ctx_init()
     abp_ctx.spicfg.bit_order     = NRF_DRV_SPI_BIT_ORDER_MSB_FIRST;
 }
 
+#endif
+
 //void uart_error_handle(app_uart_evt_t * p_event)
 //{
 //    if (p_event->evt_type == APP_UART_COMMUNICATION_ERROR)
@@ -677,12 +881,11 @@ static void abp_ctx_init()
 //#define MIN_IR_PA       0x10
 //#define PA_UP_STEP      0x04
 //#define PA_DOWN_STEP    0x10
-
+#if 0
 static void dynamic(uint32_t ir, uint32_t red)
 {
     (void)dynamic;
 
-#if 0
     static uint8_t led1_ir  = 0;
     static uint8_t led2_red = 0;
 
@@ -741,8 +944,9 @@ static void dynamic(uint32_t ir, uint32_t red)
     ir_sign [0] = (led1_ir  == old_led1_ir ) ? ' ' : (led1_ir  < old_led1_ir ) ? '-' : '+';
 
     NRF_LOG_INFO("red: 0x%06x %s, ir: 0x%06x %s", red, red_sign, ir, ir_sign);
-#endif
+
 }
+#endif
 
 static bool is_invalid(uint8_t msb)
 {
@@ -845,23 +1049,43 @@ static void max86141_task(void * pvParameters)
 static void max86141_task(void * pvParameters)
 {
     // very fast, change this to interrupt driven?
-    TickType_t xFrequency = 2;
-
+    TickType_t xFrequency = 1;
+    
+#ifdef COMBO_MODE
+    
+    uint8_t combo_count = 0;
+    int combo_pkt_count = 0;
+#else    
     uint8_t spo_count = 0;
     uint8_t abp_count = 0;
     int spo_pkt_count = 0;
     int abp_pkt_count = 0;
-    
-    vTaskDelay(1000);
+#endif
     
 	bloodoxygenInit();
 	set_spo2_cofe(-7.1984,33.5650,60.5454,-46.3775,130.3776,0.9044);
 	BLOOD_OXYGEN_INFO_STRU light_data = {0};
 	BLOOD_OXYGEN_RESULT_STRU blood_result = {0};
 
+#ifdef COMBO_MODE
+    combo_ctx_init();
+#else    
     spo_ctx_init();
     abp_ctx_init();
+#endif
+    
+#ifdef COMBO_MODE    
+    p_current_combo_packet = max86141_probe(&combo_ctx) ? next_combo_packet() : NULL;
+    if (p_current_combo_packet)
+    {
+        max86141_config(&combo_ctx);
+        read_registers(&combo_ctx, 0x10, 7, combo_0x10_0x16_regs);
+        read_registers(&combo_ctx, 0x20, 12, combo_0x20_0x2B_regs);
+        max86141_run(&combo_ctx);
 
+        NRF_LOG_INFO("combo max86141 started");        
+    }
+#else    
     p_current_spo_packet = max86141_probe(&spo_ctx) ? next_spo_packet() : NULL;
     if (p_current_spo_packet)
     {
@@ -885,11 +1109,42 @@ static void max86141_task(void * pvParameters)
 
         NRF_LOG_INFO("abp max86141 started");
     }
+#endif
+
+    if (!p_current_combo_packet)
+    {
+        vTaskDelay(portMAX_DELAY);
+    }
 
     for (;;)
     {
         vTaskDelay(xFrequency);
-
+#ifdef COMBO_MODE
+        
+        combo_count = read_reg(&combo_ctx, REG_FIFO_DATA_COUNT);
+        if (combo_count < MAX86141_NUM_OF_SAMPLES) continue;
+        
+        read_fifo(&combo_ctx);
+        
+        // fill samples (type and length correct?)
+        memcpy(&m_combo_packet_helper.p_sample->value, buf, MAX86141_NUM_OF_SAMPLES * 3);
+        memcpy(&m_combo_packet_helper.p_ppgcfg->value, combo_0x10_0x16_regs, 7);
+        memcpy(&m_combo_packet_helper.p_ledcfg->value, combo_0x20_0x2B_regs, 12);
+        
+        for (int i = 0; i < MAX86141_NUM_OF_SAMPLES / 2; i++)
+        {
+        }
+        
+        simple_crc((uint8_t *)&p_current_combo_packet->type, &m_combo_packet_helper.p_crc[0], &m_combo_packet_helper.p_crc[1]);
+        cdc_acm_send_packet((uint8_t *)p_current_combo_packet, m_combo_packet_helper.packet_size);
+        p_current_combo_packet = next_combo_packet();
+        
+//        combo_pkt_count++;
+//        if ((combo_pkt_count % 1000) == 0)
+//        {
+//            NRF_LOG_INFO("combo: %d packets sent", combo_pkt_count);
+//        }        
+#else        
         if (p_current_spo_packet)
         {
             spo_count = read_reg(&spo_ctx, REG_FIFO_DATA_COUNT);
@@ -957,11 +1212,12 @@ static void max86141_task(void * pvParameters)
                     NRF_LOG_INFO("abp: %d packets sent", abp_pkt_count);
                 }                
             }
-        }
+        
+#endif        
     }
 }
 
-#endif
+#endif // rougu task or normal task
 
 void app_max86141_freertos_init(void)
 {
@@ -995,6 +1251,43 @@ void app_max86141_freertos_init(void)
         NRF_LOG_INFO("[max86141] task created.");
     }
 }
+
+#ifdef COMBO_MODE
+
+static sens_packet_t * next_combo_packet(void)
+{
+    static bool initialized = false;
+    static sens_packet_t * p_packet_pool[SENS_PACKET_POOL_SIZE] = {0};
+    static int next_modulo = 0;
+
+    if (!initialized)
+    {
+        // init m_packet helper
+        sens_init_max86141_packet(&m_combo_packet_helper, NULL);
+
+        // alloc mem
+        for (int i = 0; i < SENS_PACKET_POOL_SIZE; i++)
+        {
+            p_packet_pool[i] = pvPortMalloc(m_combo_packet_helper.packet_size);
+            APP_ERROR_CHECK_BOOL(p_packet_pool[i] != NULL);
+        }
+
+        initialized = true;
+
+        NRF_LOG_INFO("abp packets init, len: %d, size: %d, %d samples",
+            m_combo_packet_helper.payload_len,
+            m_combo_packet_helper.packet_size,
+            MAX86141_NUM_OF_SAMPLES);
+    }
+
+    // init next packet
+    sens_init_max86141_packet(&m_combo_packet_helper, p_packet_pool[next_modulo]);
+    sens_packet_t * next = p_packet_pool[next_modulo];
+    next_modulo = (next_modulo + 1) % SENS_PACKET_POOL_SIZE;
+    return next;
+}
+
+#else
 
 static sens_packet_t * next_spo_packet(void)
 {
@@ -1061,3 +1354,5 @@ static sens_packet_t * next_abp_packet(void)
     next_modulo = (next_modulo + 1) % SENS_PACKET_POOL_SIZE;
     return next;
 }
+
+#endif

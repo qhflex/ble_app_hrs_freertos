@@ -9,8 +9,9 @@
 
 #include "qma6110p.h"
 
-#define QMA6110P_SCL_PIN            7
-#define QMA6110P_SDA_PIN            6
+#define QMA6110P_SCL_PIN            7   // QMA-SCL-P0.07
+#define QMA6110P_SDA_PIN            6   // QMA-SDA-P0.06
+#define QMA6110P_INT_PIN            8   // QMA-INT1-P0.08
 
 #define TWI_INSTANCE_ID             0
 

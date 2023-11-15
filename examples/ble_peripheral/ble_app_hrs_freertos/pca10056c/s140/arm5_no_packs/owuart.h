@@ -45,10 +45,12 @@
                                                 // the other one is rx, which connects to 1-wire data
                                                 // line via a resistor, possibly a few hundreds or thousands
                                                 // of ohms.
-#define OWUART_TX_PIN_NUMBER            0       // mdq P0.00
-#define OWUART_RX_PIN_NUMBER            17      // P0.17 (Pin 6 on P4, close to P0.16, which is used as uart tx previously)
+                                                
+#define OWUART_TX_PIN_NUMBER            0       // M-DQ-P0.00
+#define OWUART_RX_PIN_NUMBER            4       // P0.04
+#define QWUART_INT_PIN                  31      // M-INT-P0.31 (not used yet)
 
-// #include "app_error.h"
+
 
 #define TSK_OWUART_STACK_SIZE           (256)	// the unit is word, 4-bytes
 #define TSK_OWUART_PRIORITY             (1)

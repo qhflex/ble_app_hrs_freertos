@@ -23,11 +23,11 @@
 
 // TODO move these definition to header file
 // TODO don't use cs pin
-#define ADS1292R_CS_PIN             (32 + 13) // 1.13 ADS-CS-P1.13
-#define ADS1292R_CK_PIN             26        // 0.26 ADS-CLK-P0.26
-#define ADS1292R_DI_PIN             1         // 0.01 ADS-DI-P0.01 (ads1292r pin 19, this is nrf MOSI)
-#define ADS1292R_DO_PIN             27        // 0.27 ADS-DO-P0.27 (ads1292r pin 21, this is nrf MISO)
-#define ADS1292R_DRDY_PIN           (32 + 14) // 1.14
+#define ADS1292R_CS_PIN             (32 + 13)   // P1.13 ADS-CS-P1.13
+#define ADS1292R_CK_PIN             ( 0 + 26)   // P0.26 ADS-CLK-P0.26
+#define ADS1292R_DI_PIN             ( 0 +  1)   // P0.01 ADS-DI-P0.01 (ads1292r pin 19, this is nrf MOSI)
+#define ADS1292R_DO_PIN             ( 0 + 27)   // P0.27 ADS-DO-P0.27 (ads1292r pin 21, this is nrf MISO)
+#define ADS1292R_DRDY_PIN           (32 + 10)   // P1.10
 
 // if you define these
 // #define ADS1292R_RESET_PIN

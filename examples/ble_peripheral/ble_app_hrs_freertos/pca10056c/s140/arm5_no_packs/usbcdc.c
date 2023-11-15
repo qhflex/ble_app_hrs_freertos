@@ -84,6 +84,7 @@ NRF_CLI_DEF(m_cli_uart,
  *
  * Configure if example supports USB port connection
  */
+ 
 #ifndef USBD_POWER_DETECTION
 #define USBD_POWER_DETECTION true
 #endif
@@ -320,6 +321,7 @@ static void cdc_acm_user_ev_handler(app_usbd_class_inst_t const * p_inst,
 
 static void usbd_user_ev_handler(app_usbd_event_type_t event)
 {
+    ret_code_t err;
     switch (event)
     {
         case APP_USBD_EVT_DRV_SUSPEND:
@@ -338,10 +340,10 @@ static void usbd_user_ev_handler(app_usbd_event_type_t event)
             break;
         case APP_USBD_EVT_POWER_DETECTED:
             NRF_LOG_INFO("usb power detected");
-
             if (!nrf_drv_usbd_is_enabled())
             {
                 app_usbd_enable();
+                NRF_LOG_INFO("usbd enabled");
             }
             break;
         case APP_USBD_EVT_POWER_REMOVED:
@@ -442,6 +444,8 @@ static void usbcdc_task(void * pvParameters)
 
     m_pending_queue = xQueueCreate(8, sizeof(pending_item_t));
     APP_ERROR_CHECK_BOOL(m_pending_queue != NULL);
+    
+    // vTaskDelay(100);
 
     static const app_usbd_config_t usbd_config = {
         .ev_isr_handler = usb_new_event_isr_handler,

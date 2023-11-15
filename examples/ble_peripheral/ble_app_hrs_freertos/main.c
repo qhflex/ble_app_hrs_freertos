@@ -90,6 +90,8 @@
 
 #define OSTIMER_WAIT_FOR_QUEUE              2                                       /**< Number of ticks to wait for the timer queue to be ready */
 
+#define POWER_ON_PIN                        29 // P0.29
+
 /*********************************************************************
  * TYPEDEFS
  */
@@ -652,7 +654,6 @@ static void logger_thread(void * arg)
     while (1)
     {
         NRF_LOG_FLUSH();
-
         vTaskSuspend(NULL); // Suspend myself
     }
 }
@@ -726,6 +727,9 @@ int main(void)
     // APP_ERROR_CHECK(err_code);
 
     nrfx_gpiote_init();
+    
+    nrfx_gpiote_out_config_t power_on_pin_config = NRFX_GPIOTE_CONFIG_OUT_SIMPLE(true);
+    nrfx_gpiote_out_init(POWER_ON_PIN, &power_on_pin_config);
 
     // Do not start any interrupt that uses system functions before system initialisation.
     // The best solution is to start the OS before any other initalisation.
@@ -765,8 +769,8 @@ int main(void)
     NRF_LOG_INFO("Program started in mimic_rougu mode.");
 #else
     // app_qma6110p_freertos_init();
-    owuart_freertos_init();
-    app_ads1292r_freertos_init();
+    // owuart_freertos_init();
+    // app_ads1292r_freertos_init();
     app_max86141_freertos_init();
     app_usbcdc_freertos_init();
     
