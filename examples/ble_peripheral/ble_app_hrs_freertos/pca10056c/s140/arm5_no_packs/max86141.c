@@ -71,7 +71,7 @@
 #define TSK_MAX86141_STACK_SIZE             512
 #define TSK_MAX86141_PRIORITY               1
 
-#define MAX86141_SPI_INSTANCE_ID            2
+#define SPI_INSTANCE_ID            2
 
 #ifdef COMBO_MODE
 
@@ -121,7 +121,7 @@
  */
 static TaskHandle_t m_max86141_thread = NULL;
 
-NRF_SPI_MNGR_DEF(m_max86141_spi_mngr, MAX_PENDING_TRANSACTIONS, MAX86141_SPI_INSTANCE_ID);
+NRF_SPI_MNGR_DEF(m_max86141_spi_mngr, MAX_PENDING_TRANSACTIONS, SPI_INSTANCE_ID);
 
 const static uint8_t spi_fifo_tx[2] = { REG_FIFO_DATA, REG_OP_READ };
 static uint8_t spi_fifo_rx[SPI_FIFO_RX_SIZE] = {0};
@@ -148,7 +148,7 @@ static uint8_t abp_0x20_0x2B_regs[12] = {0};
 
 const static nrf_spi_mngr_transfer_t max86141_fifo_xfers[] =
 {
-  NRF_SPI_MNGR_TRANSFER(spi_fifo_tx, 2, spi_fifo_rx, SPI_FIFO_RX_SIZE),
+    NRF_SPI_MNGR_TRANSFER(spi_fifo_tx, 2, spi_fifo_rx, SPI_FIFO_RX_SIZE),
 };
 
 const static nrf_spi_mngr_transfer_t max86141_fifo_xfers_rougu[] =
@@ -1046,6 +1046,87 @@ static void max86141_task(void * pvParameters)
 
 #else
 
+static void spi_read_fifo_end_callback(ret_code_t result, void * p_user_data)
+{
+}
+
+static nrf_spi_mngr_transfer_t spi_read_fifo_xfers[] =
+{
+    {
+        .p_tx_data = spi_fifo_tx,
+        .tx_length = 2,
+        .p_rx_data = spi_fifo_rx,
+        .rx_length = SPI_FIFO_RX_SIZE
+    }
+};
+
+static nrf_spi_mngr_transaction_t read_fifo_trans = {
+    .begin_callback = NULL,
+    .end_callback = spi_read_fifo_end_callback,
+    .p_user_data = NULL,
+    .p_transfers = spi_read_fifo_xfers,
+    .number_of_transfers = sizeof(spi_read_fifo_xfers) / sizeof(spi_read_fifo_xfers[0]),
+    .p_required_spi_cfg = NULL
+};
+
+static uint8_t int_status_tx[3] = { REG_INT_STAT_1,   REG_OP_READ, 0x00 };    
+static uint8_t int_status_rx[3] = {0};
+
+// typedef void (* nrf_spi_mngr_callback_end_t)(ret_code_t result, void * p_user_data);
+static void spi_read_int_status_callback(ret_code_t result, void * p_user_data)
+{
+    if (result != NRF_SUCCESS) return;
+    if (int_status_rx[2] & 0x80)
+    {
+        nrf_spi_mngr_schedule(&m_max86141_spi_mngr, &read_fifo_trans);
+    }
+}
+
+static nrf_spi_mngr_transfer_t spi_read_int_status_xfers[] = 
+{
+    {
+        .p_tx_data = int_status_tx,
+        .tx_length = 3,
+        .p_rx_data = int_status_rx,
+        .rx_length = 3,
+    }
+};
+
+static nrf_spi_mngr_transaction_t int_status_trans = {
+    .begin_callback = NULL,
+    .end_callback = spi_read_int_status_callback,
+    .p_user_data = NULL,
+    .p_transfers = spi_read_int_status_xfers,
+    .number_of_transfers = sizeof(spi_read_int_status_xfers) / sizeof(spi_read_int_status_xfers[0]),
+    .p_required_spi_cfg = NULL
+};
+
+/**
+ * void irqHandler(void)
+ * {
+ *   uint8_t intStatus;
+ *   //Read Status
+ *   ReadReg(0x00, &intStatus);
+ *   if ( intStatus& 0x80 ) { //A FULL RDY
+ *     device_data_read(); //Data Read Routine
+ *   }
+ * }
+ */
+
+// function type (nrfx_gpiote_evt_handler_t) defined in nrfx_gpiote.h, line 209
+static void max86141_int_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
+{
+    nrf_spi_mngr_schedule(&m_max86141_spi_mngr, &int_status_trans);
+}
+
+static void max86141_init_gpio(void)
+{
+    ret_code_t ret;
+    nrfx_gpiote_in_config_t int_cfg = NRFX_GPIOTE_CONFIG_IN_SENSE_HITOLO(true);
+    ret = nrfx_gpiote_in_init(MAX86141_COMBO_INT_PIN, &int_cfg, max86141_int_handler);
+    APP_ERROR_CHECK(ret);
+}
+
 static void max86141_task(void * pvParameters)
 {
     // very fast, change this to interrupt driven?
@@ -1126,7 +1207,6 @@ static void max86141_task(void * pvParameters)
         
         read_fifo(&combo_ctx);
         
-        // fill samples (type and length correct?)
         memcpy(&m_combo_packet_helper.p_sample->value, buf, MAX86141_NUM_OF_SAMPLES * 3);
         memcpy(&m_combo_packet_helper.p_ppgcfg->value, combo_0x10_0x16_regs, 7);
         memcpy(&m_combo_packet_helper.p_ledcfg->value, combo_0x20_0x2B_regs, 12);
@@ -1274,7 +1354,7 @@ static sens_packet_t * next_combo_packet(void)
 
         initialized = true;
 
-        NRF_LOG_INFO("abp packets init, len: %d, size: %d, %d samples",
+        NRF_LOG_INFO("combo packets init, len: %d, size: %d, %d samples",
             m_combo_packet_helper.payload_len,
             m_combo_packet_helper.packet_size,
             MAX86141_NUM_OF_SAMPLES);
