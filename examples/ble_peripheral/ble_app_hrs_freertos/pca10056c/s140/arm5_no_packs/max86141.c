@@ -22,6 +22,9 @@
 
  #define COMBO_MODE
 
+ // #ifdef COMBO_MODE
+ // #define
+
 /**********************************************************************
  * CONSTANTS
  */
@@ -69,7 +72,7 @@
 #define WRITE_READBACK                      0
 
 #define TSK_MAX86141_STACK_SIZE             512
-#define TSK_MAX86141_PRIORITY               1
+#define TSK_MAX86141_PRIORITY               2
 
 #define SPI_INSTANCE_ID                     2
 
@@ -106,7 +109,7 @@
 #define SPI_FIFO_RX_SIZE                    ((FIFO_READ_SAMPLES * 3) + 2)
 #define SPI_FIFO_RX_SIZE_ROUGU              (2 * 3 + 2)
 
-#define NUM_OF_RDBUF                        8      
+#define NUM_OF_RDBUF                        16
 #define SENS_PACKET_POOL_SIZE               2
 
 #define RDBUF_SIZE                          ((MAX86141_NUM_OF_SAMPLES / 2) * 3 + 2)
@@ -121,7 +124,7 @@
 
 /**********************************************************************
  * LOCAL VARIABLES
- */ 
+ */
 static TaskHandle_t m_max86141_thread = NULL;
 
 static QueueHandle_t rdbuf_idle = NULL;
@@ -175,7 +178,7 @@ const static max86141_cfg_t combo_maxcfg = {
     .fifocfg2 = {
         .flush_fifo     = 1,    // required
         .fifo_stat_clr  = 1,    // set to 1 to clear interrup when reading fifo (no need to read status reg)
-        .a_full_type    = 0,    // this is the default value
+        .a_full_type    = 1,    // 0 - AFULL_RPT (REPEAT, default), 1 - AFULL_ONCE
         .fifo_ro        = 1,    // drop old samples when fifo full
     },
     .sysctrl = {
@@ -727,7 +730,7 @@ static void max86141_config(max86141_ctx_t * ctx)
     write_reg(ctx, REG_LED6_PA,       CFGVAL(led6pa)  );
     write_reg(ctx, REG_LED_PILOT_PA,  CFGVAL(pilotpa) );
 
-    write_reg(ctx, REG_FIFO_CONFIG_1, CFGVAL(fifocfg1));    
+    write_reg(ctx, REG_FIFO_CONFIG_1, CFGVAL(fifocfg1));
     write_reg(ctx, REG_FIFO_CONFIG_2, CFGVAL(fifocfg2));
 
     write_reg(ctx, REG_INT_EN_1,      CFGVAL(inten1)  );
@@ -1066,7 +1069,7 @@ static nrf_spi_mngr_transfer_t read_fifo_xfers[] =
 static void read_fifo_end_callback(ret_code_t result, void * p_user_data)
 {
     // NRF_LOG_INFO("read fifo end");
-    xQueueSendFromISR(rdbuf_pending, &read_fifo_xfers[0].p_rx_data, NULL); 
+    xQueueSendFromISR(rdbuf_pending, &read_fifo_xfers[0].p_rx_data, NULL);
 }
 
 static nrf_spi_mngr_transaction_t read_fifo_trans = {
@@ -1075,12 +1078,14 @@ static nrf_spi_mngr_transaction_t read_fifo_trans = {
     .p_user_data = NULL,
     .p_transfers = read_fifo_xfers,
     .number_of_transfers = sizeof(read_fifo_xfers) / sizeof(read_fifo_xfers[0]),
-    .p_required_spi_cfg = &combo_ctx.spicfg
+    // .p_required_spi_cfg = &combo_ctx.spicfg
 };
 
+// not used
 static uint8_t int_status_tx[2] = { REG_INT_STAT_1, REG_OP_READ };
 static uint8_t int_status_rx[3] = { 0 };
 
+// not used
 static nrf_spi_mngr_transfer_t read_int_status_xfers[] =
 {
     {
@@ -1091,37 +1096,49 @@ static nrf_spi_mngr_transfer_t read_int_status_xfers[] =
     }
 };
 
+// not used
 static void read_int_status_end_callback(ret_code_t esult, void * p_user_data)
 {
     if (int_status_rx[2] & 0x80)
     {
         nrf_spi_mngr_schedule(&m_max86141_spi_mngr, &read_fifo_trans);
     }
-    else 
+    else
     {
         // TODO do something
     }
 }
 
+// not used
 static nrf_spi_mngr_transaction_t read_int_status_trans = {
     .begin_callback = NULL,
     .end_callback = read_int_status_end_callback,
     .p_user_data = NULL,
     .p_transfers = read_int_status_xfers,
     .number_of_transfers = 1,
-    .p_required_spi_cfg = &combo_ctx.spicfg
+    // .p_required_spi_cfg = &combo_ctx.spicfg
 };
 
 // function type (nrfx_gpiote_evt_handler_t) defined in nrfx_gpiote.h, line 209
 static void max86141_int_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
-    static int count = 0;
-    NRF_LOG_INFO("int handler %d", count++);
-    
+    static int count = 1;
+    count++;
+
+    static int sum = 0;
+    sum += uxQueueMessagesWaitingFromISR(rdbuf_pending);
+
+    if (count % 100 == 0)
+    {
+        NRF_LOG_INFO("max isr %d, watermark: %d", count, sum);
+        sum = 0;
+    }
+
     // TODO this is an error condition
     if (pdTRUE == xQueueReceiveFromISR(rdbuf_idle, &read_fifo_xfers[0].p_rx_data, NULL))
     {
-        nrf_spi_mngr_schedule(&m_max86141_spi_mngr, &read_int_status_trans);        
+        // nrf_spi_mngr_schedule(&m_max86141_spi_mngr, &read_int_status_trans);
+        nrf_spi_mngr_schedule(&m_max86141_spi_mngr, &read_fifo_trans);
     }
     else
     {
@@ -1135,12 +1152,12 @@ static void max86141_enable_int_pin(void)
     nrfx_gpiote_in_config_t int_cfg = NRFX_GPIOTE_CONFIG_IN_SENSE_HITOLO(true);
     ret = nrfx_gpiote_in_init(MAX86141_COMBO_INT_PIN, &int_cfg, max86141_int_handler);
     APP_ERROR_CHECK(ret);
-    
+
     nrfx_gpiote_in_event_enable(MAX86141_COMBO_INT_PIN, true);
     NRF_LOG_INFO("max86141 int pin %d initialized and enabled", MAX86141_COMBO_INT_PIN);
 }
 
-static void spi_config(void)
+static void max86141_spi_config(void)
 {
     uint32_t err_code;
 
@@ -1169,20 +1186,20 @@ static void max86141_task(void * pvParameters)
     TickType_t xFrequency = 1;
 
 #ifdef COMBO_MODE
-    
+
     rdbuf_idle = xQueueCreate(NUM_OF_RDBUF, sizeof(void *));
     ASSERT(rdbuf_idle != NULL);
     rdbuf_pending = xQueueCreate(NUM_OF_RDBUF, sizeof(void *));
     ASSERT(rdbuf_pending != NULL);
-    
+
     for (int i = 0; i < NUM_OF_RDBUF; i++)
     {
         uint8_t *p = &rdbuf[i][0];
         xQueueSend(rdbuf_idle, &p, portMAX_DELAY);
     }
-    
-    // spi_config();
-    
+
+    max86141_spi_config();
+
     uint8_t combo_count = 0;
     int combo_pkt_count = 0;
 #else
@@ -1209,12 +1226,12 @@ static void max86141_task(void * pvParameters)
     if (p_current_combo_packet)
     {
         // max86141_init_gpio();
-        
+
         max86141_config(&combo_ctx);
         read_registers(&combo_ctx, 0x10, 7, combo_0x10_0x16_regs);
         read_registers(&combo_ctx, 0x20, 12, combo_0x20_0x2B_regs);
-        
-        
+
+
         max86141_enable_int_pin();
         max86141_run(&combo_ctx);
 
@@ -1250,33 +1267,34 @@ static void max86141_task(void * pvParameters)
     {
         vTaskDelay(portMAX_DELAY);
     }
-    
-    // vTaskDelay(portMAX_DELAY);
-    
-    uint8_t *rdbuf;
-    
-    for (;;)
+
+
+    for (int i = 0; i < SENS_PACKET_POOL_SIZE; i++)
     {
-        uint8_t *p = (uint8_t *)&m_combo_packet_helper.p_sample->value;
-        int len = MAX86141_NUM_OF_SAMPLES / 2 * 3;
-        
-        // first half
-        xQueueReceive(rdbuf_pending, &rdbuf, portMAX_DELAY);
-        memcpy(p, &rdbuf[2], len);
-        xQueueSend(rdbuf_idle, &rdbuf, portMAX_DELAY);
-        
-        // second half
-        xQueueReceive(rdbuf_pending, &rdbuf, portMAX_DELAY);
-        memcpy(&p[len], &rdbuf[2], len);
-        xQueueSend(rdbuf_idle, &rdbuf, portMAX_DELAY);
-        
-        // TODO use multiple helper
         memcpy(&m_combo_packet_helper.p_ppgcfg->value, combo_0x10_0x16_regs, 7);
         memcpy(&m_combo_packet_helper.p_ledcfg->value, combo_0x20_0x2B_regs, 12);
+        p_current_combo_packet = next_combo_packet();
+    }
+
+    for (;;)
+    {
+        uint8_t *buf;
+        uint8_t *p = (uint8_t *)&m_combo_packet_helper.p_sample->value;
+        int len = MAX86141_NUM_OF_SAMPLES / 2 * 3;
+
+        // first half
+        xQueueReceive(rdbuf_pending, &buf, portMAX_DELAY);
+        memcpy(p, &buf[2], len);
+        xQueueSend(rdbuf_idle, &buf, portMAX_DELAY);
+
+        // second half
+        xQueueReceive(rdbuf_pending, &buf, portMAX_DELAY);
+        memcpy(&p[len], &buf[2], len);
+        xQueueSend(rdbuf_idle, &buf, portMAX_DELAY);
 
         simple_crc((uint8_t *)&p_current_combo_packet->type, &m_combo_packet_helper.p_crc[0], &m_combo_packet_helper.p_crc[1]);
         cdc_acm_send_packet((uint8_t *)p_current_combo_packet, m_combo_packet_helper.packet_size);
-        p_current_combo_packet = next_combo_packet();            
+        p_current_combo_packet = next_combo_packet();
     }
 
     for (int rf = 0;; rf++)
@@ -1291,7 +1309,7 @@ static void max86141_task(void * pvParameters)
         // uint8_t int_status = read_reg(&combo_ctx, REG_INT_STAT_1);
         // if (!(int_status & 0x80)) continue;
         // NRF_LOG_INFO("r f %d", rf);
-        
+
         read_fifo(&combo_ctx);
 
         memcpy(&m_combo_packet_helper.p_sample->value, buf, MAX86141_NUM_OF_SAMPLES * 3);

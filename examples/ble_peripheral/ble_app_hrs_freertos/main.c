@@ -769,8 +769,8 @@ int main(void)
     NRF_LOG_INFO("Program started in mimic_rougu mode.");
 #else
     // app_qma6110p_freertos_init();
-    // owuart_freertos_init();
-    // app_ads1292r_freertos_init();
+    owuart_freertos_init();
+    app_ads1292r_freertos_init();
     app_max86141_freertos_init();
     app_usbcdc_freertos_init();
     
