@@ -18,6 +18,7 @@
 #include "BRHPFilter.h"
 #include "qrsdetect.h"
 
+#include "ble_nus_tx.h"
 
 #define SENS_PACKET_POOL_SIZE       4
 
@@ -1472,10 +1473,55 @@ static void ads1292r_task(void * pvParameters)
         }
 
         m_packet_helper.num_of_samples += 1;
-
+        
         // sample tlv is ready
         if (m_packet_helper.num_of_samples == ADS129X_NUM_OF_SAMPLES)
         {
+            // type 2
+            // seq TODO
+            // data[0] -> heart rate
+            // data[1] -> 
+            // data[2] ->
+            // data[3] ->
+            // data[4] <= 5 sample avg ecg
+            if (ble_nus_tx_running())
+            {
+                ble_nus_tx_buf_t* buf = ble_nus_tx_alloc();
+                if (buf) 
+                {
+                    buf->type = 2;
+                    buf->seq = 0;
+                    buf->data[0] = m_packet_helper.p_brief->heart_rate;
+                    buf->data[1] = 0;
+                    buf->data[2] = 0;
+                    buf->data[3] = 0;
+                    
+                    int *pint = (int *)(&buf->data[4]);
+                    for (int i = 0; i < ADS129X_NUM_OF_SAMPLES / 5; i++)
+                    {
+                        int sum = 0, ecg;
+
+                        for (int j = 0; j < 5; j++)
+                        {
+                            int num_of_samples = i * 5 + j;
+                            int sample_start = sizeof(rdatac_record_t) * num_of_samples;
+                            rdatac_record_t* p_rec = (rdatac_record_t *)&m_packet_helper.p_sample->value[sample_start];
+                            
+                            ecg = (int)(p_rec->octet[6] << 24 | p_rec->octet[7] << 16 | p_rec->octet[8] << 8);
+                            ecg = ecg / 256;
+                            
+                            sum += ecg;
+                        }
+                        
+                        pint[i] = sum / 5;
+                        sum = 0;
+                    }
+                    
+                    buf->len = 2 + 4 + sizeof(int) * ADS129X_NUM_OF_SAMPLES / 5;
+                    ble_nus_tx_send(buf);
+                }
+            }
+   
             if (cdc_acm_port_open())
             {
                 // fill reg tlv

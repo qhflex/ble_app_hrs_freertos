@@ -16,11 +16,25 @@
 #include "max86141.h"
 #include "sens-proto.h"
 
+#include "ble_nus_tx.h"
+
+/***********************************************************************
+ * includes for abp algo
+ */
+
+// #include "check.h"
+#include "dynamic_array.h"
+#include "feature.h"
+// #include "log.h"
+// #include "macro.h"
+// #include "type.h"
+// #include "util.hh"
+
 /**********************************************************************
  * MACROS
  */
 
- #define COMBO_MODE
+ // #define COMBO_MODE
 
  // #ifdef COMBO_MODE
  // #define
@@ -33,6 +47,22 @@
  * TYPEDEFS
  */
 
+typedef struct __attribute__((packed)) max_ble_pac
+{
+    uint16_t len;           //          dataview offset
+    uint8_t type;           //          0
+    uint8_t seq;            //  4       1
+    uint16_t heartRate;     //          2
+    uint16_t saO2;          //  4       4
+    uint32_t rsvd;          //  4       6
+    uint8_t ir1[10 * 4];    // 40       10
+    uint8_t ir2[10 * 4];    // 40       50
+    uint8_t rd1[10 * 4];    // 40       90
+                            // 120 + 12 = 132
+} max_ble_pac_t;
+
+STATIC_ASSERT(sizeof(max_ble_pac_t) == 132);
+
 /**********************************************************************
  * GLOBAL VARIABLES
  */
@@ -40,6 +70,7 @@
 /*********************************************************************
  * LOCAL VARIABLES
  */
+// static uint8_t mem_pool[1024 * 64];
 
 /*********************************************************************
  * LOCAL FUNCTIONS
@@ -105,14 +136,14 @@
 #define MAX_PENDING_TRANSACTIONS            5
 
 /* this value only determine when the interrupt is fired */
-#define FIFO_READ_SAMPLES                   MAX86141_NUM_OF_SAMPLES         // 60 * 3 + 2 should not exceed 255 (uint8_t of spi rx buf size)
+#define FIFO_READ_SAMPLES                   MAX86141_NUM_OF_SAMPLE_ITEMS         // 60 * 3 + 2 should not exceed 255 (uint8_t of spi rx buf size)
 #define SPI_FIFO_RX_SIZE                    ((FIFO_READ_SAMPLES * 3) + 2)
 #define SPI_FIFO_RX_SIZE_ROUGU              (2 * 3 + 2)
 
 #define NUM_OF_RDBUF                        16
 #define SENS_PACKET_POOL_SIZE               2
 
-#define RDBUF_SIZE                          ((MAX86141_NUM_OF_SAMPLES / 2) * 3 + 2)
+#define RDBUF_SIZE                          ((MAX86141_NUM_OF_SAMPLE_ITEMS / 2) * 3 + 2)
 
 /*********************************************************************
  * TYPEDEFS
@@ -173,7 +204,7 @@ const static max86141_cfg_t combo_maxcfg = {
         .a_full_en      = 1,    // enable fifo
     },
     .fifocfg1 = {
-        .fifo_a_full    = (128 - (MAX86141_NUM_OF_SAMPLES / 2)),
+        .fifo_a_full    = (128 - (MAX86141_NUM_OF_SAMPLE_ITEMS / 2)),
     },
     .fifocfg2 = {
         .flush_fifo     = 1,    // required
@@ -232,10 +263,10 @@ const static max86141_cfg_t combo_maxcfg = {
                                 // 0b111 (7) 128
     },
     .ppgcfg3 = {
-        .led_setlng     = 0,    // 0b00  4.0uS
+        .led_setlng     = 3,    // 0b00  4.0uS
                                 // 0b01  6.0uS
                                 // 0b10  8.0uS
-                                // 0b11 12.0us
+                                // 0b11 12.0us <-
     },
     .pdbias = {
         .pdbias2        = 1,
@@ -532,6 +563,14 @@ static void max86141_config(max86141_ctx_t * ctx);
 static void max86141_run(max86141_ctx_t * ctx);
 static void read_fifo(max86141_ctx_t * ctx);
 // static void dynamic(uint32_t ir, uint32_t red);
+
+#ifdef COMBO_MODE
+// this sums up to 240 (or 180)
+uint32_t btx_ir1_buf[10];
+uint32_t btx_ir2_buf[10];
+uint32_t btx_rd1_buf[10];
+uint32_t btx_item_num = 0;
+#endif
 
 #ifdef COMBO_MODE
 static sens_packet_t * next_combo_packet(void);
@@ -1180,6 +1219,19 @@ static void max86141_spi_config(void)
     APP_ERROR_CHECK(err_code);
 }
 
+static uint32_t read_sample_item(uint8_t *p, int sample_index, int item_index, int item_per_sample)
+{
+    uint32_t val = 0;
+    int item_size = 3;
+    int abs_item_index = sample_index * item_per_sample + item_index;
+
+    val += ((unsigned int)(p[item_size * abs_item_index + 0] & 0x07)) << 16;
+    val += ((unsigned int)(p[item_size * abs_item_index + 1])) << 8;
+    val += ((unsigned int)(p[item_size * abs_item_index + 2]));
+
+    return val;
+}
+
 static void max86141_task(void * pvParameters)
 {
     // very fast, change this to interrupt driven?
@@ -1231,7 +1283,6 @@ static void max86141_task(void * pvParameters)
         read_registers(&combo_ctx, 0x10, 7, combo_0x10_0x16_regs);
         read_registers(&combo_ctx, 0x20, 12, combo_0x20_0x2B_regs);
 
-
         max86141_enable_int_pin();
         max86141_run(&combo_ctx);
 
@@ -1263,11 +1314,11 @@ static void max86141_task(void * pvParameters)
     }
 #endif
 
+#ifdef COMBO    
     if (!p_current_combo_packet)
     {
         vTaskDelay(portMAX_DELAY);
     }
-
 
     for (int i = 0; i < SENS_PACKET_POOL_SIZE; i++)
     {
@@ -1276,11 +1327,28 @@ static void max86141_task(void * pvParameters)
         p_current_combo_packet = next_combo_packet();
     }
 
+//    CFeatureExtractor fe;
+//    CFeatureExtractorInit(&fe, MAXBP_SAMPLING_RATE, MAXBP_MAX_PEAKS, MAXBP_PAIR_THRESH, MAXBP_WARMUP_SEC, MAXBP_OUTPUT_FREQ);
+//    for (I32 i = 0; i < MIN(VSIZE(sig), 2048 * 10); i++) 
+//    {
+//        CFeature feature;
+//        CFeatureExtractorApply(&fe, sig[i], sig2[i], &feature);
+//        if (feature.valid == FALSE) { continue; }
+//        features.push_back(feature);
+//    }
+//    CFeatureExtractorDestroy(&fe);            
+    
     for (;;)
     {
         uint8_t *buf;
         uint8_t *p = (uint8_t *)&m_combo_packet_helper.p_sample->value;
-        int len = MAX86141_NUM_OF_SAMPLES / 2 * 3;
+        uint8_t *q;
+
+        int len = MAX86141_NUM_OF_SAMPLE_ITEMS / 2 * 3;
+
+        int ir1_sum_avg = 0;
+        int ir2_sum_avg = 0;
+        int rd1_sum_avg = 0;
 
         // first half
         xQueueReceive(rdbuf_pending, &buf, portMAX_DELAY);
@@ -1292,60 +1360,92 @@ static void max86141_task(void * pvParameters)
         memcpy(&p[len], &buf[2], len);
         xQueueSend(rdbuf_idle, &buf, portMAX_DELAY);
 
-        simple_crc((uint8_t *)&p_current_combo_packet->type, &m_combo_packet_helper.p_crc[0], &m_combo_packet_helper.p_crc[1]);
-        cdc_acm_send_packet((uint8_t *)p_current_combo_packet, m_combo_packet_helper.packet_size);
+        for (int i = 0; i < MAX86141_NUM_OF_SAMPLES; i++)
+        {
+            ir1_sum_avg += read_sample_item(p, i, 0, MAX86141_ITEMS_PER_SAMPLE);
+            ir2_sum_avg += read_sample_item(p, i, 1, MAX86141_ITEMS_PER_SAMPLE);
+            rd1_sum_avg += read_sample_item(p, i, 2, MAX86141_ITEMS_PER_SAMPLE);
+        }
+
+        ir1_sum_avg /= MAX86141_NUM_OF_SAMPLES;
+        ir2_sum_avg /= MAX86141_NUM_OF_SAMPLES;
+        rd1_sum_avg /= MAX86141_NUM_OF_SAMPLES;
+
+        light_data.ir = ir1_sum_avg;
+        light_data.rd = rd1_sum_avg;
+
+        // after this function, blood_reslt.saO2 and blood_result.heartRate is available
+        getBOResult(light_data, &blood_result);
+
+        if (ble_nus_tx_running())
+        {
+            btx_ir1_buf[btx_item_num] = ir1_sum_avg;
+            btx_ir2_buf[btx_item_num] = ir2_sum_avg;
+            btx_rd1_buf[btx_item_num] = rd1_sum_avg;
+            btx_item_num++;
+
+            if (btx_item_num == 10)
+            {
+                ble_nus_tx_buf_t *buf = ble_nus_tx_alloc();
+                if (buf)
+                {
+                    max_ble_pac_t *pac = (max_ble_pac_t *)buf;
+                    pac->len = sizeof(max_ble_pac_t) - sizeof(uint16_t);
+                    pac->type = 3;
+                    pac->seq = 0;
+                    pac->heartRate = blood_result.heartRate;
+                    pac->saO2 = blood_result.saO2;
+                    pac->rsvd = 0;
+                    
+                    memcpy(pac->ir1, btx_ir1_buf, sizeof(uint32_t) * 10);
+                    memcpy(pac->ir2, btx_ir2_buf, sizeof(uint32_t) * 10);
+                    memcpy(pac->rd1, btx_rd1_buf, sizeof(uint32_t) * 10);
+                    
+                    ble_nus_tx_send(buf);
+                }
+                else
+                {
+                    NRF_LOG_INFO("max failed to alloc tx buf");
+                }
+
+                btx_item_num = 0;
+            }
+        }
+        else
+        {
+            btx_item_num = 0;
+        }
+
+        if (cdc_acm_port_open())
+        {
+            simple_crc((uint8_t *)&p_current_combo_packet->type, &m_combo_packet_helper.p_crc[0], &m_combo_packet_helper.p_crc[1]);
+            cdc_acm_send_packet((uint8_t *)p_current_combo_packet, m_combo_packet_helper.packet_size);
+        }
+
         p_current_combo_packet = next_combo_packet();
     }
+#endif
 
     for (int rf = 0;; rf++)
     {
         vTaskDelay(xFrequency);
-#ifdef COMBO_MODE
-
-        // combo_count = read_reg(&combo_ctx, REG_FIFO_DATA_COUNT);
-        if (combo_count < MAX86141_NUM_OF_SAMPLES) continue;
-        // NRF_LOG_INFO("[%d], int status %d", combo_count, read_reg(&combo_ctx, REG_INT_STAT_1));
-
-        // uint8_t int_status = read_reg(&combo_ctx, REG_INT_STAT_1);
-        // if (!(int_status & 0x80)) continue;
-        // NRF_LOG_INFO("r f %d", rf);
-
-        read_fifo(&combo_ctx);
-
-        memcpy(&m_combo_packet_helper.p_sample->value, buf, MAX86141_NUM_OF_SAMPLES * 3);
-        memcpy(&m_combo_packet_helper.p_ppgcfg->value, combo_0x10_0x16_regs, 7);
-        memcpy(&m_combo_packet_helper.p_ledcfg->value, combo_0x20_0x2B_regs, 12);
-
-        for (int i = 0; i < MAX86141_NUM_OF_SAMPLES / 2; i++)
-        {
-        }
-
-        simple_crc((uint8_t *)&p_current_combo_packet->type, &m_combo_packet_helper.p_crc[0], &m_combo_packet_helper.p_crc[1]);
-        cdc_acm_send_packet((uint8_t *)p_current_combo_packet, m_combo_packet_helper.packet_size);
-        p_current_combo_packet = next_combo_packet();
-
-//        combo_pkt_count++;
-//        if ((combo_pkt_count % 1000) == 0)
-//        {
-//            NRF_LOG_INFO("combo: %d packets sent", combo_pkt_count);
-//        }
-#else
+        
         if (p_current_spo_packet)
         {
             spo_count = read_reg(&spo_ctx, REG_FIFO_DATA_COUNT);
 
             // NRF_LOG_INFO("spo_count: %d", spo_count);
 
-            if (spo_count >= MAX86141_NUM_OF_SAMPLES)
+            if (spo_count >= MAX86141_NUM_OF_SAMPLE_ITEMS)
             {
                 read_fifo(&spo_ctx);
 
                 // fill samples (type and length correct?)
-                memcpy(&m_spo_packet_helper.p_sample->value, buf, MAX86141_NUM_OF_SAMPLES * 3);
+                memcpy(&m_spo_packet_helper.p_sample->value, buf, MAX86141_NUM_OF_SAMPLE_ITEMS * 3);
                 memcpy(&m_spo_packet_helper.p_ppgcfg->value, spo_0x10_0x16_regs, 7);
                 memcpy(&m_spo_packet_helper.p_ledcfg->value, spo_0x20_0x2B_regs, 12);
 
-                for (int i = 0; i < MAX86141_NUM_OF_SAMPLES / 2; i++)
+                for (int i = 0; i < MAX86141_NUM_OF_SAMPLE_ITEMS / 2; i++)
                 {
                     light_data.ir = (((unsigned int)(buf[i * 6 + 0] & 0x07)) << 16) + (((unsigned int)buf[i * 6 + 1]) << 8) + (unsigned int)buf[i * 6 + 2];
                     light_data.rd = (((unsigned int)(buf[i * 6 + 3] & 0x07)) << 16) + (((unsigned int)buf[i * 6 + 4]) << 8) + (unsigned int)buf[i * 6 + 5];
@@ -1378,12 +1478,12 @@ static void max86141_task(void * pvParameters)
         if (p_current_abp_packet)
         {
             abp_count = read_reg(&abp_ctx, REG_FIFO_DATA_COUNT);
-            if (abp_count >= MAX86141_NUM_OF_SAMPLES)
+            if (abp_count >= MAX86141_NUM_OF_SAMPLE_ITEMS)
             {
                 read_fifo(&abp_ctx);
 
                 // fill samples (type and length correct?)
-                memcpy(&m_abp_packet_helper.p_sample->value, buf, MAX86141_NUM_OF_SAMPLES * 3);
+                memcpy(&m_abp_packet_helper.p_sample->value, buf, MAX86141_NUM_OF_SAMPLE_ITEMS * 3);
                 memcpy(&m_abp_packet_helper.p_ppgcfg->value, abp_0x10_0x16_regs, 7);
                 memcpy(&m_abp_packet_helper.p_ledcfg->value, abp_0x20_0x2B_regs, 12);
 
@@ -1397,9 +1497,9 @@ static void max86141_task(void * pvParameters)
                     NRF_LOG_INFO("abp: %d packets sent", abp_pkt_count);
                 }
             }
-
-#endif
+        }
     }
+#endif    
 }
 
 #endif // rougu task or normal task
@@ -1462,7 +1562,7 @@ static sens_packet_t * next_combo_packet(void)
         NRF_LOG_INFO("combo packets init, len: %d, size: %d, %d samples",
             m_combo_packet_helper.payload_len,
             m_combo_packet_helper.packet_size,
-            MAX86141_NUM_OF_SAMPLES);
+            MAX86141_NUM_OF_SAMPLE_ITEMS);
     }
 
     // init next packet
@@ -1497,7 +1597,7 @@ static sens_packet_t * next_spo_packet(void)
         NRF_LOG_INFO("spo packets init, len: %d, size: %d, %d samples",
             m_spo_packet_helper.payload_len,
             m_spo_packet_helper.packet_size,
-            MAX86141_NUM_OF_SAMPLES);
+            MAX86141_NUM_OF_SAMPLE_ITEMS);
     }
 
     // init next packet
@@ -1530,7 +1630,7 @@ static sens_packet_t * next_abp_packet(void)
         NRF_LOG_INFO("abp packets init, len: %d, size: %d, %d samples",
             m_abp_packet_helper.payload_len,
             m_abp_packet_helper.packet_size,
-            MAX86141_NUM_OF_SAMPLES);
+            MAX86141_NUM_OF_SAMPLE_ITEMS);
     }
 
     // init next packet

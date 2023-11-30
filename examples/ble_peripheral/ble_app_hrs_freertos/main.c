@@ -40,7 +40,9 @@
 
 #include "app_usbd_serial_num.h"
 
-#include "ble_bios.h"
+// #include "ble_bios.h"
+#include "ble_nus.h"
+#include "ble_nus_tx.h"
 
 // #include "m601z.h"
 #include "qma6110p.h"
@@ -49,8 +51,9 @@
 #include "owuart.h"
 
 #include "usbcdc.h"
+#include "mem_manager.h"
 
-#include "ble_spp.h"
+// #include "ble_spp.h"
 
  /**********************************************************************
  * MACROS
@@ -62,6 +65,7 @@
 
 #define DEVICE_NAME                         "ifet-wearable"                         /**< Name of device. Will be included in the advertising data. */
 #define MANUFACTURER_NAME                   "ifet-tsinghua"                         /**< Manufacturer. Will be passed to Device Information Service. */
+#define NUS_SERVICE_UUID_TYPE               BLE_UUID_TYPE_VENDOR_BEGIN              /**< UUID type for the Nordic UART Service (vendor specific). */
 
 #define APP_BLE_OBSERVER_PRIO               3                                       /**< Application's BLE observer priority. You shouldn't need to modify this value. */
 #define APP_BLE_CONN_CFG_TAG                1                                       /**< A tag identifying the SoftDevice BLE configuration. */
@@ -101,26 +105,53 @@
  */
 
 /*********************************************************************
+ * LOCAL VARIABLES for ble_nux_tx.h
+ */
+
+bool m_ble_nus_tx_running = false;
+ble_nus_tx_buf_t* m_ble_nus_tx_sending = NULL;
+
+ble_nus_tx_buf_t ble_nus_tx_buffer[16];
+
+QueueHandle_t ble_nus_tx_idle;
+QueueHandle_t ble_nus_tx_pending;
+
+static void ble_nus_tx_init(void);
+
+/*********************************************************************
  * LOCAL VARIABLES
  */
-BLE_BIOSENS_DEF(m_biosens);
+ 
+BLE_NUS_DEF(m_nus, NRF_SDH_BLE_TOTAL_LINK_COUNT);                                   /**< BLE NUS service instance. */ 
+ 
+// BLE_BIOSENS_DEF(m_biosens);
 // BLE_SPP_DEF(m_spp);
 NRF_BLE_GATT_DEF(m_gatt);                                                           /**< GATT module instance. */
 NRF_BLE_QWR_DEF(m_qwr);                                                             /**< Context for the Queued Write module.*/
 BLE_ADVERTISING_DEF(m_advertising);                                                 /**< Advertising module instance. */
 
-static uint16_t m_conn_handle         = BLE_CONN_HANDLE_INVALID;                    /**< Handle of the current connection. */
+static uint16_t m_conn_handle            = BLE_CONN_HANDLE_INVALID;                 /**< Handle of the current connection. */
+// static uint16_t   m_ble_nus_max_data_len = BLE_GATT_ATT_MTU_DEFAULT - 3;            /**< Maximum length of data (in bytes) that can be transmitted to the peer by the Nordic UART service module. */
+static ble_uuid_t m_adv_uuids[]          =                                          /**< Universally unique service identifier. */
+{
+    {BLE_UUID_DEVICE_INFORMATION_SERVICE, BLE_UUID_TYPE_BLE},
+    // {BLE_UUID_NUS_SERVICE, NUS_SERVICE_UUID_TYPE}
+};
 
+#if 0
 static ble_uuid_t m_adv_uuids[] =                                                   /**< Universally unique service identifiers. */
 {
     /* {BLE_UUID_HEART_RATE_SERVICE, BLE_UUID_TYPE_BLE}, */
     /* {BLE_UUID_BATTERY_SERVICE, BLE_UUID_TYPE_BLE}, */
     {BLE_UUID_DEVICE_INFORMATION_SERVICE, BLE_UUID_TYPE_BLE}
+    // {BLE_UUID_NUS_SERVICE, NUS_SERVICE_UUID_TYPE}
 };
+#endif
 
 #if NRF_LOG_ENABLED
 static TaskHandle_t m_logger_thread;                                                /**< Definition of Logger thread. */
 #endif
+
 
 /*********************************************************************
  * LOCAL FUNCTIONS
@@ -134,8 +165,8 @@ static void advertising_start(void * p_erase_bonds);
 /*********************************************************************
  * PROFILE FUNCTIONS AND CALLBACKS
  */
-static void on_spp_evt(ble_spp_t * p_eeg, ble_spp_evt_t * p_evt) {};
-static void spp_command_handler (uint16_t conn_handle, ble_spp_t * p_spp, uint8_t new_sps);
+// static void on_spp_evt(ble_spp_t * p_eeg, ble_spp_evt_t * p_evt) {};
+// static void spp_command_handler (uint16_t conn_handle, ble_spp_t * p_spp, uint8_t new_sps);
 
 /**********************************************************************
  * PUBLIC FUNCTIONS
@@ -302,47 +333,79 @@ static void nrf_qwr_error_handler(uint32_t nrf_error)
     APP_ERROR_HANDLER(nrf_error);
 }
 
-static void on_eeg_evt(ble_biosens_t * p_eeg, ble_biosens_evt_t * p_evt)
+/**@brief Function for handling the data from the Nordic UART Service.
+ *
+ * @details This function will process the data received from the Nordic UART BLE Service and send
+ *          it to the UART module.
+ *
+ * @param[in] p_evt       Nordic UART Service event.
+ */
+/**@snippet [Handling the data received over BLE] */
+static void nus_data_handler(ble_nus_evt_t * p_evt)
 {
+    // TODO
+    if (p_evt->type == BLE_NUS_EVT_RX_DATA)
+    {
+    }
+    else if (p_evt->type == BLE_NUS_EVT_TX_RDY) 
+    {
+
+// #define NOT_INSIDE_ISR          (( SCB->ICSR & SCB_ICSR_VECTACTIVE_Msk ) == 0 )
+// #define INSIDE_ISR              (!(NOT_INSIDE_ISR))
+//         NRF_LOG_INFO("BLE_NUS_EVT_TX_RDY, %s", INSIDE_ISR ? "in_isr" : "not_in_isr");        
+        xQueueSend(ble_nus_tx_idle, &m_ble_nus_tx_sending, 0);
+        m_ble_nus_tx_sending = NULL;
+        
+        if (pdTRUE == xQueueReceive(ble_nus_tx_pending, &m_ble_nus_tx_sending, 0))
+        {
+            ble_nus_data_send(&m_nus, &m_ble_nus_tx_sending->type, &m_ble_nus_tx_sending->len, m_conn_handle);
+        }
+    } 
+    else if (p_evt->type == BLE_NUS_EVT_COMM_STARTED)
+    {
+        m_ble_nus_tx_running = true;
+        NRF_LOG_INFO("BLE_NUS_EVT_COMM_STARTED");
+    }
+    else if (p_evt->type == BLE_NUS_EVT_COMM_STOPPED)
+    {
+        m_ble_nus_tx_running = false; // TODO should this be updated when disconnect directly?
+        NRF_LOG_INFO("BLE_NUS_EVT_COMM_STOPPED");
+    }
+    else
+    {}
 }
 
-static void biosens_sps_write_handler (uint16_t conn_handle, ble_biosens_t * p_eeg, uint8_t new_sps)
-{}
-    
-static void biosens_gain_write_handler (uint16_t conn_handle, ble_biosens_t * p_eeg, uint8_t new_sps)
-{}
-
-static void biosens_stim_write_handler (uint16_t conn_handle, ble_biosens_t * p_eeg, uint8_t new_sps)
-{}    
-    
-static void biosens_sample_notification_enabled()
-{} 
-
-static void biosens_sample_notification_disabled()
-{}    
-
-static void biosens_init(void)
-{
-    ret_code_t      err_code;
-    ble_biosens_init_t  biosens_init_obj;
-
-    memset(&biosens_init_obj, 0, sizeof(biosens_init_obj));
-
-    biosens_init_obj.evt_handler                    = on_eeg_evt;
-    biosens_init_obj.initial_sps                    = 1;
-    biosens_init_obj.initial_gain                   = 0;
-    biosens_init_obj.initial_stim                   = 0;
-
-    biosens_init_obj.sps_write_handler              = biosens_sps_write_handler;
-    biosens_init_obj.gain_write_handler             = biosens_gain_write_handler;
-    biosens_init_obj.stim_write_handler             = biosens_stim_write_handler;
-    biosens_init_obj.sample_notification_enabled    = biosens_sample_notification_enabled;
-    biosens_init_obj.sample_notification_disabled   = biosens_sample_notification_disabled;
-
-    //eeg_init_obj.
-    err_code = ble_biosens_init(&m_biosens, &biosens_init_obj);
-    APP_ERROR_CHECK(err_code);
-}
+//uint32_t ble_nus_comm_send(uint8_t *p_data, uint16_t *p_length)
+//{
+//    int ret_code = 0;
+//    
+//    if (ble_nus_comm_started)
+//    {
+//        if (m_ble_nus_sending) 
+//        {
+//            ble_nus_outgoing_t outgoing = { .p = p_data, .size = *p_length };
+//            if (errQUEUE_FULL == xQueueSend(outgoing_queue, &outgoing, 0))
+//            {
+//                NRF_LOG_INFO("ble outgoing queue full");
+//            }
+//        } 
+//        else 
+//        {
+//            ret_code = ble_nus_data_send(&m_nus, p_data, p_length, m_conn_handle);
+//            if (ret_code == NRF_SUCCESS)
+//            {
+//                NRF_LOG_INFO("nus send succeeded");
+//                m_ble_nus_sending = true;
+//            }
+//            else
+//            {
+//                NRF_LOG_INFO("nus send failed, %d", ret_code);
+//            }
+//        }
+//    }
+//    
+//    return ret_code;
+//}
 
 /**@brief Function for initializing services that will be used by the application.
  *
@@ -350,9 +413,9 @@ static void biosens_init(void)
  */
 static void services_init(void)
 {
-    ret_code_t         err_code;
-
-    nrf_ble_qwr_init_t qwr_init = {0};
+    ret_code_t          err_code;
+    ble_nus_init_t      nus_init;
+    nrf_ble_qwr_init_t  qwr_init = {0};
 
     // Initialize Queued Write Module.
     qwr_init.error_handler = nrf_qwr_error_handler;
@@ -360,7 +423,13 @@ static void services_init(void)
     err_code = nrf_ble_qwr_init(&m_qwr, &qwr_init);
     APP_ERROR_CHECK(err_code);
 
-    biosens_init();
+    // biosens_init();
+    memset(&nus_init, 0, sizeof(nus_init));
+        
+    nus_init.data_handler = nus_data_handler;
+    
+    err_code = ble_nus_init(&m_nus, &nus_init);
+    APP_ERROR_CHECK(err_code);
 }
 
 /**@brief Function for handling the Connection Parameters Module.
@@ -423,6 +492,7 @@ static void conn_params_init(void)
  */
 static void sleep_mode_enter(void)
 {
+    // TODO see ble_app_uart example as reference
     (void)sleep_mode_enter;
     ret_code_t err_code;
 
@@ -440,7 +510,7 @@ static void sleep_mode_enter(void)
  */
 static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
 {
-    ret_code_t err_code;
+//    ret_code_t err_code;
 
     switch (ble_adv_evt)
     {
@@ -475,6 +545,8 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
 static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
 {
     uint32_t err_code;
+    
+    // TODO see ble_app_uart as example
 
     switch (p_ble_evt->header.evt_id)
     {
@@ -490,7 +562,21 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
         case BLE_GAP_EVT_DISCONNECTED:
             NRF_LOG_INFO("[BLE] Disconnected");
             m_conn_handle = BLE_CONN_HANDLE_INVALID;
-
+// bool m_ble_nus_tx_running = false;
+// ble_nus_tx_buf_t* m_ble_nus_tx_sending = NULL;        
+            m_ble_nus_tx_running = false;
+            // ble_nus_comm_started = false;
+            if (m_ble_nus_tx_sending) 
+            {
+                xQueueSend(ble_nus_tx_idle, &m_ble_nus_tx_sending, 0);
+                m_ble_nus_tx_sending = NULL;
+                
+                ble_nus_tx_buf_t * buf;
+                while (pdTRUE == xQueueReceive(ble_nus_tx_pending, &buf, 0))
+                {
+                    xQueueSend(ble_nus_tx_idle, &buf, 0);
+                }
+            }
             // spp_sample_notification_disabled();
             // m_spp.conn_handle = BLE_CONN_HANDLE_INVALID;
             break;
@@ -696,6 +782,7 @@ static void clock_init(void)
     ret_code_t err_code = nrf_drv_clock_init();
     APP_ERROR_CHECK(err_code);
 
+    // TODO what does this mean?
 //    nrf_drv_clock_lfclk_request(NULL); // is this related to initial xPortPendSVHandler crash?
 //    while (!nrf_drv_clock_lfclk_is_running())
 //    {
@@ -710,6 +797,11 @@ int main(void)
 {
     ret_code_t err_code;
     bool erase_bonds;
+    
+    err_code = nrf_mem_init();
+    APP_ERROR_CHECK(err_code);
+    
+    ble_nus_tx_init();
 
     // Initialize modules.
     log_init();
@@ -789,4 +881,65 @@ int main(void)
     }
 }
 
+static void ble_nus_tx_init()
+{
+    // outgoing_queue =xQueueCreate(16, sizeof(ble_nus_outgoing_t));
+    ble_nus_tx_idle = xQueueCreate(16, sizeof(ble_nus_tx_buf_t *));
+    ble_nus_tx_pending = xQueueCreate(16, sizeof(ble_nus_tx_buf_t *));
+    
+    for (int i = 0; i < 16; i++)
+    {
+        ble_nus_tx_buf_t *buf = &ble_nus_tx_buffer[i];
+        xQueueSend(ble_nus_tx_idle, &buf, 0);
+    }
+    
+//    NRF_LOG_INFO("ble_nus_tx_idle waiting %d", uxQueueMessagesWaiting(ble_nus_tx_idle));
+//    ble_nus_tx_buf_t* buf = NULL;
+//    uint8_t x = xQueueReceive(ble_nus_tx_idle, &buf, 0);
+//    NRF_LOG_INFO("dequeue %d, %p", x, buf);
+}
 
+bool ble_nus_tx_running()
+{
+    return m_ble_nus_tx_running;
+}
+
+void ble_nus_tx_send(ble_nus_tx_buf_t *buf)
+{
+    APP_ERROR_CHECK_BOOL(m_ble_nus_tx_running == true);
+    
+    if (m_ble_nus_tx_sending)
+    {
+        // put into pending queue
+        xQueueSend(ble_nus_tx_pending, &buf, 0);
+    }
+    else
+    {
+        m_ble_nus_tx_sending = buf;
+        int ret = ble_nus_data_send(&m_nus, &buf->type, &buf->len, m_conn_handle);
+//        if (ret == NRF_SUCCESS)
+//        {
+//            NRF_LOG_INFO("sent");
+//        }
+//        else
+//        {
+//            NRF_LOG_INFO("sent failed");
+//        }
+    }
+}
+
+ble_nus_tx_buf_t* ble_nus_tx_alloc(void)
+{
+    ble_nus_tx_buf_t* buf = NULL;
+    if (pdTRUE == xQueueReceive(ble_nus_tx_idle, &buf, 0))
+    {
+        // NRF_LOG_INFO("xQueueReceive succeeded");
+        APP_ERROR_CHECK_BOOL(buf != NULL);
+        return buf;
+    }
+    else
+    {
+        NRF_LOG_INFO("xQueueReceive failed?");
+        return NULL;
+    }
+}

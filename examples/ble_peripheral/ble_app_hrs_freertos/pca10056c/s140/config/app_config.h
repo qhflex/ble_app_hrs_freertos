@@ -1,6 +1,9 @@
 #ifndef __APP_CONFIG_H__
 #define __APP_CONFIG_H__
 
+#include <stdint.h>
+#include <stdbool.h>
+
 /** 
  * This macros are defiend in compiler option
  */
@@ -111,10 +114,22 @@
 
 // ble service
 #define NRF_SDH_BLE_VS_UUID_COUNT                   1
-#define NRF_SDH_BLE_GATT_MAX_MTU_SIZE               247                             // this is not the maximum possible value, just for experiment
+#define NRF_SDH_BLE_GATT_MAX_MTU_SIZE               247                             // this IS the maximum possible value, just for experiment
                                                                                     // https://infocenter.nordicsemi.com/topic/sdk_nrf5_v17.1.0/ble_sdk_app_att_mtu.html
 
 #define BLE_BIOSENS_ENABLED                         1
 #define BLE_BIOSENS_BLE_OBSERVER_PRIO               2
+
+#define BLE_NUS_ENABLED                             1
+
+#define MEM_MANAGER_ENABLED                         1
+#define MEM_MANAGER_ENABLE_LOGS                     1
+
+#define MAXBP_SAMPLING_RATE                         2048
+#define MAXBP_MAX_PEAKS                             500
+#define MAXBP_PAIR_THRESH                           0.05
+#define MAXBP_WARMUP_SEC                            5
+#define MAXBP_OUTPUT_FREQ                           1
+
 
 #endif

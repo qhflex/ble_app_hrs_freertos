@@ -66,6 +66,8 @@
 #include "sens-proto.h"
 #include "usbcdc.h"
 
+#include "ble_nus_tx.h"
+
 #define HIGH				    1
 #define LOW					    0
 
@@ -96,17 +98,17 @@ static nrfx_uart_t m_owuart = {
     .skip_pin_cfg = 1,
 };
 
-static nrfx_uart_config_t slow_config = {
-    .pseltxd    = OWUART_TX_PIN_NUMBER,
-    .pselrxd    = OWUART_RX_PIN_NUMBER,
-    .pselcts    = NRF_UART_PSEL_DISCONNECTED,
-    .pselrts    = NRF_UART_PSEL_DISCONNECTED,
-    .p_context  = NULL,
-    .hwfc       = NRF_UART_HWFC_DISABLED,
-    .parity     = NRF_UART_PARITY_EXCLUDED,
-    .baudrate   = (nrf_uart_baudrate_t)NRF_UART_BAUDRATE_9600,
-    .interrupt_priority = NRFX_UART_DEFAULT_CONFIG_IRQ_PRIORITY,
-};
+//static nrfx_uart_config_t slow_config = {
+//    .pseltxd    = OWUART_TX_PIN_NUMBER,
+//    .pselrxd    = OWUART_RX_PIN_NUMBER,
+//    .pselcts    = NRF_UART_PSEL_DISCONNECTED,
+//    .pselrts    = NRF_UART_PSEL_DISCONNECTED,
+//    .p_context  = NULL,
+//    .hwfc       = NRF_UART_HWFC_DISABLED,
+//    .parity     = NRF_UART_PARITY_EXCLUDED,
+//    .baudrate   = (nrf_uart_baudrate_t)NRF_UART_BAUDRATE_9600,
+//    .interrupt_priority = NRFX_UART_DEFAULT_CONFIG_IRQ_PRIORITY,
+//};
 
 static nrfx_uart_config_t fast_config = {
     .pseltxd    = OWUART_TX_PIN_NUMBER,
@@ -196,7 +198,7 @@ static int onewire_writebyte(uint8_t byte)
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//	 Function:	  onewire_reset 								     																   //
+//	 Function:	  onewire_reset 								     														   //
 //   Description: Sends the Reset Pulse and detect slave presence. Baud Rate should be set to 9600. Then 0xF0 will be sent,    //
 //				  enough to reset the slaves. The if the Rx reads 0xF0, it means there are no slaves present.   			   //
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -484,9 +486,38 @@ void owuart_task(void * pvParameters)
             m_m601z_packet_helper.p_templist->id_temp[j].temp[0] = 0xff;
             m_m601z_packet_helper.p_templist->id_temp[j].temp[1] = 0xff;
         }
+
+        if (cdc_acm_port_open())
+        {
+            simple_crc((uint8_t *)&p_current_m601z_packet->type, &m_m601z_packet_helper.p_crc[0], &m_m601z_packet_helper.p_crc[1]);
+            cdc_acm_send_packet((uint8_t *)p_current_m601z_packet, m_m601z_packet_helper.packet_size);
+        }
         
-        simple_crc((uint8_t *)&p_current_m601z_packet->type, &m_m601z_packet_helper.p_crc[0], &m_m601z_packet_helper.p_crc[1]);
-        cdc_acm_send_packet((uint8_t *)p_current_m601z_packet, m_m601z_packet_helper.packet_size);
+
+        if (ble_nus_tx_running())
+        {
+            // uint16_t packet_size = m_m601z_packet_helper.packet_size;
+            // ble_nus_comm_send((uint8_t *)p_current_m601z_packet, &packet_size);
+            ble_nus_tx_buf_t* buf = ble_nus_tx_alloc();
+            if (buf) 
+            {
+                uint16_t size = m_device_count * sizeof(ow_m601z_id_temp_t);
+                buf->type = 1;
+                buf->seq = n % 256; // this doesn't matter
+                memcpy(buf->data, &m_m601z_packet_helper.p_templist->id_temp[0], size); 
+                buf->len = size + 2;
+                ble_nus_tx_send(buf);
+            }
+            else
+            {
+                NRF_LOG_INFO("nus tx no available buffer?");
+            }
+        }
+        else
+        {
+            NRF_LOG_INFO("nus tx not running");
+        }
+        
         p_current_m601z_packet = next_m601z_packet();
     }
 }

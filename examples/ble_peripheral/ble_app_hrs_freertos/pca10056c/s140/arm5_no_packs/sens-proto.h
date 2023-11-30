@@ -33,14 +33,18 @@
 
 #define MAX86141_BRIEF_TLV_LEN          9
 #define MAX86141_BRIEF_TLV_SIZE         (3 + MAX86141_BRIEF_TLV_LEN)
-#define MAX86141_NUM_OF_SAMPLES         (41 * 4)    // 60
+
+// for combo, 41, 4
+#define MAX86141_NUM_OF_SAMPLES         41
+#define MAX86141_ITEMS_PER_SAMPLE       4
+#define MAX86141_NUM_OF_SAMPLE_ITEMS    (41 * 4)    // 60
                                                     // It is possible but not necessarily to change this value.
                                                     // For maximum number of spi tx bytes is 255. 60 * 3 plus 2 leading characters is 182,
                                                     // which is large enough.
 #define MAX86141_SENSOR_ID              1
 
 #define MAX86141_SAMPLE_TLV_TYPE        0x08
-#define MAX86141_SAMPLE_TLV_LEN         (MAX86141_NUM_OF_SAMPLES * 3)
+#define MAX86141_SAMPLE_TLV_LEN         (MAX86141_NUM_OF_SAMPLE_ITEMS * 3)
 #define MAX86141_SAMPLE_TLV_SIZE        (3 + MAX86141_SAMPLE_TLV_LEN)
 
 #define MAX86141_PPGCFG_TLV_TYPE        0x10
@@ -53,7 +57,7 @@
 
 #define MAX86141_ROUGU_SPO_DATA_SIZE    32
 #define MAX86141_ROUGU_SPO_TLV_TYPE     0xf5
-#define MAX86141_ROUGU_SPO_TLV_LEN      (MAX86141_NUM_OF_SAMPLES * MAX86141_ROUGU_SPO_DATA_SIZE / 2)
+#define MAX86141_ROUGU_SPO_TLV_LEN      (MAX86141_NUM_OF_SAMPLE_ITEMS * MAX86141_ROUGU_SPO_DATA_SIZE / 2)
 #define MAX86141_ROUGU_SPO_TLV_SIZE     (3 + MAX86141_ROUGU_SPO_TLV_LEN)
 
 #define OW_M601Z_SENSOR_ID              4
