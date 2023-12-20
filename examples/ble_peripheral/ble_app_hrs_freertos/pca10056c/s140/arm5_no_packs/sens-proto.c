@@ -1,6 +1,7 @@
 #include <string.h>
 
 #include "FreeRTOS.h"
+#include "SEGGER_RTT.h"
 #include "sens-proto.h"
 
 const uint8_t preamble[SENS_PREAMBLE_SIZE] = {0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0xD5};
@@ -100,6 +101,7 @@ void sens_init_ads129x_packet(ads129x_packet_helper_t * p_helper, sens_packet_t 
     }
 }
 
+#if 0
 void sens_init_max86141_packet(max86141_packet_helper_t * p_helper, sens_packet_t * p_pkt)
 {
     uint16_t payload_len = 0;
@@ -120,11 +122,11 @@ void sens_init_max86141_packet(max86141_packet_helper_t * p_helper, sens_packet_
         p_helper->p_brief->sensor_id = MAX86141_SENSOR_ID;
         p_helper->p_brief->version = 0;
         p_helper->p_brief->instance_id = p_helper->instance_id;
-        p_helper->p_brief->ppg1_led = p_helper->ppg1_led;
-        p_helper->p_brief->ppg2_led = p_helper->ppg2_led;
-        p_helper->p_brief->ppf_prox = p_helper->ppf_prox;
-        p_helper->p_brief->low_power = 0;
-        p_helper->p_brief->num_of_samples = MAX86141_NUM_OF_SAMPLES; // p_helper->num_of_samples;
+//        p_helper->p_brief->ppg1_led = p_helper->ppg1_led;
+//        p_helper->p_brief->ppg2_led = p_helper->ppg2_led;
+//        p_helper->p_brief->ppf_prox = p_helper->ppf_prox;
+//        p_helper->p_brief->low_power = 0;
+//        p_helper->p_brief->num_of_samples = MAX86141_NUM_OF_SAMPLES; // p_helper->num_of_samples
     }
     payload_len += sizeof(max86141_brief_tlv_t);
 
@@ -152,15 +154,15 @@ void sens_init_max86141_packet(max86141_packet_helper_t * p_helper, sens_packet_
     }
     payload_len += sizeof(max86141_ledcfg_tlv_t);
 
-    if (p_helper->use_rougu_spo)
+    if (p_helper->has_spo_rougu)
     {
         if (p_pkt)
         {
-            p_helper->p_rougu_spo = (max86141_rougu_spo_tlv_t *)&p_pkt->payload_crc[payload_len];
-            p_helper->p_rougu_spo->type = MAX86141_ROUGU_SPO_TLV_TYPE;
-            p_helper->p_rougu_spo->length = MAX86141_ROUGU_SPO_TLV_LEN;
+            p_helper->p_spo_rougu = (max86141_spo_rougu_tlv_t *)&p_pkt->payload_crc[payload_len];
+            p_helper->p_spo_rougu->type = MAX86141_SPO_ROUGU_TLV_TYPE;
+            p_helper->p_spo_rougu->length = MAX86141_SPO_ROUGU_TLV_LEN;
         }
-        payload_len += sizeof(max86141_rougu_spo_tlv_t);
+        payload_len += sizeof(max86141_spo_rougu_tlv_t);
     }
 
     if (p_pkt)
@@ -172,6 +174,137 @@ void sens_init_max86141_packet(max86141_packet_helper_t * p_helper, sens_packet_
         p_helper->payload_len = payload_len;
         p_helper->packet_size = payload_len + 14;
     }
+}
+#endif
+
+bool sens_format_max86141_packet(max86141_packet_helper_t *p_helper, 
+                                 sens_packet_t *p_pkt,
+                                 size_t max_len)
+{
+    uint16_t payload_len = 0;
+    uint16_t packet_size = 0;
+    
+    payload_len += sizeof(max86141_brief_tlv_t);
+    payload_len += p_helper->has_ppgcfg ? sizeof(max86141_ppgcfg_tlv_t) : 0;
+    payload_len += p_helper->has_ledcfg ? sizeof(max86141_ledcfg_tlv_t) : 0;
+    payload_len += p_helper->has_abp_coeff ? sizeof(max86141_abp_coeff_tlv_t) : 0;
+    payload_len += p_helper->has_spo_sample ? sizeof(max86141_spo_sample_tlv_t) : 0;
+    payload_len += p_helper->has_spo_rougu ? sizeof(max86141_spo_rougu_tlv_t) : 0;
+    payload_len += p_helper->has_abp_sample ? sizeof(max86141_abp_sample_tlv_t) : 0;
+    payload_len += p_helper->has_abp_feature ? sizeof(max86141_abp_feature_tlv_t) : 0;
+    
+    packet_size = payload_len + 14;
+    if (packet_size > max_len) {
+        SEGGER_RTT_printf(0, "undersize, required %d, provided %d", packet_size, max_len);
+        return false;
+    }
+    
+    p_helper->payload_len = payload_len;
+    p_helper->packet_size = packet_size;
+    
+    // reset cursor
+    payload_len = 0;
+
+    // senspacket
+    memset(p_pkt, 0, p_helper->packet_size);
+    memcpy(&p_pkt->preamble, preamble, SENS_PREAMBLE_SIZE);
+    p_pkt->type = SENS_DATA_PACKET_TYPE;
+    p_pkt->length = p_helper->payload_len;
+
+    // brief
+    p_helper->p_brief = (max86141_brief_tlv_t *)&p_pkt->payload_crc[payload_len];
+    p_helper->p_brief->type = SENS_BRIEF_TLV_TYPE;
+    p_helper->p_brief->length = MAX86141_BRIEF_TLV_LEN;
+    p_helper->p_brief->sensor_id = MAX86141_SENSOR_ID;
+    p_helper->p_brief->version = p_helper->version;
+    p_helper->p_brief->instance_id = p_helper->instance_id;
+    payload_len += sizeof(max86141_brief_tlv_t);
+    
+    if (p_helper->has_ppgcfg)
+    {
+        p_helper->p_ppgcfg = (max86141_ppgcfg_tlv_t *)&p_pkt->payload_crc[payload_len];
+        p_helper->p_ppgcfg->type = MAX86141_PPGCFG_TLV_TYPE;
+        p_helper->p_ppgcfg->length = MAX86141_PPGCFG_TLV_LEN;
+        payload_len += sizeof(max86141_ppgcfg_tlv_t);
+    }
+    else
+    {
+        p_helper->p_ppgcfg = NULL;
+    }
+    
+    
+    if (p_helper->has_ledcfg)
+    {
+        p_helper->p_ledcfg = (max86141_ledcfg_tlv_t *)&p_pkt->payload_crc[payload_len];
+        p_helper->p_ledcfg->type = MAX86141_LEDCFG_TLV_TYPE;
+        p_helper->p_ledcfg->length = MAX86141_LEDCFG_TLV_LEN;
+        payload_len += sizeof(max86141_ledcfg_tlv_t);    
+    }
+    else
+    {
+        p_helper->p_ledcfg = NULL;
+    }
+    
+    if (p_helper->has_abp_coeff)
+    {
+        p_helper->p_abp_coeff = (max86141_abp_coeff_tlv_t *)&p_pkt->payload_crc[payload_len];
+        p_helper->p_abp_coeff->type = MAX86141_ABP_COEFF_TLV_TYPE;
+        p_helper->p_abp_coeff->length = MAX86141_ABP_COEFF_TLV_LEN;
+        payload_len += sizeof(max86141_abp_coeff_tlv_t);
+    }
+    
+    if (p_helper->has_spo_sample)
+    {
+        p_helper->p_spo_sample = (max86141_spo_sample_tlv_t *)&p_pkt->payload_crc[payload_len];
+        p_helper->p_spo_sample->type = MAX86141_SAMPLE_TLV_TYPE;
+        p_helper->p_spo_sample->length = MAX86141_SPO_SAMPLE_TLV_LEN;
+        payload_len += sizeof(max86141_spo_sample_tlv_t);
+    }
+    else
+    {
+        p_helper->p_spo_sample = NULL;
+    }
+    
+    if (p_helper->has_spo_rougu)
+    {
+        p_helper->p_spo_rougu = (max86141_spo_rougu_tlv_t *)&p_pkt->payload_crc[payload_len];
+        p_helper->p_spo_rougu->type = MAX86141_SPO_ROUGU_TLV_TYPE;
+        p_helper->p_spo_rougu->length = MAX86141_SPO_ROUGU_TLV_LEN;
+        payload_len += sizeof(max86141_spo_rougu_tlv_t);
+    }
+    else
+    {
+        p_helper->p_spo_rougu = NULL;
+    }
+
+    if (p_helper->has_abp_sample)
+    {
+        p_helper->p_abp_sample = (max86141_abp_sample_tlv_t *)&p_pkt->payload_crc[payload_len];
+        p_helper->p_abp_sample->type = MAX86141_SAMPLE_TLV_TYPE;
+        p_helper->p_abp_sample->length = MAX86141_ABP_SAMPLE_TLV_LEN;
+        payload_len += sizeof(max86141_abp_sample_tlv_t);
+    }
+    else
+    {
+        p_helper->p_abp_sample = NULL;
+    }
+    
+    if (p_helper->has_abp_feature)
+    {
+        p_helper->p_abp_feature = (max86141_abp_feature_tlv_t *)&p_pkt->payload_crc[payload_len];
+        p_helper->p_abp_feature->type = MAX86141_ABP_FEATURE_TLV_TYPE;
+        p_helper->p_abp_feature->length = MAX86141_ABP_FEATURE_TLV_LEN;
+        p_helper->p_abp_feature->index = -1;
+        payload_len += sizeof(max86141_abp_feature_tlv_t);
+    }
+    else
+    {
+        p_helper->p_abp_feature = NULL;
+    }
+    
+    p_helper->p_crc = &p_pkt->payload_crc[payload_len];
+    
+    return true;
 }
 
 void sens_init_ow_m601z_packet(ow_m601z_packet_helper_t * p_helper, sens_packet_t * p_pkt)

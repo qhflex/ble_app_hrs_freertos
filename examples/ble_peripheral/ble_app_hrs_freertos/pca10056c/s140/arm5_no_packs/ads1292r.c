@@ -10,6 +10,8 @@
 
 #include "nrf_spi_mngr.h"
 
+#include "SEGGER_RTT.h"
+
 #include "sens-proto.h"
 #include "ads1292r.h"
 #include "usbcdc.h"
@@ -1310,7 +1312,7 @@ static void ads1292r_task(void * pvParameters)
     NRF_LOG_INFO("---- formatted print test end ----");
 #endif
     
-    vTaskDelay(2000);
+    vTaskDelay(1000);
 
     NRF_LOG_INFO("ads129x_brief_tlv_t size: %d", sizeof(ads129x_brief_tlv_t));
 
@@ -1544,7 +1546,7 @@ static void ads1292r_task(void * pvParameters)
 
         if (i % 5000 == 0)
         {
-            NRF_LOG_INFO("%d samples", i);
+            NRF_LOG_INFO("ads1292r: %d samples", i);
         }
     }
 }
@@ -1630,6 +1632,7 @@ void app_ads1292r_freertos_init(void)
     else
     {
         NRF_LOG_INFO("[ads1292r] task created.");
+        SEGGER_RTT_printf(0, "ads1292 task created\r\n");
     }
 }
 
@@ -1658,6 +1661,8 @@ static sens_packet_t * next_packet(void)
             m_packet_helper.payload_len,
             m_packet_helper.packet_size,
             ADS129X_NUM_OF_SAMPLES);
+        
+        SEGGER_RTT_printf(0, "ecg pkt %d, pl %d, spp %d\r\n",  m_packet_helper.packet_size, m_packet_helper.payload_len, ADS129X_NUM_OF_SAMPLES);
     }
 
     // init next packet

@@ -2,12 +2,25 @@
 #include <string.h>
 #include "nordic_common.h"
 #include "nrf.h"
-#include "app_error.h"
+
 #include "ble.h"
 #include "ble_hci.h"
 #include "ble_srv_common.h"
 #include "ble_advdata.h"
 #include "ble_advertising.h"
+
+#include "SEGGER_RTT.h"
+
+#include "app_error.h"
+
+#include "nrf_log.h"
+#include "nrf_log_ctrl.h"
+#include "app_util_platform.h"
+#include "nrf_strerror.h"
+
+#if defined(SOFTDEVICE_PRESENT) && SOFTDEVICE_PRESENT
+#include "nrf_sdm.h"
+#endif
 
 #include "ble_conn_params.h"
 
@@ -49,9 +62,10 @@
 #include "ads1292r.h"
 #include "max86141.h"
 #include "owuart.h"
+#include "oled.h"
 
 #include "usbcdc.h"
-#include "mem_manager.h"
+// #include "mem_manager.h"
 
 // #include "ble_spp.h"
 
@@ -260,6 +274,7 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
  *
  * @param[in] p_evt  Peer Manager event.
  */
+#if PEER_MANAGER_ENABLED == 1
 static void pm_evt_handler(pm_evt_t const * p_evt)
 {
     bool delete_bonds = false;
@@ -278,6 +293,7 @@ static void pm_evt_handler(pm_evt_t const * p_evt)
             break;
     }
 }
+#endif
 
 
 /**@brief Function for the GAP initialization.
@@ -515,19 +531,19 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
     switch (ble_adv_evt)
     {
         case BLE_ADV_EVT_FAST:
-            NRF_LOG_INFO("[BLE] Fast advertising.");
+            SEGGER_RTT_printf(0, "[BLE] Fast advertising.");
             // err_code = bsp_indication_set(BSP_INDICATE_ADVERTISING);
             // APP_ERROR_CHECK(err_code);
             break;
 
         case BLE_ADV_EVT_SLOW:
-            NRF_LOG_INFO("[BLE] Slow advertising.");
+            SEGGER_RTT_printf(0, "[BLE] Slow advertising.");
             // err_code = bsp_indication_set(BSP_INDICATE_ADVERTISING_SLOW);
             // APP_ERROR_CHECK(err_code);
             break;
 
         case BLE_ADV_EVT_IDLE:
-            NRF_LOG_INFO("[BLE] Idle advertising. no connectable advertising ongoing.");
+            SEGGER_RTT_printf(0, "[BLE] Idle advertising. no connectable advertising ongoing.");
             // sleep_mode_enter();
             break;
 
@@ -643,8 +659,10 @@ static void ble_stack_init(void)
 }
 
 /**@brief Function for the Peer Manager initialization. */
+
 static void peer_manager_init(void)
 {
+#if PEER_MANAGER_ENABLED == 1
     ret_code_t           err_code;
 
     err_code = pm_init();
@@ -652,16 +670,19 @@ static void peer_manager_init(void)
 
     err_code = pm_register(pm_evt_handler);
     APP_ERROR_CHECK(err_code);
+#endif    
 }
 
 
 /**@brief Clear bond information from persistent storage. */
 static void delete_bonds(void)
 {
+#if PEER_MANAGER_ENABLED == 1    
     ret_code_t err_code;
     // NRF_LOG_INFO("Erase bonds!");
     err_code = pm_peers_delete();
     APP_ERROR_CHECK(err_code);
+#endif    
 }
 
 
@@ -698,13 +719,13 @@ static void advertising_init(void)
 
 /**@brief Function for initializing the nrf log module.
  */
-static void log_init(void)
-{
-    ret_code_t err_code = NRF_LOG_INIT(NULL);
-    APP_ERROR_CHECK(err_code);
+//static void log_init(void)
+//{
+//    ret_code_t err_code = NRF_LOG_INIT(NULL);
+//    APP_ERROR_CHECK(err_code);
 
-    NRF_LOG_DEFAULT_BACKENDS_INIT();
-}
+//    NRF_LOG_DEFAULT_BACKENDS_INIT();
+//}
 
 /**@brief Function for starting advertising. */
 static void advertising_start(void * p_erase_bonds)
@@ -798,13 +819,13 @@ int main(void)
     ret_code_t err_code;
     bool erase_bonds;
     
-    err_code = nrf_mem_init();
-    APP_ERROR_CHECK(err_code);
+//    err_code = nrf_mem_init();
+//    APP_ERROR_CHECK(err_code);
     
     ble_nus_tx_init();
 
     // Initialize modules.
-    log_init();
+    // log_init();
 
     app_usbd_serial_num_generate();
 
@@ -861,12 +882,13 @@ int main(void)
     NRF_LOG_INFO("Program started in mimic_rougu mode.");
 #else
     // app_qma6110p_freertos_init();
+    app_oled_freertos_init();
     owuart_freertos_init();
     app_ads1292r_freertos_init();
     app_max86141_freertos_init();
     app_usbcdc_freertos_init();
     
-    NRF_LOG_INFO("Program started in standard mode.");
+    SEGGER_RTT_printf(0, "Program started\r\n.");
 
 #endif
 
@@ -942,4 +964,81 @@ ble_nus_tx_buf_t* ble_nus_tx_alloc(void)
         NRF_LOG_INFO("xQueueReceive failed?");
         return NULL;
     }
+}
+
+void vApplicationStackOverflowHook( TaskHandle_t xTask,
+                                    signed char *pcTaskName )
+{
+    volatile int i = 0;
+    for (;;) 
+    {
+        i++;
+    }
+}
+
+/*lint -save -e14 */
+/**
+ * Function is implemented as weak so that it can be overwritten by custom application error handler
+ * when needed.
+ */
+void app_error_fault_handler(uint32_t id, uint32_t pc, uint32_t info)
+{
+    __disable_irq();
+    NRF_LOG_FINAL_FLUSH();
+
+#ifndef DEBUG
+    NRF_LOG_ERROR("Fatal error");
+#else
+    switch (id)
+    {
+#if defined(SOFTDEVICE_PRESENT) && SOFTDEVICE_PRESENT
+        case NRF_FAULT_ID_SD_ASSERT:
+            NRF_LOG_ERROR("SOFTDEVICE: ASSERTION FAILED");
+            SEGGER_RTT_printf(0, "SOFTDEVICE: ASSERTION FAILED");
+            break;
+        case NRF_FAULT_ID_APP_MEMACC:
+            NRF_LOG_ERROR("SOFTDEVICE: INVALID MEMORY ACCESS");
+            break;
+#endif
+        case NRF_FAULT_ID_SDK_ASSERT:
+        {
+            assert_info_t * p_info = (assert_info_t *)info;
+            NRF_LOG_ERROR("ASSERTION FAILED at %s:%u",
+                          p_info->p_file_name,
+                          p_info->line_num);
+            break;
+        }
+        case NRF_FAULT_ID_SDK_ERROR:
+        {
+            error_info_t * p_info = (error_info_t *)info;
+            NRF_LOG_ERROR("ERROR %u [%s] at %s:%u\r\nPC at: 0x%08x",
+                          p_info->err_code,
+                          nrf_strerror_get(p_info->err_code),
+                          p_info->p_file_name,
+                          p_info->line_num,
+                          pc);
+            SEGGER_RTT_printf(0, "ERROR %u [%s] at %s:%u\r\nPC at: 0x%08x",
+                          p_info->err_code,
+                          "[noname]", // nrf_strerror_get(p_info->err_code),
+                          p_info->p_file_name,
+                          p_info->line_num,
+                          pc);            
+             NRF_LOG_ERROR("End of error report");
+            break;
+        }
+        default:
+            NRF_LOG_ERROR("UNKNOWN FAULT at 0x%08X", pc);
+            break;
+    }
+#endif
+
+    NRF_BREAKPOINT_COND;
+    // On assert, the system can only recover with a reset.
+
+#ifndef DEBUG
+    NRF_LOG_WARNING("System reset");
+    NVIC_SystemReset();
+#else
+    app_error_save_and_stop(id, pc, info);
+#endif // DEBUG
 }

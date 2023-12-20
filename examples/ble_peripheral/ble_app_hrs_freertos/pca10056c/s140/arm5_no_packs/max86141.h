@@ -247,13 +247,13 @@ typedef struct max86141_ctx
 {
   const max86141_cfg_t *        p_maxcfg;
 
-  char tags[TAGLIST_SIZE];
+  // char tags[TAGLIST_SIZE];
 
   /* for spi transfer */
-  nrf_drv_spi_config_t          spicfg;
-  uint8_t                       txbuf[3];
-  uint8_t                       rxbuf[3];
-  nrf_spi_mngr_transfer_t       xfer;
+  // nrf_drv_spi_config_t          spicfg;
+  // uint8_t                       txbuf[3];
+  // uint8_t                       rxbuf[3];
+  // nrf_spi_mngr_transfer_t       xfer;
 } max86141_ctx_t;
 
 void app_max86141_freertos_init(void);

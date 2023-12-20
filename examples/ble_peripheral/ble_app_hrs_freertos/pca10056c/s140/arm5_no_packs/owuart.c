@@ -513,10 +513,10 @@ void owuart_task(void * pvParameters)
                 NRF_LOG_INFO("nus tx no available buffer?");
             }
         }
-        else
-        {
-            NRF_LOG_INFO("nus tx not running");
-        }
+//        else
+//        {
+//            NRF_LOG_INFO("nus tx not running");
+//        }
         
         p_current_m601z_packet = next_m601z_packet();
     }

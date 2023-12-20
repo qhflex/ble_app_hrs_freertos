@@ -314,7 +314,7 @@
           </ArmAdsMisc>
           <Cads>
             <interw>1</interw>
-            <Optim>2</Optim>
+            <Optim>3</Optim>
             <oTime>1</oTime>
             <SplitLS>0</SplitLS>
             <OneElfS>1</OneElfS>
@@ -338,9 +338,9 @@
             <v6Rtti>0</v6Rtti>
             <VariousControls>
               <MiscControls>--reduce_paths</MiscControls>
-              <Define>USE_APP_CONFIG DEBUG BOARD_PCA10056C BSP_SIMPLE CONFIG_NFCT_PINS_AS_GPIOS FLOAT_ABI_HARD FREERTOS NRF52840_XXAA NRF_SD_BLE_API_VERSION=7 S140 SOFTDEVICE_PRESENT __HEAP_SIZE=16384 __STACK_SIZE=16384</Define>
+              <Define>USE_APP_CONFIG DEBUG BOARD_PCA10056C BSP_SIMPLE CONFIG_NFCT_PINS_AS_GPIOS FLOAT_ABI_HARD FREERTOS NRF52840_XXAA NRF_SD_BLE_API_VERSION=7 S140 SOFTDEVICE_PRESENT __HEAP_SIZE=149504 __STACK_SIZE=4096</Define>
               <Undefine></Undefine>
-              <IncludePath>..\..\..\config;..\..\..\..\..\..\components;..\..\..\..\..\..\components\ble\ble_advertising;..\..\..\..\..\..\components\ble\ble_dtm;..\..\..\..\..\..\components\ble\ble_link_ctx_manager;..\..\..\..\..\..\components\ble\ble_racp;..\..\..\..\..\..\components\ble\ble_services\ble_ancs_c;..\..\..\..\..\..\components\ble\ble_services\ble_ans_c;..\..\..\..\..\..\components\ble\ble_services\ble_bas;..\..\..\..\..\..\components\ble\ble_services\ble_bas_c;..\..\..\..\..\..\components\ble\ble_services\ble_bios;..\..\..\..\..\..\components\ble\ble_services\ble_cscs;..\..\..\..\..\..\components\ble\ble_services\ble_cts_c;..\..\..\..\..\..\components\ble\ble_services\ble_dfu;..\..\..\..\..\..\components\ble\ble_services\ble_dis;..\..\..\..\..\..\components\ble\ble_services\ble_gls;..\..\..\..\..\..\components\ble\ble_services\ble_hids;..\..\..\..\..\..\components\ble\ble_services\ble_hrs;..\..\..\..\..\..\components\ble\ble_services\ble_hrs_c;..\..\..\..\..\..\components\ble\ble_services\ble_hts;..\..\..\..\..\..\components\ble\ble_services\ble_ias;..\..\..\..\..\..\components\ble\ble_services\ble_ias_c;..\..\..\..\..\..\components\ble\ble_services\ble_lbs;..\..\..\..\..\..\components\ble\ble_services\ble_lbs_c;..\..\..\..\..\..\components\ble\ble_services\ble_lls;..\..\..\..\..\..\components\ble\ble_services\ble_nus;..\..\..\..\..\..\components\ble\ble_services\ble_nus_c;..\..\..\..\..\..\components\ble\ble_services\ble_rscs;..\..\..\..\..\..\components\ble\ble_services\ble_rscs_c;..\..\..\..\..\..\components\ble\ble_services\ble_spp;..\..\..\..\..\..\components\ble\ble_services\ble_tps;..\..\..\..\..\..\components\ble\common;..\..\..\..\..\..\components\ble\nrf_ble_gatt;..\..\..\..\..\..\components\ble\nrf_ble_qwr;..\..\..\..\..\..\components\ble\peer_manager;..\..\..\..\..\..\components\boards;..\..\..\..\..\..\components\libraries\atomic;..\..\..\..\..\..\components\libraries\atomic_fifo;..\..\..\..\..\..\components\libraries\atomic_flags;..\..\..\..\..\..\components\libraries\balloc;..\..\..\..\..\..\components\libraries\bootloader\ble_dfu;..\..\..\..\..\..\components\libraries\bsp;..\..\..\..\..\..\components\libraries\button;..\..\..\..\..\..\components\libraries\cli;..\..\..\..\..\..\components\libraries\crc16;..\..\..\..\..\..\components\libraries\crc32;..\..\..\..\..\..\components\libraries\crypto;..\..\..\..\..\..\components\libraries\csense;..\..\..\..\..\..\components\libraries\csense_drv;..\..\..\..\..\..\components\libraries\delay;..\..\..\..\..\..\components\libraries\ecc;..\..\..\..\..\..\components\libraries\experimental_section_vars;..\..\..\..\..\..\components\libraries\experimental_task_manager;..\..\..\..\..\..\components\libraries\fds;..\..\..\..\..\..\components\libraries\fifo;..\..\..\..\..\..\components\libraries\fstorage;..\..\..\..\..\..\components\libraries\gfx;..\..\..\..\..\..\components\libraries\gpiote;..\..\..\..\..\..\components\libraries\hardfault;..\..\..\..\..\..\components\libraries\hardfault\nrf52;..\..\..\..\..\..\components\libraries\hci;..\..\..\..\..\..\components\libraries\led_softblink;..\..\..\..\..\..\components\libraries\log;..\..\..\..\..\..\components\libraries\log\src;..\..\..\..\..\..\components\libraries\low_power_pwm;..\..\..\..\..\..\components\libraries\mem_manager;..\..\..\..\..\..\components\libraries\memobj;..\..\..\..\..\..\components\libraries\mpu;..\..\..\..\..\..\components\libraries\mutex;..\..\..\..\..\..\components\libraries\pwm;..\..\..\..\..\..\components\libraries\pwr_mgmt;..\..\..\..\..\..\components\libraries\queue;..\..\..\..\..\..\components\libraries\ringbuf;..\..\..\..\..\..\components\libraries\scheduler;..\..\..\..\..\..\components\libraries\sdcard;..\..\..\..\..\..\components\libraries\sensorsim;..\..\..\..\..\..\components\libraries\slip;..\..\..\..\..\..\components\libraries\sortlist;..\..\..\..\..\..\components\libraries\spi_mngr;..\..\..\..\..\..\components\libraries\stack_guard;..\..\..\..\..\..\components\libraries\strerror;..\..\..\..\..\..\components\libraries\svc;..\..\..\..\..\..\components\libraries\timer;..\..\..\..\..\..\components\libraries\twi_mngr;..\..\..\..\..\..\components\libraries\twi_sensor;..\..\..\..\..\..\components\libraries\uart;..\..\..\..\..\..\components\libraries\usbd;..\..\..\..\..\..\components\libraries\usbd\class\audio;..\..\..\..\..\..\components\libraries\usbd\class\cdc;..\..\..\..\..\..\components\libraries\usbd\class\cdc\acm;..\..\..\..\..\..\components\libraries\usbd\class\hid;..\..\..\..\..\..\components\libraries\usbd\class\hid\generic;..\..\..\..\..\..\components\libraries\usbd\class\hid\kbd;..\..\..\..\..\..\components\libraries\usbd\class\hid\mouse;..\..\..\..\..\..\components\libraries\usbd\class\msc;..\..\..\..\..\..\components\libraries\util;..\..\..\..\..\..\components\nfc\ndef\conn_hand_parser;..\..\..\..\..\..\components\nfc\ndef\conn_hand_parser\ac_rec_parser;..\..\..\..\..\..\components\nfc\ndef\conn_hand_parser\ble_oob_advdata_parser;..\..\..\..\..\..\components\nfc\ndef\conn_hand_parser\le_oob_rec_parser;..\..\..\..\..\..\components\nfc\ndef\connection_handover\ac_rec;..\..\..\..\..\..\components\nfc\ndef\connection_handover\ble_oob_advdata;..\..\..\..\..\..\components\nfc\ndef\connection_handover\ble_pair_lib;..\..\..\..\..\..\components\nfc\ndef\connection_handover\ble_pair_msg;..\..\..\..\..\..\components\nfc\ndef\connection_handover\common;..\..\..\..\..\..\components\nfc\ndef\connection_handover\ep_oob_rec;..\..\..\..\..\..\components\nfc\ndef\connection_handover\hs_rec;..\..\..\..\..\..\components\nfc\ndef\connection_handover\le_oob_rec;..\..\..\..\..\..\components\nfc\ndef\generic\message;..\..\..\..\..\..\components\nfc\ndef\generic\record;..\..\..\..\..\..\components\nfc\ndef\launchapp;..\..\..\..\..\..\components\nfc\ndef\parser\message;..\..\..\..\..\..\components\nfc\ndef\parser\record;..\..\..\..\..\..\components\nfc\ndef\text;..\..\..\..\..\..\components\nfc\ndef\uri;..\..\..\..\..\..\components\nfc\platform;..\..\..\..\..\..\components\nfc\t2t_lib;..\..\..\..\..\..\components\nfc\t2t_parser;..\..\..\..\..\..\components\nfc\t4t_lib;..\..\..\..\..\..\components\nfc\t4t_parser\apdu;..\..\..\..\..\..\components\nfc\t4t_parser\cc_file;..\..\..\..\..\..\components\nfc\t4t_parser\hl_detection_procedure;..\..\..\..\..\..\components\nfc\t4t_parser\tlv;..\..\..\..\..\..\components\softdevice\common;..\..\..\..\..\..\components\softdevice\s140\headers;..\..\..\..\..\..\components\softdevice\s140\headers\nrf52;..\..\..\..\..\..\external\blood_pressure_c\include;..\..\..\..\..\..\external\blood_pressure_c\src;..\..\..\..\..\..\external\fprintf;..\..\..\..\..\..\external\freertos\config;..\..\..\..\..\..\external\freertos\portable\ARM\nrf52;..\..\..\..\..\..\external\freertos\portable\CMSIS\nrf52;..\..\..\..\..\..\external\freertos\source\include;..\..\..\..\..\..\external\rog_ecg\chero_ecg_alg_lib\include\Algorithm;..\..\..\..\..\..\external\rog_ecg\chero_ecg_alg_lib\include\Filter;..\..\..\..\..\..\external\rog_spo2;..\..\..\..\..\..\external\segger_rtt;..\..\..\..\..\..\external\utf_converter;..\..\..\..\..\..\integration\nrfx;..\..\..\..\..\..\integration\nrfx\legacy;..\..\..\..\..\..\modules\nrfx;..\..\..\..\..\..\modules\nrfx\drivers\include;..\..\..\..\..\..\modules\nrfx\hal;..\config;.\</IncludePath>
+              <IncludePath>..\..\..\config;..\..\..\..\..\..\components;..\..\..\..\..\..\components\ble\ble_advertising;..\..\..\..\..\..\components\ble\ble_dtm;..\..\..\..\..\..\components\ble\ble_link_ctx_manager;..\..\..\..\..\..\components\ble\ble_racp;..\..\..\..\..\..\components\ble\ble_services\ble_ancs_c;..\..\..\..\..\..\components\ble\ble_services\ble_ans_c;..\..\..\..\..\..\components\ble\ble_services\ble_bas;..\..\..\..\..\..\components\ble\ble_services\ble_bas_c;..\..\..\..\..\..\components\ble\ble_services\ble_bios;..\..\..\..\..\..\components\ble\ble_services\ble_cscs;..\..\..\..\..\..\components\ble\ble_services\ble_cts_c;..\..\..\..\..\..\components\ble\ble_services\ble_dfu;..\..\..\..\..\..\components\ble\ble_services\ble_dis;..\..\..\..\..\..\components\ble\ble_services\ble_gls;..\..\..\..\..\..\components\ble\ble_services\ble_hids;..\..\..\..\..\..\components\ble\ble_services\ble_hrs;..\..\..\..\..\..\components\ble\ble_services\ble_hrs_c;..\..\..\..\..\..\components\ble\ble_services\ble_hts;..\..\..\..\..\..\components\ble\ble_services\ble_ias;..\..\..\..\..\..\components\ble\ble_services\ble_ias_c;..\..\..\..\..\..\components\ble\ble_services\ble_lbs;..\..\..\..\..\..\components\ble\ble_services\ble_lbs_c;..\..\..\..\..\..\components\ble\ble_services\ble_lls;..\..\..\..\..\..\components\ble\ble_services\ble_nus;..\..\..\..\..\..\components\ble\ble_services\ble_nus_c;..\..\..\..\..\..\components\ble\ble_services\ble_rscs;..\..\..\..\..\..\components\ble\ble_services\ble_rscs_c;..\..\..\..\..\..\components\ble\ble_services\ble_spp;..\..\..\..\..\..\components\ble\ble_services\ble_tps;..\..\..\..\..\..\components\ble\common;..\..\..\..\..\..\components\ble\nrf_ble_gatt;..\..\..\..\..\..\components\ble\nrf_ble_qwr;..\..\..\..\..\..\components\ble\peer_manager;..\..\..\..\..\..\components\boards;..\..\..\..\..\..\components\libraries\atomic;..\..\..\..\..\..\components\libraries\atomic_fifo;..\..\..\..\..\..\components\libraries\atomic_flags;..\..\..\..\..\..\components\libraries\balloc;..\..\..\..\..\..\components\libraries\bootloader\ble_dfu;..\..\..\..\..\..\components\libraries\bsp;..\..\..\..\..\..\components\libraries\button;..\..\..\..\..\..\components\libraries\cli;..\..\..\..\..\..\components\libraries\crc16;..\..\..\..\..\..\components\libraries\crc32;..\..\..\..\..\..\components\libraries\crypto;..\..\..\..\..\..\components\libraries\csense;..\..\..\..\..\..\components\libraries\csense_drv;..\..\..\..\..\..\components\libraries\delay;..\..\..\..\..\..\components\libraries\ecc;..\..\..\..\..\..\components\libraries\experimental_section_vars;..\..\..\..\..\..\components\libraries\experimental_task_manager;..\..\..\..\..\..\components\libraries\fds;..\..\..\..\..\..\components\libraries\fifo;..\..\..\..\..\..\components\libraries\fstorage;..\..\..\..\..\..\components\libraries\gfx;..\..\..\..\..\..\components\libraries\gpiote;..\..\..\..\..\..\components\libraries\hardfault;..\..\..\..\..\..\components\libraries\hardfault\nrf52;..\..\..\..\..\..\components\libraries\hci;..\..\..\..\..\..\components\libraries\led_softblink;..\..\..\..\..\..\components\libraries\log;..\..\..\..\..\..\components\libraries\log\src;..\..\..\..\..\..\components\libraries\low_power_pwm;..\..\..\..\..\..\components\libraries\mem_manager;..\..\..\..\..\..\components\libraries\memobj;..\..\..\..\..\..\components\libraries\mpu;..\..\..\..\..\..\components\libraries\mutex;..\..\..\..\..\..\components\libraries\pwm;..\..\..\..\..\..\components\libraries\pwr_mgmt;..\..\..\..\..\..\components\libraries\queue;..\..\..\..\..\..\components\libraries\ringbuf;..\..\..\..\..\..\components\libraries\scheduler;..\..\..\..\..\..\components\libraries\sdcard;..\..\..\..\..\..\components\libraries\sensorsim;..\..\..\..\..\..\components\libraries\slip;..\..\..\..\..\..\components\libraries\sortlist;..\..\..\..\..\..\components\libraries\spi_mngr;..\..\..\..\..\..\components\libraries\stack_guard;..\..\..\..\..\..\components\libraries\strerror;..\..\..\..\..\..\components\libraries\svc;..\..\..\..\..\..\components\libraries\timer;..\..\..\..\..\..\components\libraries\twi_mngr;..\..\..\..\..\..\components\libraries\twi_sensor;..\..\..\..\..\..\components\libraries\uart;..\..\..\..\..\..\components\libraries\usbd;..\..\..\..\..\..\components\libraries\usbd\class\audio;..\..\..\..\..\..\components\libraries\usbd\class\cdc;..\..\..\..\..\..\components\libraries\usbd\class\cdc\acm;..\..\..\..\..\..\components\libraries\usbd\class\hid;..\..\..\..\..\..\components\libraries\usbd\class\hid\generic;..\..\..\..\..\..\components\libraries\usbd\class\hid\kbd;..\..\..\..\..\..\components\libraries\usbd\class\hid\mouse;..\..\..\..\..\..\components\libraries\usbd\class\msc;..\..\..\..\..\..\components\libraries\util;..\..\..\..\..\..\components\nfc\ndef\conn_hand_parser;..\..\..\..\..\..\components\nfc\ndef\conn_hand_parser\ac_rec_parser;..\..\..\..\..\..\components\nfc\ndef\conn_hand_parser\ble_oob_advdata_parser;..\..\..\..\..\..\components\nfc\ndef\conn_hand_parser\le_oob_rec_parser;..\..\..\..\..\..\components\nfc\ndef\connection_handover\ac_rec;..\..\..\..\..\..\components\nfc\ndef\connection_handover\ble_oob_advdata;..\..\..\..\..\..\components\nfc\ndef\connection_handover\ble_pair_lib;..\..\..\..\..\..\components\nfc\ndef\connection_handover\ble_pair_msg;..\..\..\..\..\..\components\nfc\ndef\connection_handover\common;..\..\..\..\..\..\components\nfc\ndef\connection_handover\ep_oob_rec;..\..\..\..\..\..\components\nfc\ndef\connection_handover\hs_rec;..\..\..\..\..\..\components\nfc\ndef\connection_handover\le_oob_rec;..\..\..\..\..\..\components\nfc\ndef\generic\message;..\..\..\..\..\..\components\nfc\ndef\generic\record;..\..\..\..\..\..\components\nfc\ndef\launchapp;..\..\..\..\..\..\components\nfc\ndef\parser\message;..\..\..\..\..\..\components\nfc\ndef\parser\record;..\..\..\..\..\..\components\nfc\ndef\text;..\..\..\..\..\..\components\nfc\ndef\uri;..\..\..\..\..\..\components\nfc\platform;..\..\..\..\..\..\components\nfc\t2t_lib;..\..\..\..\..\..\components\nfc\t2t_parser;..\..\..\..\..\..\components\nfc\t4t_lib;..\..\..\..\..\..\components\nfc\t4t_parser\apdu;..\..\..\..\..\..\components\nfc\t4t_parser\cc_file;..\..\..\..\..\..\components\nfc\t4t_parser\hl_detection_procedure;..\..\..\..\..\..\components\nfc\t4t_parser\tlv;..\..\..\..\..\..\components\softdevice\common;..\..\..\..\..\..\components\softdevice\s140\headers;..\..\..\..\..\..\components\softdevice\s140\headers\nrf52;..\..\..\..\..\..\external\blood_pressure_c\include;..\..\..\..\..\..\external\blood_pressure_c\src;..\..\..\..\..\..\external\fprintf;..\..\..\..\..\..\external\freertos\config;..\..\..\..\..\..\external\freertos\portable\ARM\nrf52;..\..\..\..\..\..\external\freertos\portable\CMSIS\nrf52;..\..\..\..\..\..\external\freertos\source\include;..\..\..\..\..\..\external\rog_ecg\chero_ecg_alg_lib\include\Algorithm;..\..\..\..\..\..\external\rog_ecg\chero_ecg_alg_lib\include\Filter;..\..\..\..\..\..\external\rog_spo2;..\..\..\..\..\..\external\segger_rtt;..\..\..\..\..\..\external\utf_converter;..\..\..\..\..\..\external\u8g2;..\..\..\..\..\..\integration\nrfx;..\..\..\..\..\..\integration\nrfx\legacy;..\..\..\..\..\..\modules\nrfx;..\..\..\..\..\..\modules\nrfx\drivers\include;..\..\..\..\..\..\modules\nrfx\hal;..\config;.\</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -356,7 +356,7 @@
             <ClangAsOpt>1</ClangAsOpt>
             <VariousControls>
               <MiscControls> --cpreproc_opts=-DBOARD_PCA10056,-DCONFIG_GPIO_AS_PINRESET,-DFLOAT_ABI_HARD,-DFREERTOS,-DNRF52840_XXAA,-DNRF_SD_BLE_API_VERSION=7,-DS140,-DSOFTDEVICE_PRESENT,-D__HEAP_SIZE=1024,-D__STACK_SIZE=2048</MiscControls>
-              <Define>BOARD_PCA10056 CONFIG_NFCT_PINS_AS_GPIOS FLOAT_ABI_HARD FREERTOS NRF52840_XXAA NRF_SD_BLE_API_VERSION=7 S140 SOFTDEVICE_PRESENT __HEAP_SIZE=16384 __STACK_SIZE=16384</Define>
+              <Define>BOARD_PCA10056 CONFIG_NFCT_PINS_AS_GPIOS FLOAT_ABI_HARD FREERTOS NRF52840_XXAA NRF_SD_BLE_API_VERSION=7 S140 SOFTDEVICE_PRESENT __HEAP_SIZE=149504 __STACK_SIZE=4096</Define>
               <Undefine></Undefine>
               <IncludePath>..\..\..\config;..\..\..\..\..\..\components;..\..\..\..\..\..\components\ble\ble_advertising;..\..\..\..\..\..\components\ble\ble_dtm;..\..\..\..\..\..\components\ble\ble_racp;..\..\..\..\..\..\components\ble\ble_services\ble_ancs_c;..\..\..\..\..\..\components\ble\ble_services\ble_ans_c;..\..\..\..\..\..\components\ble\ble_services\ble_bas;..\..\..\..\..\..\components\ble\ble_services\ble_bas_c;..\..\..\..\..\..\components\ble\ble_services\ble_cscs;..\..\..\..\..\..\components\ble\ble_services\ble_cts_c;..\..\..\..\..\..\components\ble\ble_services\ble_dfu;..\..\..\..\..\..\components\ble\ble_services\ble_dis;..\..\..\..\..\..\components\ble\ble_services\ble_gls;..\..\..\..\..\..\components\ble\ble_services\ble_hids;..\..\..\..\..\..\components\ble\ble_services\ble_hrs;..\..\..\..\..\..\components\ble\ble_services\ble_hrs_c;..\..\..\..\..\..\components\ble\ble_services\ble_hts;..\..\..\..\..\..\components\ble\ble_services\ble_ias;..\..\..\..\..\..\components\ble\ble_services\ble_ias_c;..\..\..\..\..\..\components\ble\ble_services\ble_lbs;..\..\..\..\..\..\components\ble\ble_services\ble_lbs_c;..\..\..\..\..\..\components\ble\ble_services\ble_lls;..\..\..\..\..\..\components\ble\ble_services\ble_nus;..\..\..\..\..\..\components\ble\ble_services\ble_nus_c;..\..\..\..\..\..\components\ble\ble_services\ble_rscs;..\..\..\..\..\..\components\ble\ble_services\ble_rscs_c;..\..\..\..\..\..\components\ble\ble_services\ble_tps;..\..\..\..\..\..\components\ble\common;..\..\..\..\..\..\components\ble\nrf_ble_gatt;..\..\..\..\..\..\components\ble\nrf_ble_qwr;..\..\..\..\..\..\components\ble\peer_manager;..\..\..\..\..\..\components\boards;..\..\..\..\..\..\components\libraries\atomic;..\..\..\..\..\..\components\libraries\atomic_fifo;..\..\..\..\..\..\components\libraries\atomic_flags;..\..\..\..\..\..\components\libraries\balloc;..\..\..\..\..\..\components\libraries\bootloader\ble_dfu;..\..\..\..\..\..\components\libraries\bsp;..\..\..\..\..\..\components\libraries\button;..\..\..\..\..\..\components\libraries\cli;..\..\..\..\..\..\components\libraries\crc16;..\..\..\..\..\..\components\libraries\crc32;..\..\..\..\..\..\components\libraries\crypto;..\..\..\..\..\..\components\libraries\csense;..\..\..\..\..\..\components\libraries\csense_drv;..\..\..\..\..\..\components\libraries\delay;..\..\..\..\..\..\components\libraries\ecc;..\..\..\..\..\..\components\libraries\experimental_section_vars;..\..\..\..\..\..\components\libraries\experimental_task_manager;..\..\..\..\..\..\components\libraries\fds;..\..\..\..\..\..\components\libraries\fstorage;..\..\..\..\..\..\components\libraries\gfx;..\..\..\..\..\..\components\libraries\gpiote;..\..\..\..\..\..\components\libraries\hardfault;..\..\..\..\..\..\components\libraries\hardfault\nrf52;..\..\..\..\..\..\components\libraries\hci;..\..\..\..\..\..\components\libraries\led_softblink;..\..\..\..\..\..\components\libraries\log;..\..\..\..\..\..\components\libraries\log\src;..\..\..\..\..\..\components\libraries\low_power_pwm;..\..\..\..\..\..\components\libraries\mem_manager;..\..\..\..\..\..\components\libraries\memobj;..\..\..\..\..\..\components\libraries\mpu;..\..\..\..\..\..\components\libraries\mutex;..\..\..\..\..\..\components\libraries\pwm;..\..\..\..\..\..\components\libraries\pwr_mgmt;..\..\..\..\..\..\components\libraries\queue;..\..\..\..\..\..\components\libraries\ringbuf;..\..\..\..\..\..\components\libraries\scheduler;..\..\..\..\..\..\components\libraries\sdcard;..\..\..\..\..\..\components\libraries\sensorsim;..\..\..\..\..\..\components\libraries\slip;..\..\..\..\..\..\components\libraries\sortlist;..\..\..\..\..\..\components\libraries\spi_mngr;..\..\..\..\..\..\components\libraries\stack_guard;..\..\..\..\..\..\components\libraries\strerror;..\..\..\..\..\..\components\libraries\svc;..\..\..\..\..\..\components\libraries\timer;..\..\..\..\..\..\components\libraries\twi_mngr;..\..\..\..\..\..\components\libraries\twi_sensor;..\..\..\..\..\..\components\libraries\usbd;..\..\..\..\..\..\components\libraries\usbd\class\audio;..\..\..\..\..\..\components\libraries\usbd\class\cdc;..\..\..\..\..\..\components\libraries\usbd\class\cdc\acm;..\..\..\..\..\..\components\libraries\usbd\class\hid;..\..\..\..\..\..\components\libraries\usbd\class\hid\generic;..\..\..\..\..\..\components\libraries\usbd\class\hid\kbd;..\..\..\..\..\..\components\libraries\usbd\class\hid\mouse;..\..\..\..\..\..\components\libraries\usbd\class\msc;..\..\..\..\..\..\components\libraries\util;..\..\..\..\..\..\components\nfc\ndef\conn_hand_parser;..\..\..\..\..\..\components\nfc\ndef\conn_hand_parser\ac_rec_parser;..\..\..\..\..\..\components\nfc\ndef\conn_hand_parser\ble_oob_advdata_parser;..\..\..\..\..\..\components\nfc\ndef\conn_hand_parser\le_oob_rec_parser;..\..\..\..\..\..\components\nfc\ndef\connection_handover\ac_rec;..\..\..\..\..\..\components\nfc\ndef\connection_handover\ble_oob_advdata;..\..\..\..\..\..\components\nfc\ndef\connection_handover\ble_pair_lib;..\..\..\..\..\..\components\nfc\ndef\connection_handover\ble_pair_msg;..\..\..\..\..\..\components\nfc\ndef\connection_handover\common;..\..\..\..\..\..\components\nfc\ndef\connection_handover\ep_oob_rec;..\..\..\..\..\..\components\nfc\ndef\connection_handover\hs_rec;..\..\..\..\..\..\components\nfc\ndef\connection_handover\le_oob_rec;..\..\..\..\..\..\components\nfc\ndef\generic\message;..\..\..\..\..\..\components\nfc\ndef\generic\record;..\..\..\..\..\..\components\nfc\ndef\launchapp;..\..\..\..\..\..\components\nfc\ndef\parser\message;..\..\..\..\..\..\components\nfc\ndef\parser\record;..\..\..\..\..\..\components\nfc\ndef\text;..\..\..\..\..\..\components\nfc\ndef\uri;..\..\..\..\..\..\components\nfc\platform;..\..\..\..\..\..\components\nfc\t2t_lib;..\..\..\..\..\..\components\nfc\t2t_parser;..\..\..\..\..\..\components\nfc\t4t_lib;..\..\..\..\..\..\components\nfc\t4t_parser\apdu;..\..\..\..\..\..\components\nfc\t4t_parser\cc_file;..\..\..\..\..\..\components\nfc\t4t_parser\hl_detection_procedure;..\..\..\..\..\..\components\nfc\t4t_parser\tlv;..\..\..\..\..\..\components\softdevice\common;..\..\..\..\..\..\components\softdevice\s140\headers;..\..\..\..\..\..\components\softdevice\s140\headers\nrf52;..\..\..\..\..\..\external\fprintf;..\..\..\..\..\..\external\freertos\config;..\..\..\..\..\..\external\freertos\portable\ARM\nrf52;..\..\..\..\..\..\external\freertos\portable\CMSIS\nrf52;..\..\..\..\..\..\external\freertos\source\include;..\..\..\..\..\..\external\segger_rtt;..\..\..\..\..\..\external\utf_converter;..\..\..\..\..\..\integration\nrfx;..\..\..\..\..\..\integration\nrfx\legacy;..\..\..\..\..\..\modules\nrfx;..\..\..\..\..\..\modules\nrfx\drivers\include;..\..\..\..\..\..\modules\nrfx\hal;..\config</IncludePath>
             </VariousControls>
@@ -1146,6 +1146,420 @@
                 </FileArmAds>
               </FileOption>
             </File>
+            <File>
+              <FileName>oled.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\oled.c</FilePath>
+              <FileOption>
+                <CommonProperty>
+                  <UseCPPCompiler>2</UseCPPCompiler>
+                  <RVCTCodeConst>0</RVCTCodeConst>
+                  <RVCTZI>0</RVCTZI>
+                  <RVCTOtherData>0</RVCTOtherData>
+                  <ModuleSelection>0</ModuleSelection>
+                  <IncludeInBuild>1</IncludeInBuild>
+                  <AlwaysBuild>2</AlwaysBuild>
+                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
+                  <PublicsOnly>2</PublicsOnly>
+                  <StopOnExitCode>11</StopOnExitCode>
+                  <CustomArgument></CustomArgument>
+                  <IncludeLibraryModules></IncludeLibraryModules>
+                  <ComprImg>1</ComprImg>
+                </CommonProperty>
+                <FileArmAds>
+                  <Cads>
+                    <interw>2</interw>
+                    <Optim>0</Optim>
+                    <oTime>2</oTime>
+                    <SplitLS>2</SplitLS>
+                    <OneElfS>2</OneElfS>
+                    <Strict>2</Strict>
+                    <EnumInt>2</EnumInt>
+                    <PlainCh>2</PlainCh>
+                    <Ropi>2</Ropi>
+                    <Rwpi>2</Rwpi>
+                    <wLevel>0</wLevel>
+                    <uThumb>2</uThumb>
+                    <uSurpInc>2</uSurpInc>
+                    <uC99>2</uC99>
+                    <uGnu>2</uGnu>
+                    <useXO>2</useXO>
+                    <v6Lang>0</v6Lang>
+                    <v6LangP>0</v6LangP>
+                    <vShortEn>2</vShortEn>
+                    <vShortWch>2</vShortWch>
+                    <v6Lto>2</v6Lto>
+                    <v6WtE>2</v6WtE>
+                    <v6Rtti>2</v6Rtti>
+                    <VariousControls>
+                      <MiscControls></MiscControls>
+                      <Define></Define>
+                      <Undefine></Undefine>
+                      <IncludePath></IncludePath>
+                    </VariousControls>
+                  </Cads>
+                </FileArmAds>
+              </FileOption>
+            </File>
+            <File>
+              <FileName>oled.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\oled.h</FilePath>
+            </File>
+            <File>
+              <FileName>u8x8_d_ssd1306_128x64_noname.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8x8_d_ssd1306_128x64_noname.c</FilePath>
+              <FileOption>
+                <CommonProperty>
+                  <UseCPPCompiler>2</UseCPPCompiler>
+                  <RVCTCodeConst>0</RVCTCodeConst>
+                  <RVCTZI>0</RVCTZI>
+                  <RVCTOtherData>0</RVCTOtherData>
+                  <ModuleSelection>0</ModuleSelection>
+                  <IncludeInBuild>1</IncludeInBuild>
+                  <AlwaysBuild>2</AlwaysBuild>
+                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
+                  <PublicsOnly>2</PublicsOnly>
+                  <StopOnExitCode>11</StopOnExitCode>
+                  <CustomArgument></CustomArgument>
+                  <IncludeLibraryModules></IncludeLibraryModules>
+                  <ComprImg>1</ComprImg>
+                </CommonProperty>
+                <FileArmAds>
+                  <Cads>
+                    <interw>2</interw>
+                    <Optim>0</Optim>
+                    <oTime>2</oTime>
+                    <SplitLS>2</SplitLS>
+                    <OneElfS>2</OneElfS>
+                    <Strict>2</Strict>
+                    <EnumInt>2</EnumInt>
+                    <PlainCh>2</PlainCh>
+                    <Ropi>2</Ropi>
+                    <Rwpi>2</Rwpi>
+                    <wLevel>0</wLevel>
+                    <uThumb>2</uThumb>
+                    <uSurpInc>2</uSurpInc>
+                    <uC99>2</uC99>
+                    <uGnu>2</uGnu>
+                    <useXO>2</useXO>
+                    <v6Lang>0</v6Lang>
+                    <v6LangP>0</v6LangP>
+                    <vShortEn>2</vShortEn>
+                    <vShortWch>2</vShortWch>
+                    <v6Lto>2</v6Lto>
+                    <v6WtE>2</v6WtE>
+                    <v6Rtti>2</v6Rtti>
+                    <VariousControls>
+                      <MiscControls></MiscControls>
+                      <Define></Define>
+                      <Undefine></Undefine>
+                      <IncludePath></IncludePath>
+                    </VariousControls>
+                  </Cads>
+                </FileArmAds>
+              </FileOption>
+            </File>
+            <File>
+              <FileName>u8x8_byte.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8x8_byte.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8x8_cad.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8x8_cad.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8x8_gpio.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8x8_gpio.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_d_setup.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_d_setup.c</FilePath>
+              <FileOption>
+                <CommonProperty>
+                  <UseCPPCompiler>2</UseCPPCompiler>
+                  <RVCTCodeConst>0</RVCTCodeConst>
+                  <RVCTZI>0</RVCTZI>
+                  <RVCTOtherData>0</RVCTOtherData>
+                  <ModuleSelection>0</ModuleSelection>
+                  <IncludeInBuild>0</IncludeInBuild>
+                  <AlwaysBuild>2</AlwaysBuild>
+                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
+                  <PublicsOnly>2</PublicsOnly>
+                  <StopOnExitCode>11</StopOnExitCode>
+                  <CustomArgument></CustomArgument>
+                  <IncludeLibraryModules></IncludeLibraryModules>
+                  <ComprImg>1</ComprImg>
+                </CommonProperty>
+                <FileArmAds>
+                  <Cads>
+                    <interw>2</interw>
+                    <Optim>0</Optim>
+                    <oTime>2</oTime>
+                    <SplitLS>2</SplitLS>
+                    <OneElfS>2</OneElfS>
+                    <Strict>2</Strict>
+                    <EnumInt>2</EnumInt>
+                    <PlainCh>2</PlainCh>
+                    <Ropi>2</Ropi>
+                    <Rwpi>2</Rwpi>
+                    <wLevel>0</wLevel>
+                    <uThumb>2</uThumb>
+                    <uSurpInc>2</uSurpInc>
+                    <uC99>2</uC99>
+                    <uGnu>2</uGnu>
+                    <useXO>2</useXO>
+                    <v6Lang>0</v6Lang>
+                    <v6LangP>0</v6LangP>
+                    <vShortEn>2</vShortEn>
+                    <vShortWch>2</vShortWch>
+                    <v6Lto>2</v6Lto>
+                    <v6WtE>2</v6WtE>
+                    <v6Rtti>2</v6Rtti>
+                    <VariousControls>
+                      <MiscControls></MiscControls>
+                      <Define></Define>
+                      <Undefine></Undefine>
+                      <IncludePath></IncludePath>
+                    </VariousControls>
+                  </Cads>
+                </FileArmAds>
+              </FileOption>
+            </File>
+            <File>
+              <FileName>u8g2_d_memory.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_d_memory.c</FilePath>
+              <FileOption>
+                <CommonProperty>
+                  <UseCPPCompiler>2</UseCPPCompiler>
+                  <RVCTCodeConst>0</RVCTCodeConst>
+                  <RVCTZI>0</RVCTZI>
+                  <RVCTOtherData>0</RVCTOtherData>
+                  <ModuleSelection>0</ModuleSelection>
+                  <IncludeInBuild>0</IncludeInBuild>
+                  <AlwaysBuild>2</AlwaysBuild>
+                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
+                  <PublicsOnly>2</PublicsOnly>
+                  <StopOnExitCode>11</StopOnExitCode>
+                  <CustomArgument></CustomArgument>
+                  <IncludeLibraryModules></IncludeLibraryModules>
+                  <ComprImg>1</ComprImg>
+                </CommonProperty>
+                <FileArmAds>
+                  <Cads>
+                    <interw>2</interw>
+                    <Optim>0</Optim>
+                    <oTime>2</oTime>
+                    <SplitLS>2</SplitLS>
+                    <OneElfS>2</OneElfS>
+                    <Strict>2</Strict>
+                    <EnumInt>2</EnumInt>
+                    <PlainCh>2</PlainCh>
+                    <Ropi>2</Ropi>
+                    <Rwpi>2</Rwpi>
+                    <wLevel>0</wLevel>
+                    <uThumb>2</uThumb>
+                    <uSurpInc>2</uSurpInc>
+                    <uC99>2</uC99>
+                    <uGnu>2</uGnu>
+                    <useXO>2</useXO>
+                    <v6Lang>0</v6Lang>
+                    <v6LangP>0</v6LangP>
+                    <vShortEn>2</vShortEn>
+                    <vShortWch>2</vShortWch>
+                    <v6Lto>2</v6Lto>
+                    <v6WtE>2</v6WtE>
+                    <v6Rtti>2</v6Rtti>
+                    <VariousControls>
+                      <MiscControls></MiscControls>
+                      <Define></Define>
+                      <Undefine></Undefine>
+                      <IncludePath></IncludePath>
+                    </VariousControls>
+                  </Cads>
+                </FileArmAds>
+              </FileOption>
+            </File>
+            <File>
+              <FileName>u8g2_buffer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_buffer.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_setup.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_setup.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_arc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_arc.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_bitmap.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_bitmap.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_box.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_box.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_button.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_button.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_circle.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_circle.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_cleardisplay.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_cleardisplay.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_font.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_font.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_fonts.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_fonts.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_hvline.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_hvline.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_input_value.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_input_value.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_intersection.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_intersection.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_kerning.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_kerning.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_line.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_line.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_ll_hvline.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_ll_hvline.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_message.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_message.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_polygon.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_polygon.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_selection_list.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_selection_list.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8log.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8log.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8log_u8g2.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8log_u8g2.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8log_u8x8.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8log_u8x8.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8x8_8x8.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8x8_8x8.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8x8_capture.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8x8_capture.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8x8_debounce.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8x8_debounce.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8x8_display.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8x8_display.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8x8_fonts.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8x8_fonts.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8x8_input_value.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8x8_input_value.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8x8_message.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8x8_message.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8x8_selection_list.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8x8_selection_list.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8x8_setup.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8x8_setup.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8x8_string.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8x8_string.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8x8_u8toa.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8x8_u8toa.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8x8_u16toa.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8x8_u16toa.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -1284,7 +1698,7 @@
                   <RVCTZI>0</RVCTZI>
                   <RVCTOtherData>0</RVCTOtherData>
                   <ModuleSelection>0</ModuleSelection>
-                  <IncludeInBuild>1</IncludeInBuild>
+                  <IncludeInBuild>0</IncludeInBuild>
                   <AlwaysBuild>2</AlwaysBuild>
                   <GenerateAssemblyFile>2</GenerateAssemblyFile>
                   <AssembleAssemblyFile>2</AssembleAssemblyFile>
@@ -3318,6 +3732,57 @@
               <FileName>ble_bios.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\..\..\..\components\ble\ble_services\ble_bios\ble_bios.c</FilePath>
+              <FileOption>
+                <CommonProperty>
+                  <UseCPPCompiler>2</UseCPPCompiler>
+                  <RVCTCodeConst>0</RVCTCodeConst>
+                  <RVCTZI>0</RVCTZI>
+                  <RVCTOtherData>0</RVCTOtherData>
+                  <ModuleSelection>0</ModuleSelection>
+                  <IncludeInBuild>0</IncludeInBuild>
+                  <AlwaysBuild>2</AlwaysBuild>
+                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
+                  <PublicsOnly>2</PublicsOnly>
+                  <StopOnExitCode>11</StopOnExitCode>
+                  <CustomArgument></CustomArgument>
+                  <IncludeLibraryModules></IncludeLibraryModules>
+                  <ComprImg>1</ComprImg>
+                </CommonProperty>
+                <FileArmAds>
+                  <Cads>
+                    <interw>2</interw>
+                    <Optim>0</Optim>
+                    <oTime>2</oTime>
+                    <SplitLS>2</SplitLS>
+                    <OneElfS>2</OneElfS>
+                    <Strict>2</Strict>
+                    <EnumInt>2</EnumInt>
+                    <PlainCh>2</PlainCh>
+                    <Ropi>2</Ropi>
+                    <Rwpi>2</Rwpi>
+                    <wLevel>0</wLevel>
+                    <uThumb>2</uThumb>
+                    <uSurpInc>2</uSurpInc>
+                    <uC99>2</uC99>
+                    <uGnu>2</uGnu>
+                    <useXO>2</useXO>
+                    <v6Lang>0</v6Lang>
+                    <v6LangP>0</v6LangP>
+                    <vShortEn>2</vShortEn>
+                    <vShortWch>2</vShortWch>
+                    <v6Lto>2</v6Lto>
+                    <v6WtE>2</v6WtE>
+                    <v6Rtti>2</v6Rtti>
+                    <VariousControls>
+                      <MiscControls></MiscControls>
+                      <Define></Define>
+                      <Undefine></Undefine>
+                      <IncludePath></IncludePath>
+                    </VariousControls>
+                  </Cads>
+                </FileArmAds>
+              </FileOption>
             </File>
             <File>
               <FileName>ble_nus.c</FileName>
@@ -4280,11 +4745,113 @@
               <FileName>nrf_drv_uart.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\..\..\..\integration\nrfx\legacy\nrf_drv_uart.c</FilePath>
+              <FileOption>
+                <CommonProperty>
+                  <UseCPPCompiler>2</UseCPPCompiler>
+                  <RVCTCodeConst>0</RVCTCodeConst>
+                  <RVCTZI>0</RVCTZI>
+                  <RVCTOtherData>0</RVCTOtherData>
+                  <ModuleSelection>0</ModuleSelection>
+                  <IncludeInBuild>1</IncludeInBuild>
+                  <AlwaysBuild>2</AlwaysBuild>
+                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
+                  <PublicsOnly>2</PublicsOnly>
+                  <StopOnExitCode>11</StopOnExitCode>
+                  <CustomArgument></CustomArgument>
+                  <IncludeLibraryModules></IncludeLibraryModules>
+                  <ComprImg>1</ComprImg>
+                </CommonProperty>
+                <FileArmAds>
+                  <Cads>
+                    <interw>2</interw>
+                    <Optim>0</Optim>
+                    <oTime>2</oTime>
+                    <SplitLS>2</SplitLS>
+                    <OneElfS>2</OneElfS>
+                    <Strict>2</Strict>
+                    <EnumInt>2</EnumInt>
+                    <PlainCh>2</PlainCh>
+                    <Ropi>2</Ropi>
+                    <Rwpi>2</Rwpi>
+                    <wLevel>0</wLevel>
+                    <uThumb>2</uThumb>
+                    <uSurpInc>2</uSurpInc>
+                    <uC99>2</uC99>
+                    <uGnu>2</uGnu>
+                    <useXO>2</useXO>
+                    <v6Lang>0</v6Lang>
+                    <v6LangP>0</v6LangP>
+                    <vShortEn>2</vShortEn>
+                    <vShortWch>2</vShortWch>
+                    <v6Lto>2</v6Lto>
+                    <v6WtE>2</v6WtE>
+                    <v6Rtti>2</v6Rtti>
+                    <VariousControls>
+                      <MiscControls></MiscControls>
+                      <Define></Define>
+                      <Undefine></Undefine>
+                      <IncludePath></IncludePath>
+                    </VariousControls>
+                  </Cads>
+                </FileArmAds>
+              </FileOption>
             </File>
             <File>
               <FileName>nrfx_uarte.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\..\..\..\modules\nrfx\drivers\src\nrfx_uarte.c</FilePath>
+              <FileOption>
+                <CommonProperty>
+                  <UseCPPCompiler>2</UseCPPCompiler>
+                  <RVCTCodeConst>0</RVCTCodeConst>
+                  <RVCTZI>0</RVCTZI>
+                  <RVCTOtherData>0</RVCTOtherData>
+                  <ModuleSelection>0</ModuleSelection>
+                  <IncludeInBuild>1</IncludeInBuild>
+                  <AlwaysBuild>2</AlwaysBuild>
+                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
+                  <PublicsOnly>2</PublicsOnly>
+                  <StopOnExitCode>11</StopOnExitCode>
+                  <CustomArgument></CustomArgument>
+                  <IncludeLibraryModules></IncludeLibraryModules>
+                  <ComprImg>1</ComprImg>
+                </CommonProperty>
+                <FileArmAds>
+                  <Cads>
+                    <interw>2</interw>
+                    <Optim>0</Optim>
+                    <oTime>2</oTime>
+                    <SplitLS>2</SplitLS>
+                    <OneElfS>2</OneElfS>
+                    <Strict>2</Strict>
+                    <EnumInt>2</EnumInt>
+                    <PlainCh>2</PlainCh>
+                    <Ropi>2</Ropi>
+                    <Rwpi>2</Rwpi>
+                    <wLevel>0</wLevel>
+                    <uThumb>2</uThumb>
+                    <uSurpInc>2</uSurpInc>
+                    <uC99>2</uC99>
+                    <uGnu>2</uGnu>
+                    <useXO>2</useXO>
+                    <v6Lang>0</v6Lang>
+                    <v6LangP>0</v6LangP>
+                    <vShortEn>2</vShortEn>
+                    <vShortWch>2</vShortWch>
+                    <v6Lto>2</v6Lto>
+                    <v6WtE>2</v6WtE>
+                    <v6Rtti>2</v6Rtti>
+                    <VariousControls>
+                      <MiscControls></MiscControls>
+                      <Define></Define>
+                      <Undefine></Undefine>
+                      <IncludePath></IncludePath>
+                    </VariousControls>
+                  </Cads>
+                </FileArmAds>
+              </FileOption>
             </File>
           </Files>
         </Group>
@@ -4575,57 +5142,6 @@
               <FileName>app_util_platform.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\..\..\..\components\libraries\util\app_util_platform.c</FilePath>
-              <FileOption>
-                <CommonProperty>
-                  <UseCPPCompiler>0</UseCPPCompiler>
-                  <RVCTCodeConst>0</RVCTCodeConst>
-                  <RVCTZI>0</RVCTZI>
-                  <RVCTOtherData>0</RVCTOtherData>
-                  <ModuleSelection>0</ModuleSelection>
-                  <IncludeInBuild>1</IncludeInBuild>
-                  <AlwaysBuild>2</AlwaysBuild>
-                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
-                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
-                  <PublicsOnly>2</PublicsOnly>
-                  <StopOnExitCode>11</StopOnExitCode>
-                  <CustomArgument></CustomArgument>
-                  <IncludeLibraryModules></IncludeLibraryModules>
-                  <ComprImg>1</ComprImg>
-                </CommonProperty>
-                <FileArmAds>
-                  <Cads>
-                    <interw>2</interw>
-                    <Optim>0</Optim>
-                    <oTime>2</oTime>
-                    <SplitLS>2</SplitLS>
-                    <OneElfS>2</OneElfS>
-                    <Strict>2</Strict>
-                    <EnumInt>2</EnumInt>
-                    <PlainCh>2</PlainCh>
-                    <Ropi>2</Ropi>
-                    <Rwpi>2</Rwpi>
-                    <wLevel>0</wLevel>
-                    <uThumb>2</uThumb>
-                    <uSurpInc>2</uSurpInc>
-                    <uC99>2</uC99>
-                    <uGnu>2</uGnu>
-                    <useXO>2</useXO>
-                    <v6Lang>0</v6Lang>
-                    <v6LangP>0</v6LangP>
-                    <vShortEn>2</vShortEn>
-                    <vShortWch>2</vShortWch>
-                    <v6Lto>2</v6Lto>
-                    <v6WtE>2</v6WtE>
-                    <v6Rtti>2</v6Rtti>
-                    <VariousControls>
-                      <MiscControls></MiscControls>
-                      <Define></Define>
-                      <Undefine></Undefine>
-                      <IncludePath></IncludePath>
-                    </VariousControls>
-                  </Cads>
-                </FileArmAds>
-              </FileOption>
             </File>
             <File>
               <FileName>crc16.c</FileName>
@@ -4684,12 +5200,68 @@
               </FileOption>
             </File>
             <File>
+              <FileName>crc32.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\components\libraries\crc32\crc32.c</FilePath>
+              <FileOption>
+                <CommonProperty>
+                  <UseCPPCompiler>2</UseCPPCompiler>
+                  <RVCTCodeConst>0</RVCTCodeConst>
+                  <RVCTZI>0</RVCTZI>
+                  <RVCTOtherData>0</RVCTOtherData>
+                  <ModuleSelection>0</ModuleSelection>
+                  <IncludeInBuild>1</IncludeInBuild>
+                  <AlwaysBuild>2</AlwaysBuild>
+                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
+                  <PublicsOnly>2</PublicsOnly>
+                  <StopOnExitCode>11</StopOnExitCode>
+                  <CustomArgument></CustomArgument>
+                  <IncludeLibraryModules></IncludeLibraryModules>
+                  <ComprImg>1</ComprImg>
+                </CommonProperty>
+                <FileArmAds>
+                  <Cads>
+                    <interw>2</interw>
+                    <Optim>0</Optim>
+                    <oTime>2</oTime>
+                    <SplitLS>2</SplitLS>
+                    <OneElfS>2</OneElfS>
+                    <Strict>2</Strict>
+                    <EnumInt>2</EnumInt>
+                    <PlainCh>2</PlainCh>
+                    <Ropi>2</Ropi>
+                    <Rwpi>2</Rwpi>
+                    <wLevel>0</wLevel>
+                    <uThumb>2</uThumb>
+                    <uSurpInc>2</uSurpInc>
+                    <uC99>2</uC99>
+                    <uGnu>2</uGnu>
+                    <useXO>2</useXO>
+                    <v6Lang>0</v6Lang>
+                    <v6LangP>0</v6LangP>
+                    <vShortEn>2</vShortEn>
+                    <vShortWch>2</vShortWch>
+                    <v6Lto>2</v6Lto>
+                    <v6WtE>2</v6WtE>
+                    <v6Rtti>2</v6Rtti>
+                    <VariousControls>
+                      <MiscControls></MiscControls>
+                      <Define></Define>
+                      <Undefine></Undefine>
+                      <IncludePath></IncludePath>
+                    </VariousControls>
+                  </Cads>
+                </FileArmAds>
+              </FileOption>
+            </File>
+            <File>
               <FileName>fds.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\..\..\..\components\libraries\fds\fds.c</FilePath>
               <FileOption>
                 <CommonProperty>
-                  <UseCPPCompiler>0</UseCPPCompiler>
+                  <UseCPPCompiler>2</UseCPPCompiler>
                   <RVCTCodeConst>0</RVCTCodeConst>
                   <RVCTZI>0</RVCTZI>
                   <RVCTOtherData>0</RVCTOtherData>
@@ -5142,7 +5714,7 @@
                   <RVCTZI>0</RVCTZI>
                   <RVCTOtherData>0</RVCTOtherData>
                   <ModuleSelection>0</ModuleSelection>
-                  <IncludeInBuild>1</IncludeInBuild>
+                  <IncludeInBuild>0</IncludeInBuild>
                   <AlwaysBuild>2</AlwaysBuild>
                   <GenerateAssemblyFile>2</GenerateAssemblyFile>
                   <AssembleAssemblyFile>2</AssembleAssemblyFile>
@@ -5198,7 +5770,7 @@
                   <RVCTZI>0</RVCTZI>
                   <RVCTOtherData>0</RVCTOtherData>
                   <ModuleSelection>0</ModuleSelection>
-                  <IncludeInBuild>1</IncludeInBuild>
+                  <IncludeInBuild>0</IncludeInBuild>
                   <AlwaysBuild>2</AlwaysBuild>
                   <GenerateAssemblyFile>2</GenerateAssemblyFile>
                   <AssembleAssemblyFile>2</AssembleAssemblyFile>
@@ -5305,7 +5877,7 @@
               <FilePath>..\..\..\..\..\..\components\libraries\fstorage\nrf_fstorage_sd.c</FilePath>
               <FileOption>
                 <CommonProperty>
-                  <UseCPPCompiler>0</UseCPPCompiler>
+                  <UseCPPCompiler>2</UseCPPCompiler>
                   <RVCTCodeConst>0</RVCTCodeConst>
                   <RVCTZI>0</RVCTZI>
                   <RVCTOtherData>0</RVCTOtherData>
@@ -5422,7 +5994,7 @@
                   <RVCTZI>0</RVCTZI>
                   <RVCTOtherData>0</RVCTOtherData>
                   <ModuleSelection>0</ModuleSelection>
-                  <IncludeInBuild>1</IncludeInBuild>
+                  <IncludeInBuild>0</IncludeInBuild>
                   <AlwaysBuild>2</AlwaysBuild>
                   <GenerateAssemblyFile>2</GenerateAssemblyFile>
                   <AssembleAssemblyFile>2</AssembleAssemblyFile>
@@ -5534,7 +6106,7 @@
                   <RVCTZI>0</RVCTZI>
                   <RVCTOtherData>0</RVCTOtherData>
                   <ModuleSelection>0</ModuleSelection>
-                  <IncludeInBuild>1</IncludeInBuild>
+                  <IncludeInBuild>0</IncludeInBuild>
                   <AlwaysBuild>2</AlwaysBuild>
                   <GenerateAssemblyFile>2</GenerateAssemblyFile>
                   <AssembleAssemblyFile>2</AssembleAssemblyFile>
@@ -5583,6 +6155,57 @@
               <FileName>sensorsim.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\..\..\..\components\libraries\sensorsim\sensorsim.c</FilePath>
+              <FileOption>
+                <CommonProperty>
+                  <UseCPPCompiler>2</UseCPPCompiler>
+                  <RVCTCodeConst>0</RVCTCodeConst>
+                  <RVCTZI>0</RVCTZI>
+                  <RVCTOtherData>0</RVCTOtherData>
+                  <ModuleSelection>0</ModuleSelection>
+                  <IncludeInBuild>0</IncludeInBuild>
+                  <AlwaysBuild>2</AlwaysBuild>
+                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
+                  <PublicsOnly>2</PublicsOnly>
+                  <StopOnExitCode>11</StopOnExitCode>
+                  <CustomArgument></CustomArgument>
+                  <IncludeLibraryModules></IncludeLibraryModules>
+                  <ComprImg>1</ComprImg>
+                </CommonProperty>
+                <FileArmAds>
+                  <Cads>
+                    <interw>2</interw>
+                    <Optim>0</Optim>
+                    <oTime>2</oTime>
+                    <SplitLS>2</SplitLS>
+                    <OneElfS>2</OneElfS>
+                    <Strict>2</Strict>
+                    <EnumInt>2</EnumInt>
+                    <PlainCh>2</PlainCh>
+                    <Ropi>2</Ropi>
+                    <Rwpi>2</Rwpi>
+                    <wLevel>0</wLevel>
+                    <uThumb>2</uThumb>
+                    <uSurpInc>2</uSurpInc>
+                    <uC99>2</uC99>
+                    <uGnu>2</uGnu>
+                    <useXO>2</useXO>
+                    <v6Lang>0</v6Lang>
+                    <v6LangP>0</v6LangP>
+                    <vShortEn>2</vShortEn>
+                    <vShortWch>2</vShortWch>
+                    <v6Lto>2</v6Lto>
+                    <v6WtE>2</v6WtE>
+                    <v6Rtti>2</v6Rtti>
+                    <VariousControls>
+                      <MiscControls></MiscControls>
+                      <Define></Define>
+                      <Undefine></Undefine>
+                      <IncludePath></IncludePath>
+                    </VariousControls>
+                  </Cads>
+                </FileArmAds>
+              </FileOption>
             </File>
             <File>
               <FileName>nrf_twi_mngr.c</FileName>
@@ -5819,7 +6442,7 @@
                   <RVCTZI>0</RVCTZI>
                   <RVCTOtherData>0</RVCTOtherData>
                   <ModuleSelection>0</ModuleSelection>
-                  <IncludeInBuild>1</IncludeInBuild>
+                  <IncludeInBuild>0</IncludeInBuild>
                   <AlwaysBuild>2</AlwaysBuild>
                   <GenerateAssemblyFile>2</GenerateAssemblyFile>
                   <AssembleAssemblyFile>2</AssembleAssemblyFile>
@@ -5875,7 +6498,7 @@
                   <RVCTZI>0</RVCTZI>
                   <RVCTOtherData>0</RVCTOtherData>
                   <ModuleSelection>0</ModuleSelection>
-                  <IncludeInBuild>1</IncludeInBuild>
+                  <IncludeInBuild>0</IncludeInBuild>
                   <AlwaysBuild>2</AlwaysBuild>
                   <GenerateAssemblyFile>2</GenerateAssemblyFile>
                   <AssembleAssemblyFile>2</AssembleAssemblyFile>
@@ -5931,7 +6554,7 @@
                   <RVCTZI>0</RVCTZI>
                   <RVCTOtherData>0</RVCTOtherData>
                   <ModuleSelection>0</ModuleSelection>
-                  <IncludeInBuild>1</IncludeInBuild>
+                  <IncludeInBuild>0</IncludeInBuild>
                   <AlwaysBuild>2</AlwaysBuild>
                   <GenerateAssemblyFile>2</GenerateAssemblyFile>
                   <AssembleAssemblyFile>2</AssembleAssemblyFile>
@@ -6260,6 +6883,57 @@
               <FileName>mem_manager.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\..\..\..\..\components\libraries\mem_manager\mem_manager.c</FilePath>
+              <FileOption>
+                <CommonProperty>
+                  <UseCPPCompiler>2</UseCPPCompiler>
+                  <RVCTCodeConst>0</RVCTCodeConst>
+                  <RVCTZI>0</RVCTZI>
+                  <RVCTOtherData>0</RVCTOtherData>
+                  <ModuleSelection>0</ModuleSelection>
+                  <IncludeInBuild>0</IncludeInBuild>
+                  <AlwaysBuild>2</AlwaysBuild>
+                  <GenerateAssemblyFile>2</GenerateAssemblyFile>
+                  <AssembleAssemblyFile>2</AssembleAssemblyFile>
+                  <PublicsOnly>2</PublicsOnly>
+                  <StopOnExitCode>11</StopOnExitCode>
+                  <CustomArgument></CustomArgument>
+                  <IncludeLibraryModules></IncludeLibraryModules>
+                  <ComprImg>1</ComprImg>
+                </CommonProperty>
+                <FileArmAds>
+                  <Cads>
+                    <interw>2</interw>
+                    <Optim>0</Optim>
+                    <oTime>2</oTime>
+                    <SplitLS>2</SplitLS>
+                    <OneElfS>2</OneElfS>
+                    <Strict>2</Strict>
+                    <EnumInt>2</EnumInt>
+                    <PlainCh>2</PlainCh>
+                    <Ropi>2</Ropi>
+                    <Rwpi>2</Rwpi>
+                    <wLevel>0</wLevel>
+                    <uThumb>2</uThumb>
+                    <uSurpInc>2</uSurpInc>
+                    <uC99>2</uC99>
+                    <uGnu>2</uGnu>
+                    <useXO>2</useXO>
+                    <v6Lang>0</v6Lang>
+                    <v6LangP>0</v6LangP>
+                    <vShortEn>2</vShortEn>
+                    <vShortWch>2</vShortWch>
+                    <v6Lto>2</v6Lto>
+                    <v6WtE>2</v6WtE>
+                    <v6Rtti>2</v6Rtti>
+                    <VariousControls>
+                      <MiscControls></MiscControls>
+                      <Define></Define>
+                      <Undefine></Undefine>
+                      <IncludePath></IncludePath>
+                    </VariousControls>
+                  </Cads>
+                </FileArmAds>
+              </FileOption>
             </File>
           </Files>
         </Group>
@@ -6277,7 +6951,7 @@
                   <RVCTZI>0</RVCTZI>
                   <RVCTOtherData>0</RVCTOtherData>
                   <ModuleSelection>0</ModuleSelection>
-                  <IncludeInBuild>1</IncludeInBuild>
+                  <IncludeInBuild>0</IncludeInBuild>
                   <AlwaysBuild>2</AlwaysBuild>
                   <GenerateAssemblyFile>2</GenerateAssemblyFile>
                   <AssembleAssemblyFile>2</AssembleAssemblyFile>
@@ -6333,7 +7007,7 @@
                   <RVCTZI>0</RVCTZI>
                   <RVCTOtherData>0</RVCTOtherData>
                   <ModuleSelection>0</ModuleSelection>
-                  <IncludeInBuild>1</IncludeInBuild>
+                  <IncludeInBuild>0</IncludeInBuild>
                   <AlwaysBuild>2</AlwaysBuild>
                   <GenerateAssemblyFile>2</GenerateAssemblyFile>
                   <AssembleAssemblyFile>2</AssembleAssemblyFile>
@@ -6389,7 +7063,7 @@
                   <RVCTZI>0</RVCTZI>
                   <RVCTOtherData>0</RVCTOtherData>
                   <ModuleSelection>0</ModuleSelection>
-                  <IncludeInBuild>1</IncludeInBuild>
+                  <IncludeInBuild>0</IncludeInBuild>
                   <AlwaysBuild>2</AlwaysBuild>
                   <GenerateAssemblyFile>2</GenerateAssemblyFile>
                   <AssembleAssemblyFile>2</AssembleAssemblyFile>
@@ -6445,7 +7119,7 @@
                   <RVCTZI>0</RVCTZI>
                   <RVCTOtherData>0</RVCTOtherData>
                   <ModuleSelection>0</ModuleSelection>
-                  <IncludeInBuild>1</IncludeInBuild>
+                  <IncludeInBuild>0</IncludeInBuild>
                   <AlwaysBuild>2</AlwaysBuild>
                   <GenerateAssemblyFile>2</GenerateAssemblyFile>
                   <AssembleAssemblyFile>2</AssembleAssemblyFile>
@@ -6501,7 +7175,7 @@
                   <RVCTZI>0</RVCTZI>
                   <RVCTOtherData>0</RVCTOtherData>
                   <ModuleSelection>0</ModuleSelection>
-                  <IncludeInBuild>1</IncludeInBuild>
+                  <IncludeInBuild>0</IncludeInBuild>
                   <AlwaysBuild>2</AlwaysBuild>
                   <GenerateAssemblyFile>2</GenerateAssemblyFile>
                   <AssembleAssemblyFile>2</AssembleAssemblyFile>
@@ -6557,7 +7231,7 @@
                   <RVCTZI>0</RVCTZI>
                   <RVCTOtherData>0</RVCTOtherData>
                   <ModuleSelection>0</ModuleSelection>
-                  <IncludeInBuild>1</IncludeInBuild>
+                  <IncludeInBuild>0</IncludeInBuild>
                   <AlwaysBuild>2</AlwaysBuild>
                   <GenerateAssemblyFile>2</GenerateAssemblyFile>
                   <AssembleAssemblyFile>2</AssembleAssemblyFile>
@@ -7541,6 +8215,216 @@
               <FileType>1</FileType>
               <FilePath>.\bp_wrapper.c</FilePath>
             </File>
+            <File>
+              <FileName>oled.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\oled.c</FilePath>
+            </File>
+            <File>
+              <FileName>oled.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\oled.h</FilePath>
+            </File>
+            <File>
+              <FileName>u8x8_d_ssd1306_128x64_noname.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8x8_d_ssd1306_128x64_noname.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8x8_byte.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8x8_byte.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8x8_cad.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8x8_cad.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8x8_gpio.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8x8_gpio.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_d_setup.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_d_setup.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_d_memory.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_d_memory.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_buffer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_buffer.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_setup.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_setup.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_arc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_arc.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_bitmap.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_bitmap.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_box.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_box.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_button.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_button.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_circle.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_circle.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_cleardisplay.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_cleardisplay.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_font.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_font.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_fonts.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_fonts.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_hvline.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_hvline.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_input_value.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_input_value.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_intersection.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_intersection.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_kerning.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_kerning.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_line.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_line.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_ll_hvline.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_ll_hvline.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_message.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_message.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_polygon.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_polygon.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8g2_selection_list.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8g2_selection_list.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8log.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8log.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8log_u8g2.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8log_u8g2.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8log_u8x8.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8log_u8x8.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8x8_8x8.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8x8_8x8.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8x8_capture.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8x8_capture.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8x8_debounce.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8x8_debounce.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8x8_display.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8x8_display.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8x8_fonts.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8x8_fonts.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8x8_input_value.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8x8_input_value.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8x8_message.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8x8_message.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8x8_selection_list.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8x8_selection_list.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8x8_setup.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8x8_setup.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8x8_string.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8x8_string.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8x8_u8toa.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8x8_u8toa.c</FilePath>
+            </File>
+            <File>
+              <FileName>u8x8_u16toa.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\external\u8g2\u8x8_u16toa.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -10363,6 +11247,11 @@
                   </Cads>
                 </FileArmAds>
               </FileOption>
+            </File>
+            <File>
+              <FileName>crc32.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\..\..\..\components\libraries\crc32\crc32.c</FilePath>
             </File>
             <File>
               <FileName>fds.c</FileName>
