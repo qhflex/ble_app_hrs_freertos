@@ -58,6 +58,7 @@
 
 #include "nrfx_systick.h"
 #include "nrfx_uart.h"
+#include "nrfx_saadc.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -410,19 +411,41 @@ static uint8_t CRC8(uint8_t *buf, int length)
   return result;
 }
 
-#define OW_CHECK(x)             if ((ret = x) < 0) { goto fail; }                  
+#define OW_CHECK(x)             if ((ret = x) < 0) { goto fail; }           
+void saadc_callback(nrfx_saadc_evt_t const * p_event) {};
+    
+typedef struct __attribute__((packed)) ble_adc_pac
+{
+    uint16_t    len;
+    uint8_t     type;           // 5
+    uint8_t     seq;            // not used
+    uint8_t		resolution;		// 0 8bit, [1 10bit], 2 12bit, 3 14bit
+    uint8_t 	oversample;		// 0, 1 2x, 2 4x, 3 8x, ...
+	uint16_t	value;			// 
+} ble_adc_pac_t;
+
+STATIC_ASSERT(sizeof(ble_adc_pac_t) == 8);
 
 void owuart_task(void * pvParameters)
 {
     int ret;
     
+    // see NRFX_SAADC_ENABLED section in sdk_config.h
+    // !!! noticing there are both SAADC_ENABLED and NRFX_SAADC_ENABLED
+    // https://devzone.nordicsemi.com/f/nordic-q-a/88240/nrfx_check-nrfx_saadc_enabled-doesn-t-find-nrfx_saadc_enabled-although-set-to-1-in-sdk_config-h-sdk_17-0-2
+    nrfx_saadc_config_t saadc_config = NRFX_SAADC_DEFAULT_CONFIG;
+    
+    ret = nrfx_saadc_init(&saadc_config, saadc_callback);
+    APP_ERROR_CHECK(ret);
+
+    // PRJ-IFET-RAPM-V1.0.pdf
+    // VBAT ---- 1M resistor ---- VADC-P0.28/AIN4 ---- 300K resistor ---- GND
+    nrf_saadc_channel_config_t saadc_channel_config = NRFX_SAADC_DEFAULT_CHANNEL_CONFIG_SE(NRF_SAADC_INPUT_AIN4);
+    ret = nrfx_saadc_channel_init(0, &saadc_channel_config);
+    APP_ERROR_CHECK(ret);
+   
+    
     onewire_probe();
-    
-//    for (int i = 0;; i++)
-//    {
-//        vTaskDelay(1024);
-//    }
-    
     m_m601z_packet_helper.num_of_devices = m_device_count;
     m_m601z_packet_helper.p_serial = &m_device_serial;
     
@@ -431,6 +454,31 @@ void owuart_task(void * pvParameters)
     for (int n = 0;;n++)
     {
         vTaskDelay(2000);
+        
+        nrf_saadc_value_t saadc_value;
+        if (NRFX_SUCCESS == nrfx_saadc_sample_convert(0, &saadc_value))
+        {
+            SEGGER_RTT_printf(0, "adc %d\r\n", saadc_value);
+            if (ble_nus_tx_running())
+            {
+                ble_nus_tx_buf_t* buf = ble_nus_tx_alloc();
+                if (buf) 
+                {
+                    ble_adc_pac_t *pac = (ble_adc_pac_t *)buf;
+                    pac->len = sizeof(ble_adc_pac_t) - sizeof(uint16_t);
+                    pac->type = 5;
+                    pac->seq = 0;
+                    pac->resolution = NRFX_SAADC_CONFIG_RESOLUTION;
+                    pac->oversample = NRFX_SAADC_CONFIG_OVERSAMPLE;
+                    pac->value = saadc_value;
+                    ble_nus_tx_send(buf);
+                }
+                else
+                {
+                    SEGGER_RTT_printf(0, "nus tx no available buffer?\r\n");
+                }                
+            }
+        }        
         
         for (int j = 0; j < m_device_count; j++)
         {
