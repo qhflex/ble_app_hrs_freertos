@@ -449,9 +449,6 @@ void Hard_Start_ReStart_ADS1x9x(void)
 
 void Soft_Start_ADS1x9x(void)
 {
-#if 0
-  ADS1x9x_SPI_Command_Data (START);                   // Send 0x0A to the ADS1x9x
-#endif
   ADS1x9x_SPI_Command_Data(ADS1292R_CMD_START);       // Send 0x08 to the ADS1x9x
   NRF_LOG_INFO("[ads1292r] start cmd sent");
 }
@@ -893,8 +890,7 @@ static void ads1292r_task(void * pvParameters)
     int rog_sbPeak;
     int rog_hr;
     int rog_hr_sum = 0;
-
-    // int rog_last_hr = 255;
+    int rog_last_hr = 255;
 
     for (int i = 0;;i++)
     {
@@ -980,6 +976,7 @@ static void ads1292r_task(void * pvParameters)
                 rog_qrs_count++;
             }
             
+            rog_last_hr = rog_hr;
             rog_hr_sum += rog_hr;
 
 //            m_packet_helper.p_brief->heart_rate = rog_hr;
@@ -996,7 +993,11 @@ static void ads1292r_task(void * pvParameters)
         // sample tlv is ready
         if (m_packet_helper.num_of_samples == ADS129X_NUM_OF_SAMPLES)
         {
-            int hr = 133; // rog_hr_sum / ADS129X_NUM_OF_SAMPLES;
+            // SEGGER_RTT_printf(0, "ecg hr, last: %d, avg: %d\r\n", rog_last_hr, rog_hr_sum / ADS129X_NUM_OF_SAMPLES);
+            // int hr = 19;
+            int hr = rog_last_hr; 
+            // int hr = rog_hr_sum / ADS129X_NUM_OF_SAMPLES;
+            
             rog_hr_sum = 0;
             
             m_packet_helper.p_brief->heart_rate = hr;
