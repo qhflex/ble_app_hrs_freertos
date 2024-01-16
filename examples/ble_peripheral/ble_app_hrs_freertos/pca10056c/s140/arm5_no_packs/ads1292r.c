@@ -49,23 +49,6 @@ NRF_SPI_MNGR_DEF(m_nrf_spi_mngr, MAX_PENDING_TRANSACTIONS, SPI_INSTANCE_ID);
 static void ads1292r_cs_low(void);
 static void ads1292r_cs_high(void);
 
-#if 0
-static unsigned int parse_24bit_unsigned_be(const uint8_t octet[3])
-{
-  return (((uint32_t)octet[0]) << 16)
-       + (((uint32_t)octet[1]) <<  8)
-       + (((uint32_t)octet[2]) <<  0);
-}
-
-static          int parse_24bit___signed_be(const uint8_t octet[3])
-{
-  uint32_t u = (((uint32_t)octet[0]) << 24)
-             + (((uint32_t)octet[1]) << 16)
-             + (((uint32_t)octet[2]) <<  8);
-  return ((int32_t)u) >> 8;
-}
-#endif
-
 // a rdatac sample, 9 bytes
 typedef struct __attribute__((packed)) rdatac_record
 {
@@ -331,17 +314,6 @@ void ADS1x9x_Clock_Select(unsigned char clock_in);
 // it seems that ads-rst is not used in custom board.
 void ADS1x9x_Reset(void)
 {
-#if 0
-  unsigned short i;
-  P8OUT |= (enum PORT8_ADC_CONTROL)ADC_RESET;         // Set High
-  /* Provide suficient dealy*/
-  for(i= 0;   i < 5000; i++);                         // Wait 1 mSec
-  P8OUT &= ~(enum PORT8_ADC_CONTROL)ADC_RESET;        // Set to low
-  for(i= 0;   i < 5000; i++);                         // Wait 1 mSec
-  P8OUT |= (enum PORT8_ADC_CONTROL)ADC_RESET;         // Set High
-  for(i= 0;   i < 35000; i++);
-#endif
-
 #if defined(ADS1292R_RESET_PIN)
   nrfx_gpiote_out_set(ADS1292R_RESET_PIN);
   vTaskDelay(32);
@@ -356,12 +328,6 @@ void ADS1x9x_Reset(void)
 // not tested
 void ADS1x9x_Disable_Start(void)
 {
-#if 0
-  unsigned short i;
-  P8OUT &= ~(enum PORT8_ADC_CONTROL)ADC_START;        // Set to LOW
-  for(i=0; i<35000; i++);                             // Small Delay to settle
-#endif
-
 #if defined(ADS1292R_START_PIN)
   nrfx_gpiote_out_clear(ADS1292R_START_PIN);
   vTaskDelay(32); // 31.25ms
@@ -372,12 +338,6 @@ void ADS1x9x_Disable_Start(void)
 // not tested
 void ADS1x9x_Enable_Start(void)
 {
-#if 0
-  unsigned short i;
-  P8OUT |= (enum PORT8_ADC_CONTROL)ADC_START;         // Set to High
-  for(i=0; i<50000; i++);                             // Small Delay to settle
-#endif
-
 #if defined(ADS1292R_START_PIN)
   nrfx_gpiote_out_set(ADS1292R_START_PIN);
   vTaskDelay(32);
@@ -387,106 +347,43 @@ void ADS1x9x_Enable_Start(void)
 // this may not be used for spi config with cs
 void Set_ADS1x9x_Chip_Enable(void)
 {
-#if 0
-  /* ADS1x9x CS is Active low*/
-  P8OUT &= ~(enum PORT8_ADC_CONTROL)ADC_CS;           // Set to LOW
-#endif
   ads1292r_cs_low();
 }
 
 // this may not be usd for spi config with cs
 void Clear_ADS1x9x_Chip_Enable (void)
 {
-#if 0
-unsigned char CsDelay;
-
-for ( CsDelay = 0;  CsDelay < 100 ;CsDelay++);
-/* ADS1x9x CS is Active low*/
-P8OUT |= (enum PORT8_ADC_CONTROL)ADC_CS;              // Set to High
-#endif
   ads1292r_cs_high();
 }
 
 void Init_ADS1x9x_DRDY_Interrupt (void)
 {
-#if 0
-P1DIR &= ~0x02;
-P1REN |= BIT1;                                // Enable P1.1 internal resistance
-P1OUT |= BIT1;                                // Set P1.1 as pull-Up resistance
-P1IES |= BIT1;                                // P1.1 Lo/Hi edge
-P1IFG &= ~BIT1;                               // P1.1 IFG cleared
-P1IE &= ~BIT1;                                // P1.1 interrupt disabled
-#endif
 }
+
 /**********************************************************************************************************
 * Enable_ADS1x9x_DRDY_Interrupt                                                                                                                                   *
 **********************************************************************************************************/
 void Enable_ADS1x9x_DRDY_Interrupt (void)
 {
-#if 0
-P1IFG &= ~BIT1;                               // P1.1 IFG cleared
-P1IE |= BIT1;                                 // P1.1 interrupt enabled
-#endif
 }
+
 /**********************************************************************************************************
 * Disable_ADS1x9x_DRDY_Interrupt                                                                                                                                          *
 **********************************************************************************************************/
 void Disable_ADS1x9x_DRDY_Interrupt (void)
 {
-#if 0
-P1IFG &= ~BIT1;                               // P1.1 IFG cleared
-P1IE &= ~BIT1;                                // P1.1 interrupt disabled
-#endif
 }
 
 void Set_GPIO(void)
 {
-#if 0
-P2SEL = 0x00;
-P2DIR |= 0x8F;
-P2OUT |= (enum PORT2_ADC_CONTROL)POW_CE;
-P8DIR |= 0x07;
-P8OUT &= 0xF8;
-P8OUT |= (enum PORT8_ADC_CONTROL)ADC_CS;      // Set RESET, START to Low and CS to High
-P8OUT |= (enum PORT8_ADC_CONTROL)ADC_RESET;   // Set RESET, START to Low and CS to High
-P2OUT = 0x03;
-//dataCnt = 0;
-#endif
 }
 
 void Set_UCB0_SPI(void)
 {
-#if 0
-P3SEL |= BIT2+BIT1+BIT0;                      // Set SPI peripheral bits
-P3DIR |= BIT0+BIT2;                           // Clock and DOUT as output
-P3DIR &= ~BIT1;                               // Din as input
-UCB0CTL1 |= UCSWRST;                          // Enable SW reset
-UCB0CTL0 |= UCMSB+UCMST+UCSYNC;               // [b0]   1 -  Synchronous mode
-                                              // [b2-1] 00-  3-pin SPI
-                                              // [b3]   1 -  Master mode
-                                              // [b4]   0 - 8-bit data
-                                              // [b5]   1 - MSB first
-                                              // [b6]   0 - Clock polarity low.
-                                              // [b7]   1 - Clock phase - Data is captured on the first UCLK edge and chan  ged on the following edge.
-
-UCB0CTL1 |= UCSSEL__ACLK;                     // ACLK
-UCB0BR0 = 24;                                 // 1 MHz
-UCB0BR1 = 0;                                  //
-UCB0CTL1 &= ~UCSWRST;                         // Clear SW reset, resume operation
-#endif
 }
 
 void Set_DMA_SPI(void)
 {
-#if 0
-DMACTL0 = DMA0TSEL_12;                                        // USCI_B0 Transmit Ready Trigger
-//DMA0SA = (void (*)())&UCB0RXBUF;                            // Source block address
-//DMA0DA = (void (*)())ADC_Read_data;                         // Destination single address
-DMA0SZ = 16;                                                  // Block size
-DMA0CTL = DMADT_4 + DMADSTINCR_3 + DMADSTBYTE + DMASRCBYTE;
-                                                              // Rpt, inc src, byte-byte
-DMA0CTL |= DMAEN;                                             // Enable DMA for consecutive Xfers
-#endif
 }
 
 /*
@@ -496,21 +393,6 @@ DMA0CTL |= DMAEN;                                             // Enable DMA for 
  */
 void ADS1x9x_SPI_Command_Data(unsigned char Data)
 {
-#if 0
-unsigned char delayVar;
-Set_ADS1x9x_Chip_Enable();
-for (delayVar = 0; delayVar < 50; delayVar++);
-Clear_ADS1x9x_Chip_Enable();
-Set_ADS1x9x_Chip_Enable();
-
-UCB0TXBUF = Data;                                     // Send the data sitting at the pointer DATA to the TX Buffer
-while ( (UCB0STAT & UCBUSY) );
-
-delayVar = UCB0RXBUF;
-
-for (delayVar = 0; delayVar < 150; delayVar++);
-#endif
-
   ads1292r_cs_low();
   vTaskDelay(2);
   ads1292r_cs_high();
@@ -525,34 +407,20 @@ for (delayVar = 0; delayVar < 150; delayVar++);
   };
 
   APP_ERROR_CHECK(nrf_spi_mngr_perform(&m_nrf_spi_mngr, NULL, xfers, sizeof(xfers) / sizeof(xfers[0]), NULL));
-
-  // vTaskDelay(2);
-  // ads1292r_cs_high();
 }
 
 void Init_ADS1x9x_Resource(void)
 {
-#if 0
-Set_GPIO();                                           // Initializes ADS1x9x's input control lines
-Set_UCB0_SPI();                                       // Initialize SPI regs.
-//Set_DMA_SPI();                                      // Initialize DMA regs for SPI.
-#endif
 }
 
 void Wake_Up_ADS1x9x(void)
 {
-#if 0
-  ADS1x9x_SPI_Command_Data (WAKEUP);                  // Send 0x02 to the ADS1x9x
-#endif
   ADS1x9x_SPI_Command_Data(ADS1292R_CMD_WAKEUP);      // Send 0x02 to the ADS1x9x
   NRF_LOG_INFO("[ads1292r] wakeup cmd sent");
 }
 
 void Put_ADS1x9x_In_Sleep(void)
 {
-#if 0
-  ADS1x9x_SPI_Command_Data (STANDBY);                 // Send 0x04 to the ADS1x9x
-#endif
   ADS1x9x_SPI_Command_Data(ADS1292R_CMD_STANDBY);     // Send 0x04 to the ADS1x9x
   NRF_LOG_INFO("[ads1292r] standby cmd sent");
 }
@@ -568,10 +436,6 @@ void Soft_Reset_ADS1x9x(void)
 
 void Soft_Start_ReStart_ADS1x9x(void)
 {
-#if 0
-  ADS1x9x_SPI_Command_Data (START);                   // Send 0x08 to the ADS1x9x
-  Clear_ADS1x9x_Chip_Enable ();
-#endif
   ADS1x9x_SPI_Command_Data(ADS1292R_CMD_START);       // Send 0x08 to the ADS1x9x
   vTaskDelay(2);
   ads1292r_cs_high();
@@ -580,9 +444,6 @@ void Soft_Start_ReStart_ADS1x9x(void)
 
 void Hard_Start_ReStart_ADS1x9x(void)
 {
-#if 0
-  P8OUT |= (enum PORT8_ADC_CONTROL)ADC_START;         // Set Start pin to High
-#endif
   ADS1x9x_Enable_Start();
 }
 
@@ -597,9 +458,6 @@ void Soft_Start_ADS1x9x(void)
 
 void Soft_Stop_ADS1x9x (void)
 {
-#if 0
-  ADS1x9x_SPI_Command_Data (STOP);                   // Send 0x0A to the ADS1x9x
-#endif
   ADS1x9x_SPI_Command_Data(ADS1292R_CMD_STOP);       // Send 0x0A to the ADS1x9x
   NRF_LOG_INFO("[ads1292r] stop cmd sent");
 }
@@ -608,40 +466,23 @@ void Soft_Stop_ADS1x9x (void)
 // but we don't need to delay more.
 void Hard_Stop_ADS1x9x (void)
 {
-#if 0
-  unsigned short i, j;
-  P8OUT &= ~(enum PORT8_ADC_CONTROL)ADC_START;      // Set Start pin to Low
-  for (j = 0; j < DELAY_COUNT; j++)
-  {
-    for ( i=0; i < 35000; i++);
-  }
-#endif
   ADS1x9x_Disable_Start();
 }
 
 void Stop_Read_Data_Continuous (void)
 {
-#if 0
-  ADS1x9x_SPI_Command_Data(SDATAC);                 // Send 0x11 to the ADS1x9x
-#endif
   ADS1x9x_SPI_Command_Data(ADS1292R_CMD_SDATAC);    // Send 0x11 to the ADS1x9x
   NRF_LOG_INFO("[ads1292r] sdatac (stop read data continuously) cmd sent");
 }
 
 void Start_Read_Data_Continuous (void)
 {
-#if 0
-  ADS1x9x_SPI_Command_Data (RDATAC);                // Send 0x10 to the ADS1x9x
-#endif
   ADS1x9x_SPI_Command_Data(ADS1292R_CMD_RDATAC);    // Send 0x10 to the ADS1x9x
   NRF_LOG_INFO("[ads1292r] rdatac (read data continuouesly) cmd sent");
 }
 
 void Start_Data_Conv_Command (void)
 {
-#if 0
-  ADS1x9x_SPI_Command_Data (START);                 // Send 0x08 to the ADS1x9x
-#endif
   Soft_Start_ADS1x9x();
 }
 
@@ -652,80 +493,14 @@ void Stop_Data_Conv_Command (void)
 
 void Init_ADS1x9x (void)
 {
-#if 0
-  ADS1x9x_Reset();
-  ADS1x9x_Disable_Start();
-  ADS1x9x_Enable_Start();
-#endif
 }
 
 void enable_ADS1x9x_Conversion (void)
 {
-#if 0
-  Start_Read_Data_Continuous ();              //RDATAC command
-  Hard_Start_ReStart_ADS1x9x();
-#endif
 }
 
 void ADS1x9x_Reg_Write (unsigned char READ_WRITE_ADDRESS, unsigned char DATA)
 {
-#if 0
-  short i;
-  switch (READ_WRITE_ADDRESS)
-  {
-    case 1:
-            DATA = DATA & 0x87;
-    break;
-    case 2:
-            DATA = DATA & 0xFB;
-            DATA |= 0x80;
-
-    break;
-    case 3:
-            DATA = DATA & 0xFD;
-            DATA |= 0x10;
-
-    break;
-    case 7:
-            DATA = DATA & 0x3F;
-    break;
-    case 8:
-            DATA = DATA & 0x5F;
-    break;
-    case 9:
-            DATA |= 0x02;
-    break;
-    case 10:
-            DATA = DATA & 0x87;
-            DATA |= 0x01;
-    break;
-    case 11:
-            DATA = DATA & 0x0F;
-    break;
-
-    default:
-
-    break;
-  }
-  SPI_Tx_buf[0] = READ_WRITE_ADDRESS | WREG;
-  SPI_Tx_buf[1] = 0;                      // Write Single byte
-  SPI_Tx_buf[2] = DATA;                   // Write Single byte
-  Set_ADS1x9x_Chip_Enable();
-
-  for ( i =0; i < 50;i++);
-
-  UCB0TXBUF = SPI_Tx_buf[0];              // Send the first data to the TX Buffer
-  while ( (UCB0STAT & UCBUSY) );          // USCI_B0 TX buffer ready?
-  i = UCB0RXBUF;                          // Read Rx buf
-
-  UCB0TXBUF = SPI_Tx_buf[1];              // Send the first data to the TX Buffer
-  while ( (UCB0STAT & UCBUSY) );          // USCI_B0 TX buffer ready?
-  i = UCB0RXBUF;
-  UCB0TXBUF = SPI_Tx_buf[2];              // Send the first data to the TX Buffer
-  while ( (UCB0STAT & UCBUSY) );          // USCI_B0 TX buffer ready?
-  i = UCB0RXBUF;
-#endif
-
   // short i;
   switch (READ_WRITE_ADDRESS)
   {
@@ -784,51 +559,15 @@ void ADS1x9x_Reg_Write (unsigned char READ_WRITE_ADDRESS, unsigned char DATA)
 
 unsigned char ADS1x9x_Reg_Read(unsigned char Reg_address)
 {
-#if 0
-  unsigned char retVal;
-  SPI_Tx_buf[0] = Reg_address | RREG;
-  SPI_Tx_buf[1] = 0;                          // Read number of bytes - 1
-
-  Set_ADS1x9x_Chip_Enable();                  // Set chip select to low
-
-  UCB0TXBUF = SPI_Tx_buf[0];                  // Send the first data to the TX Buffer
-  while ( (UCB0STAT & UCBUSY) );              // USCI_B0 TX buffer ready?
-  UCB0TXBUF = SPI_Tx_buf[1];                  // Send the first data to the TX Buffer
-  while ( (UCB0STAT & UCBUSY) );              // USCI_B0 TX buffer ready?
-  retVal = UCB0RXBUF;                         // Read RX buff
-  UCB0TXBUF = 0x00;                           // Send the first data to the TX Buffer
-  while ( (UCB0STAT & UCBUSY) );              // USCI_B0 TX buffer ready?
-  retVal = UCB0RXBUF;                         // Read RX buff
-
-  Clear_ADS1x9x_Chip_Enable();                // Disable chip select
-  return  retVal;
-#endif
-
-  // unsigned char retVal;
-
   Set_ADS1x9x_Chip_Enable();                  // Set chip select to low
 
   txbuf[0] = Reg_address | ADS1292R_CMD_RREG;
   txbuf[1] = 0;                               // read number is 0 + 1;
 
-//  rxbuf[0] = 0xa5;
-//  rxbuf[1] = 0xa6;
-//  rxbuf[2] = 0xa7;
-
   nrf_spi_mngr_transfer_t xfers[] =
   {
     NRF_SPI_MNGR_TRANSFER(txbuf, 2, rxbuf, 3)
   };
-
-//  nrf_spi_mngr_transaction_t transaction_1 =
-//  {
-//    .begin_callback = NULL,
-//    .end_callback = NULL,
-//    .p_user_data = (void *)0,
-//    .p_transfers = xfers,
-//    .number_of_transfers = sizeof(xfers) / sizeof(xfers[0]),
-//    .p_required_spi_cfg = NULL
-//  };
 
   APP_ERROR_CHECK(nrf_spi_mngr_perform(&m_nrf_spi_mngr, NULL, xfers, sizeof(xfers) / sizeof(xfers[0]), NULL));
   NRF_LOG_INFO("[ads1292r] read reg: %d, ret %d", Reg_address, rxbuf[2]);
@@ -838,28 +577,6 @@ unsigned char ADS1x9x_Reg_Read(unsigned char Reg_address)
 
 void ADS1x9x_Default_Reg_Init(void)
 {
-#if 0
-  unsigned char Reg_Init_i;
-  Set_ADS1x9x_Chip_Enable();
-  for ( Reg_Init_i =0; Reg_Init_i <100;Reg_Init_i++);
-  Clear_ADS1x9x_Chip_Enable();
-
-  if ((ADS1x9xRegVal[0] & 0X20) == 0x20)
-  {
-    for ( Reg_Init_i = 1; Reg_Init_i < 12; Reg_Init_i++)
-    {
-      ADS1x9x_Reg_Write(Reg_Init_i,ADS1x9xR_Default_Register_Settings[Reg_Init_i]);
-    }
-  }
-  else
-  {
-    for ( Reg_Init_i = 1; Reg_Init_i < 12; Reg_Init_i++)
-    {
-      ADS1x9x_Reg_Write(Reg_Init_i,ADS1x9x_Default_Register_Settings[Reg_Init_i]);
-    }
-  }
-#endif
-
   unsigned char Reg_Init_i;
 
   Set_ADS1x9x_Chip_Enable();
@@ -896,46 +613,6 @@ void ADS1x9x_Read_All_Regs(unsigned char ADS1x9xeg_buf[])
  */
 void ADS1x9x_PowerOn_Init(void)
 {
-#if 0
-  volatile unsigned short Init_i, j;
-  Init_ADS1x9x_Resource();
-  ADS1x9x_Reset();
-  for (j = 0; j < DELAY_COUNT; j++)
-  {
-    for ( Init_i =0; Init_i < 20000; Init_i++);
-    for ( Init_i =0; Init_i < 20000; Init_i++);
-    for ( Init_i =0; Init_i < 20000; Init_i++);
-  }
-  Init_ADS1x9x_DRDY_Interrupt();
-  ADS1x9x_Clock_Select(1);             // Set internal clock
-  for ( Init_i =0; Init_i < 20000; Init_i++);
-  for ( Init_i =0; Init_i < 20000; Init_i++);
-  for ( Init_i =0; Init_i < 20000; Init_i++);
-  ADS1x9x_Disable_Start();
-  ADS1x9x_Enable_Start();
-
-  Hard_Stop_ADS1x9x();
-  Start_Data_Conv_Command();
-  Soft_Stop_ADS1x9x();
-
-  for (j = 0; j < DELAY_COUNT; j++)
-  {
-    for ( Init_i =0; Init_i < 20000; Init_i++);
-  }
-  Stop_Read_Data_Continuous();                                 // SDATAC command
-  for (j = 0; j < DELAY_COUNT; j++)
-  {
-    for ( Init_i =0; Init_i < 35000; Init_i++);
-  }
-  for (j = 0; j < DELAY_COUNT; j++)
-  {
-    for ( Init_i =0; Init_i < 35000; Init_i++);
-  }
-  ADS1x9x_Read_All_Regs(ADS1x9xRegVal);
-  ADS1x9x_Default_Reg_Init();
-  ADS1x9x_Read_All_Regs(ADS1x9xRegVal);
-#endif
-
   ADS1x9x_Reset();
   // clock select omitted
   ADS1x9x_Disable_Start();
@@ -950,155 +627,24 @@ void ADS1x9x_PowerOn_Init(void)
   ADS1x9x_Read_All_Regs(ADS1x9xRegVal);
   ADS1x9x_Default_Reg_Init();
   ADS1x9x_Read_All_Regs(ADS1x9xRegVal);
-
-  // memcpy(&packet_buffer.regval[0], ADS1x9xRegVal, 12);
 }
 
 void ADS1292x_Parse_data_packet(void)
 {
-#if 0
-  unsigned char ECG_Chan_num;
-  switch (ECG_Recoder_state.state)
-  {
-  case DATA_STREAMING_STATE:
-    {
-      for (ECG_Chan_num = 0; ECG_Chan_num < 3; ECG_Chan_num++)
-      {
-        ADS1x9x_ECG_Data_buf[ECG_Chan_num] = (signed long)SPI_Rx_buf[3*ECG_Chan_num];
-        ADS1x9x_ECG_Data_buf[ECG_Chan_num] = ADS1x9x_ECG_Data_buf[ECG_Chan_num] << 8;
-        ADS1x9x_ECG_Data_buf[ECG_Chan_num] |= SPI_Rx_buf[3*ECG_Chan_num+1];
-        ADS1x9x_ECG_Data_buf[ECG_Chan_num] = ADS1x9x_ECG_Data_buf[ECG_Chan_num] << 8;
-        ADS1x9x_ECG_Data_buf[ECG_Chan_num] |= SPI_Rx_buf[3*ECG_Chan_num+2];
-      }
-    }
-    break;
-  case ACQUIRE_DATA_STATE:
-  case ECG_RECORDING_STATE:
-    {
-      unsigned char *ptr;
-
-      ptr = &ECGRecorder_data_Buf[Recorder_head << 3];  // Point to Circular buffer at head*8;
-      *ptr++ = SPI_Rx_buf[0];                           // Store status
-      *ptr++ = SPI_Rx_buf[1];                           // Store status
-      //SPI_Rx_buf[2] is always 0x00 so it is discarded
-
-      *ptr++ = SPI_Rx_buf[3];                           // CH0[23-16] = MSB ( 24 Bit device)
-      *ptr++ = SPI_Rx_buf[4];                           // CH0[15-8] = MID ( 24 Bit device)
-      *ptr++ = SPI_Rx_buf[5];                           // CH0[7-0] = LSB ( 24 Bit device)
-
-      *ptr++ = SPI_Rx_buf[6];                           // CH1[23-16] = MSB ( 24 Bit device)
-      *ptr++ = SPI_Rx_buf[7];                           // CH1[15-8] = MID ( 24 Bit device)
-      *ptr++ = SPI_Rx_buf[8];                           // CH1[7-0] = LSB ( 24 Bit device)
-
-      Recorder_head ++;                                 // Increment Circuler buffer pointer
-      if (Recorder_head == 32)                          // Check for circuler buffer depth.
-        Recorder_head = 0;                              // Rest once it reach to MAX
-    }
-    break;
-  default:
-    break;
-  }
-#endif
 }
-
-#if 0
-__interrupt void USCI_B0_ISR(void)
-{
-  switch(__even_in_range(UCB0IV,4))
-  {
-    case 0:break;                               // Vector 0 - no interrupt
-    case 2:                                     // Vector 2 - RXIFG
-      //while (!(UCB0IFG&UCTXIFG));             // USCI_B0 TX buffer ready?
-      SPI_Rx_buf[SPI_Rx_Count] = UCB0RXBUF;
-      SPI_Rx_Count++;
-      if ( SPI_Rx_Count == SPI_Rx_exp_Count)
-      {
-        UCB0IE &= ~UCRXIE;                      // Disable USCI_B0 RX interrupt
-        ADS1x9x_Parse_data_packet();
-      }
-      else
-      {
-        UCB0TXBUF = 0;                          // To get Next byte.
-      }
-      break;
-    case 4:
-      break;                                    // Vector 4 - TXIFG
-    default:
-      break;
-  }
-}
-
-__interrupt void Port_1(void)
-{
-  if ( P1IFG &= BIT1)
-  {
-    P1IFG &= ~BIT1;                 // Clear P1.1 IFG i.e Data RDY interrupt status
-    SPI_Rx_Count = UCB0RXBUF;       // Dummy Read
-    SPI_Rx_Count=0;
-
-    UCB0TXBUF = 0;
-    UCB0IE |= UCRXIE;               // Enable USCI_B0 RX interrupt
-  }
-}
-#endif
 
 void Set_Device_out_bytes(void)
 {
-#if 0
-  switch( ADS1x9xRegVal[0] & 0x03)
-  {
-    case ADS1191_16BIT:
-      SPI_Rx_exp_Count=4;             // 2 byte status + 2 bytes CH0 data
-      break;
-    case ADS1192_16BIT:
-      SPI_Rx_exp_Count=6;             // 2 byte status + 2 bytes ch1 data + 2 bytes CH0 data
-      break;
-    case ADS1291_24BIT:
-      SPI_Rx_exp_Count=6;             // 3 byte status + 3 bytes CH0 data
-      break;
-    case ADS1292_24BIT:
-      SPI_Rx_exp_Count=9;             // 3 byte status + 3 bytes ch1 data + 3 bytes CH0 data
-      break;
-  }
-#endif
 }
 
 /*****************************************************
- Porting End
+ * Porting End
  *****************************************************/
-
 
 /*
  * FreeRTOS Task Handler
  */
 static TaskHandle_t m_ads1292r_thread = NULL;
-// static SemaphoreHandle_t sem = NULL;
-
-#if 0
-typedef struct
-{
-    uint8_t sck_pin;      ///< SCK pin number.
-    uint8_t mosi_pin;     ///< MOSI pin number (optional).
-                          /**< Set to @ref NRF_DRV_SPI_PIN_NOT_USED
-                           *   if this signal is not needed. */
-    uint8_t miso_pin;     ///< MISO pin number (optional).
-                          /**< Set to @ref NRF_DRV_SPI_PIN_NOT_USED
-                           *   if this signal is not needed. */
-    uint8_t ss_pin;       ///< Slave Select pin number (optional).
-                          /**< Set to @ref NRF_DRV_SPI_PIN_NOT_USED
-                           *   if this signal is not needed. The driver
-                           *   supports only active low for this signal.
-                           *   If the signal should be active high,
-                           *   it must be controlled externally. */
-    uint8_t irq_priority; ///< Interrupt priority.
-    uint8_t orc;          ///< Over-run character.
-                          /**< This character is used when all bytes from the TX buffer are sent,
-                               but the transfer continues due to RX. */
-    nrf_drv_spi_frequency_t frequency; ///< SPI frequency.
-    nrf_drv_spi_mode_t      mode;      ///< SPI mode.
-    nrf_drv_spi_bit_order_t bit_order; ///< SPI bit order.
-} nrf_drv_spi_config_t;
-#endif
 
 // TWI (with transaction manager) initialization.
 static void spi_config(void)
@@ -1123,9 +669,6 @@ static void spi_config(void)
     err_code = nrf_spi_mngr_init(&m_nrf_spi_mngr, &config);
     APP_ERROR_CHECK(err_code);
 }
-
-// data ready interrupt handler
-// static int test_count = 0;
 
 static nrf_spi_mngr_transfer_t rdatac_xfers[] =
 {
@@ -1161,19 +704,6 @@ static void spi_rdatac_end_callback(ret_code_t result, void * p_user_data)
       // NRF_LOG_INFO("failed to put %p into pending", p);
     }
   }
-
-  // result always 0?
-//  if (test_count % 500 == 0)
-//  {
-//    NRF_LOG_INFO("rdatac test count %d", test_count);
-//  }
-//
-//  test_count++;
-
-//  if (test_count == 2000)
-//  {
-//    for(;;){}
-//  }
 }
 
 static void simple_crc(uint8_t * buf, uint8_t * cka, uint8_t * ckb)
@@ -1216,13 +746,6 @@ static void ads1292r_drdy_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t a
   }
 
   nrf_spi_mngr_schedule(&m_nrf_spi_mngr, &rdatac_trans);
-
-//  if (test_count % 500 == 0)
-//  {
-//    NRF_LOG_INFO("test count %d", test_count);
-//  }
-//
-//  test_count++;
 }
 
 static void ads1292r_cs_low(void)
@@ -1234,16 +757,6 @@ static void ads1292r_cs_high(void)
 {
   nrfx_gpiote_out_set(ADS1292R_CS_PIN);
 }
-
-//static void ads1292r_cs_pulse(void)
-//{
-//  nrfx_gpiote_out_set(ADS1292R_CS_PIN);
-//  vTaskDelay(1);
-//  nrfx_gpiote_out_clear(ADS1292R_CS_PIN);
-//  vTaskDelay(1);
-//  nrfx_gpiote_out_set(ADS1292R_CS_PIN);
-//  vTaskDelay(1);
-//}
 
 static void ads1292r_init_gpio(void)
 {
