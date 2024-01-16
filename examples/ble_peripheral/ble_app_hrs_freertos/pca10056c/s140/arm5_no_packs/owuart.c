@@ -426,6 +426,18 @@ typedef struct __attribute__((packed)) ble_adc_pac
 
 STATIC_ASSERT(sizeof(ble_adc_pac_t) == 8);
 
+typedef struct __attribute__((packed)) ble_imu_pac
+{
+    uint16_t    len;
+    uint8_t     type;           // 5
+    uint8_t     seq;            // not used
+    int16_t     x;
+    int16_t     y;
+    int16_t     z;
+} ble_imu_pac_t;
+
+STATIC_ASSERT(sizeof(ble_imu_pac_t) == 10);
+
 // These pins are not changed from previous (hard pcb) version
 #define QMA6110P_SCL_PIN            7   // QMA-SCL-P0.07
 #define QMA6110P_SDA_PIN            6   // QMA-SDA-P0.06
@@ -436,12 +448,12 @@ STATIC_ASSERT(sizeof(ble_adc_pac_t) == 8);
 #define MAX_PENDING_TRANSACTIONS    5
 #define QMA6110P_ADDR               (0x12) // ad0 grounded in schematic
 
-static uint8_t twi_readbuf[16] = {0};
+static uint8_t twi_readbuf[6] = {0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5};
 
 NRF_TWI_MNGR_DEF(m_nrf_twi_mngr, MAX_PENDING_TRANSACTIONS, TWI_INSTANCE_ID);
 nrf_twi_mngr_transfer_t qma6110p_twi_xfers[] = {
-    NRF_TWI_MNGR_WRITE(QMA6110P_ADDR, 0x00, 1, NRF_TWI_MNGR_NO_STOP),
-    NRF_TWI_MNGR_READ (QMA6110P_ADDR, twi_readbuf, 7, 0)
+    NRF_TWI_MNGR_WRITE(QMA6110P_ADDR, 0x01, 1, NRF_TWI_MNGR_NO_STOP),
+    NRF_TWI_MNGR_READ (QMA6110P_ADDR, twi_readbuf, 6, 0)
 };
 
 static void qma6110p_twi_config(void) 
@@ -459,15 +471,6 @@ static void qma6110p_twi_config(void)
   err_code = nrf_twi_mngr_init(&m_nrf_twi_mngr, &config);
   APP_ERROR_CHECK(err_code);
 }
-
-
-typedef union
-{
-    int16_t value;
-    uint8_t bytes[2];
-} int16_ut;
-
-STATIC_ASSERT(sizeof(int16_ut) == 2);
 
 void owuart_task(void * pvParameters)
 {
@@ -538,29 +541,27 @@ void owuart_task(void * pvParameters)
                                    NULL);
         APP_ERROR_CHECK(ret);
         
-        //
-        int16_ut ut;
-        int chip_id = twi_readbuf[0];
-        ut.bytes[0] = twi_readbuf[1];
-        ut.bytes[1] = twi_readbuf[2];
-        int16_t imu_x = ut.value;
-        ut.bytes[0] = twi_readbuf[3];
-        ut.bytes[1] = twi_readbuf[4];
-        int16_t imu_y = ut.value;
-        ut.bytes[0] = twi_readbuf[5];
-        ut.bytes[1] = twi_readbuf[6];
-        int16_t imu_z = ut.value;                                   
+        // clear 'newdata' bit
+        twi_readbuf[0] &= 0xfe;
+        twi_readbuf[2] &= 0xfe; 
+        twi_readbuf[4] &= 0xfe;
+        int16_t imu_x = *((int16_t*)(&twi_readbuf[0])) / 4;
+        int16_t imu_y = *((int16_t*)(&twi_readbuf[2])) / 4;
+        int16_t imu_z = *((int16_t*)(&twi_readbuf[4])) / 4;
         
-        SEGGER_RTT_printf(0, "qma6110p chip id: %d, xyz %d %d %d\r\n", chip_id, imu_x, imu_y, imu_z);
+        SEGGER_RTT_printf(0, "qma6110p x %d, y %d, z %d\r\n", imu_x, imu_y, imu_z);
         if (ble_nus_tx_running())
         {
             ble_nus_tx_buf_t* buf = ble_nus_tx_alloc();
             if (buf) 
             {
-                buf->len = 1 + 1 + 7; // type, seq, chip id, xyz
-                buf->type = 6;
-                buf->seq = 0;
-                memcpy(buf->data, twi_readbuf, 7);
+                ble_imu_pac_t *pac = (ble_imu_pac_t *)buf;
+                pac->len = sizeof(ble_imu_pac_t) - sizeof(uint16_t);
+                pac->type = 6;
+                pac->seq = 0;
+                pac->x = imu_x; // -22 + n;   // imu_x;
+                pac->y = imu_y; // 55 + n;    // imu_y;
+                pac->z = imu_z; // 6345 + n;  // imu_z;
                 ble_nus_tx_send(buf);
             }
             else
