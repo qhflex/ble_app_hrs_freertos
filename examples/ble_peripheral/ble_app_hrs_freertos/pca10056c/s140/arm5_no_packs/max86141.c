@@ -25,6 +25,7 @@
 #include "sens-proto.h"
 
 #include "ble_nus_tx.h"
+#include "oled.h"
 
 /***********************************************************************
  * includes for abp algo
@@ -51,6 +52,7 @@ int watchout = 0;
 /*********************************************************************
  * TYPEDEFS
  */ 
+// obsolete
 typedef struct __attribute__((packed)) max_ble_pac
 {
     uint16_t len;           //          dataview offset
@@ -66,6 +68,48 @@ typedef struct __attribute__((packed)) max_ble_pac
 } max_ble_pac_t;
 
 STATIC_ASSERT(sizeof(max_ble_pac_t) == 132);
+
+typedef struct __attribute__((packed)) max_ble_spo_pac
+{
+    uint16_t len;
+    uint8_t type;           // 3
+    uint8_t seq;            // not used
+    uint32_t saO2;          // 50 values avg
+    uint32_t heartRate;     // 50 values avg
+    uint32_t ir1[10];       // 5 values avg
+    uint32_t rd1[10];       // 5 values avg
+} max_ble_spo_pac_t;        // 90 bytes in total (packet size), 1 packet per second
+
+STATIC_ASSERT(sizeof(max_ble_spo_pac_t) == 92);
+
+/**
+ * for abp, sampling rate is 2048 and each packet contains 256 samples, which means 
+ * 8 packets per second. 1 of them have feature / bp data.
+ * for ble, we have 2 samples per packet.
+ */
+typedef struct __attribute__((packed)) max_ble_abp_pac
+{
+    uint16_t    len;
+    uint8_t     type;           // 4
+    uint8_t     seq;            // not used
+    int         sbp;            // -1 for invalid
+    int         dbp;            // -1 for invalid
+    uint32_t    ir1[2];         // 128-avg
+    uint32_t    ir2[2];         // 128-avg
+} max_ble_abp_pac_t;
+
+STATIC_ASSERT(sizeof(max_ble_abp_pac_t) == 28);
+
+typedef struct __attribute__((packed)) max_ble_abp_coeff
+{
+    uint16_t    len;
+    uint8_t     type;
+    uint8_t     seq;
+    ieee754_t   sbp[2];
+    ieee754_t   dbp[2];
+} max_ble_abp_coeff_t;
+
+STATIC_ASSERT(sizeof(max_ble_abp_coeff_t) == 20);
 
 #define PREF_PAYLOAD_SIZE   16
 
@@ -164,7 +208,7 @@ static uint32_t nrf5_flash_end_addr_get(void)
 #define PRINT_REGISTERS                     0
 #define WRITE_READBACK                      0
 
-#define TSK_MAX86141_STACK_SIZE             (256 * 9)       // 9KBytes
+#define TSK_MAX86141_STACK_SIZE             (256 * 10)       // 9KBytes
 #define TSK_MAX86141_PRIORITY               2
 
 #define SPI_INSTANCE_ID                     2
@@ -1324,7 +1368,7 @@ static sens_packet_t* prepare_abp_packet(max86141_packet_helper_t *p_helper, sen
 static void max86141_run_spo(void)
 {
     // 120 packets per minute
-    int max_pkts = 60 * 50 / MAX86141_NUM_OF_SPO_SAMPLES;
+    int max_pkts = 3 * 60 * 50 / MAX86141_NUM_OF_SPO_SAMPLES;
     
     sens_packet_t *p_pkt = NULL;
     sens_packet_t *p_cfgpkt = NULL;
@@ -1334,7 +1378,13 @@ static void max86141_run_spo(void)
     // int cfgpkt_size = 0;
     bool cfgpkt_sent = false;
     int sample_in_pkt = 0;
+    
     int spo_pkt_count = 0;
+    
+    int saO2_sum = 0;
+    int hr_sum = 0;
+    int ir_sum[10] = {0};
+    int rd_sum[10] = {0};
 
     // reset_pkts_queue();
     reset_smpl_queue();
@@ -1403,7 +1453,9 @@ static void max86141_run_spo(void)
 
             // calc a result
             light_data.ir = (((unsigned int)(src[0] & 0x07)) << 16) + (((unsigned int)src[1]) << 8) + (unsigned int)src[2];
+            ir_sum[sample_in_pkt / 5] += light_data.ir;
             light_data.rd = (((unsigned int)(src[3] & 0x07)) << 16) + (((unsigned int)src[4]) << 8) + (unsigned int)src[5];
+            rd_sum[sample_in_pkt / 5] += light_data.rd;
             getBOResult(light_data, &blood_result);
 
             // fill rougu data
@@ -1416,14 +1468,43 @@ static void max86141_run_spo(void)
             p_rougu->hr = blood_result.heartRate;
 
             // increment cursor
+            saO2_sum += blood_result.saO2;
+            hr_sum += blood_result.heartRate;
             sample_in_pkt++;
 
             if (sample_in_pkt == MAX86141_NUM_OF_SPO_SAMPLES)
             {
+                int saO2_avg = saO2_sum / MAX86141_NUM_OF_SPO_SAMPLES;
+                int hr_avg = hr_sum / MAX86141_NUM_OF_SPO_SAMPLES;
+                
+                oled_update_spo(saO2_avg);
+                
                 if (cdc_acm_port_open() && cfgpkt_sent)
                 {
                     simple_crc((uint8_t *)&p_pkt->type, &helper.p_crc[0], &helper.p_crc[1]);
                     cdc_acm_send_packet((uint8_t *)p_pkt, helper.packet_size);
+                }
+                
+                if (ble_nus_tx_running())
+                {
+                    ble_nus_tx_buf_t *buf = ble_nus_tx_alloc();
+                    if (buf)
+                    {
+                        max_ble_spo_pac_t *pac = (max_ble_spo_pac_t *)buf;
+                        pac->len = sizeof(max_ble_spo_pac_t) - sizeof(uint16_t);
+                        pac->type = 3;
+                        pac->seq = 0;
+                        pac->saO2 = saO2_avg; // blood_result.saO2;
+                        pac->heartRate = hr_avg; // blood_result.heartRate;
+                        
+                        for (int i = 0; i < 10; i++)
+                        {
+                            pac->ir1[i] = ir_sum[i] / 5;
+                            pac->rd1[i] = rd_sum[i] / 5;
+                        }
+                        
+                        ble_nus_tx_send(buf);
+                    }
                 }
 
                 spo_pkt_count++;
@@ -1440,7 +1521,14 @@ static void max86141_run_spo(void)
                     goto teardown;
                 }
 
+                saO2_sum = 0;
+                hr_sum = 0;
                 sample_in_pkt = 0;
+                for (int i = 0; i < 10; i++) 
+                {
+                    ir_sum[i] = 0;
+                    rd_sum[i] = 0;
+                }
                 p_pkt = prepare_spo_packet(&helper, p_pkt);
                 // SEGGER_RTT_printf(0, "next spo pkt, %p, size %d\r\n", p_pkt, helper.packet_size);
             }
@@ -1520,7 +1608,7 @@ static void max86141_run_spo(void)
 static void max86141_run_abp(void)
 {
     // 16 packets per second for 128 samples per packet, 16 * 60 = 960
-    int max_pkts = 60 * 2048 / MAX86141_NUM_OF_ABP_SAMPLES;
+    int max_pkts = 3 * 60 * 2048 / MAX86141_NUM_OF_ABP_SAMPLES;
     
     sens_packet_t *p_pkt = NULL;
     sens_packet_t *p_cfgpkt = NULL;
@@ -1583,6 +1671,9 @@ static void max86141_run_abp(void)
     // prepare packet
     p_pkt = prepare_abp_packet(&helper, NULL);
     sample_in_pkt = 0;
+    
+    uint32_t ir1sum[2] = {0};
+    uint32_t ir2sum[2] = {0};
 
     max86141_start(&abp_ctx);
 
@@ -1631,8 +1722,14 @@ static void max86141_run_abp(void)
             dst[5] = src[5];
 
             // calc a result TODO
-            double ir1 = (((unsigned int)(src[0] & 0x07)) << 16) + (((unsigned int)src[1]) << 8) + (unsigned int)src[2];
-            double ir2 = (((unsigned int)(src[3] & 0x07)) << 16) + (((unsigned int)src[4]) << 8) + (unsigned int)src[5];            
+            uint32_t ir1int = (((unsigned int)(src[0] & 0x07)) << 16) + (((unsigned int)src[1]) << 8) + (unsigned int)src[2];
+            uint32_t ir2int = (((unsigned int)(src[3] & 0x07)) << 16) + (((unsigned int)src[4]) << 8) + (unsigned int)src[5];            
+            
+            ir1sum[sample_in_pkt / 128] += ir1int;
+            ir2sum[sample_in_pkt / 128] += ir2int;
+            
+            double ir1 = (double)ir1int;
+            double ir2 = (double)ir2int;
             
             CFeature feature;
             // SEGGER_RTT_printf(0, "b %d\r\n", sample_in_pkt);
@@ -1662,13 +1759,14 @@ static void max86141_run_abp(void)
                 // coeffs[3] = m_pref.dbp[3].f;
                 helper.p_abp_feature->dbp.f = (float)CPressureCompute(feature, coeffs);
                 
+                oled_update_abp(helper.p_abp_feature->sbp.f, helper.p_abp_feature->dbp.f);                
             }   
 
             // increment cursor
             sample_in_pkt++;
 
             if (sample_in_pkt == MAX86141_NUM_OF_ABP_SAMPLES)
-            {
+            {  
                 if (cdc_acm_port_open() && cfgpkt_sent)
                 {
                     // seal variadic length packet TODO
@@ -1677,6 +1775,37 @@ static void max86141_run_abp(void)
                     cdc_acm_send_packet((uint8_t *)p_pkt, helper.packet_size);
 
                     // SEGGER_RTT_printf(0, "max abp pkt size %d sent\r\n", helper.packet_size);
+                }
+                
+                if (ble_nus_tx_running())
+                {
+                    ble_nus_tx_buf_t *buf = ble_nus_tx_alloc();
+                    if (buf)
+                    {
+                        max_ble_abp_pac_t *pac = (max_ble_abp_pac_t *)buf;
+                        pac->len = sizeof(max_ble_abp_pac_t) - sizeof(uint16_t);
+                        pac->type = 4;
+                        // pac->seq = 0;
+                        if (helper.p_abp_feature->index != -1)
+                        {
+                            pac->seq = 1;
+                            pac->sbp = helper.p_abp_feature->sbp.u;
+                            pac->dbp = helper.p_abp_feature->dbp.u;
+                        }
+                        else
+                        {
+                            pac->seq = 0;
+                            pac->sbp = -1;
+                            pac->dbp = -1;
+                        }
+                        
+                        pac->ir1[0] = ir1sum[0] / 128;
+                        pac->ir1[1] = ir1sum[1] / 128;
+                        pac->ir2[0] = ir2sum[0] / 128;
+                        pac->ir2[1] = ir2sum[1] / 128;
+                        
+                        ble_nus_tx_send(buf);
+                    }
                 }
 
                 abp_pkt_count++;
@@ -1693,6 +1822,11 @@ static void max86141_run_abp(void)
                 }
 
                 sample_in_pkt = 0;
+                ir1sum[0] = 0;
+                ir1sum[1] = 0;
+                ir2sum[0] = 0;
+                ir2sum[1] = 0;
+                
                 p_pkt = prepare_abp_packet(&helper, p_pkt);
                 // SEGGER_RTT_printf(0, "next abp pkt, %p, size %d\r\n", p_pkt, helper.packet_size);
             }
@@ -2314,6 +2448,26 @@ static void handle_abp_coeff_req(void)
         m_get_abp_coeff = false;
         
         SEGGER_RTT_printf(0, "handle get abp coeff\r\n");
+        
+        if (ble_nus_tx_running())
+        {
+            ble_nus_tx_buf_t* buf = ble_nus_tx_alloc();
+            if (buf)
+            {
+                max_ble_abp_coeff_t *pac = (max_ble_abp_coeff_t *)buf;
+                pac->len = sizeof(max_ble_abp_coeff_t) - sizeof(uint16_t);
+                pac->type = 255;
+                pac->seq = 0;
+                pac->sbp[0].u = m_pref.sbp[0].u;
+                pac->sbp[1].u = m_pref.sbp[1].u;
+                pac->dbp[0].u = m_pref.dbp[0].u;
+                pac->dbp[1].u = m_pref.dbp[1].u;
+                
+                ble_nus_tx_send(buf);
+                
+                SEGGER_RTT_printf(0, "ble abp coeff sent\r\n");
+            }
+        }
         
         if (cdc_acm_port_open())
         {

@@ -21,6 +21,7 @@
 #include "qrsdetect.h"
 
 #include "ble_nus_tx.h"
+#include "oled.h"
 
 #define SENS_PACKET_POOL_SIZE       4
 
@@ -1378,8 +1379,9 @@ static void ads1292r_task(void * pvParameters)
     int rog_filterData;
     int rog_sbPeak;
     int rog_hr;
+    int rog_hr_sum = 0;
 
-    int rog_last_hr = 255;
+    // int rog_last_hr = 255;
 
     for (int i = 0;;i++)
     {
@@ -1455,7 +1457,7 @@ static void ads1292r_task(void * pvParameters)
             p_octet = (uint8_t *)&ecg;
             for (int j = 0; j < 2; j++)
             {
-              m_packet_helper.p_rog_ecg->value[ecg_start + j] = p_octet[j];
+                m_packet_helper.p_rog_ecg->value[ecg_start + j] = p_octet[j];
             }
 
             // fill hr
@@ -1464,12 +1466,14 @@ static void ads1292r_task(void * pvParameters)
                 // NRF_LOG_INFO("rog qrs detected, hr %d, delay %d, qrs count %d", rog_hr, delay, rog_qrs_count);
                 rog_qrs_count++;
             }
+            
+            rog_hr_sum += rog_hr;
 
-            m_packet_helper.p_brief->heart_rate = rog_hr;
-            if (rog_hr != rog_last_hr)
-            {
-                rog_last_hr = rog_hr;
-            }
+//            m_packet_helper.p_brief->heart_rate = rog_hr;
+//            if (rog_hr != rog_last_hr)
+//            {
+//                rog_last_hr = rog_hr;
+//            }
 
             // NRF_LOG_INFO("heart rate (zr algo): %d", rog_hr);
         }
@@ -1479,6 +1483,12 @@ static void ads1292r_task(void * pvParameters)
         // sample tlv is ready
         if (m_packet_helper.num_of_samples == ADS129X_NUM_OF_SAMPLES)
         {
+            int hr = 133; // rog_hr_sum / ADS129X_NUM_OF_SAMPLES;
+            rog_hr_sum = 0;
+            
+            m_packet_helper.p_brief->heart_rate = hr;
+            oled_update_ecg(hr);
+            
             // type 2
             // seq TODO
             // data[0] -> heart rate

@@ -32,7 +32,7 @@
 
 #define ADS129X_USE_ROG_LIB             (!!ADS129X_HAS_ROG_ECG || !!ADS129X_HAS_ROG_RESP || !!ADS129X_HAS_ROG_INTERNAL)
 
-#define MAX86141_BRIEF_TLV_LEN          9
+#define MAX86141_BRIEF_TLV_LEN          4
 #define MAX86141_BRIEF_TLV_SIZE         (3 + MAX86141_BRIEF_TLV_LEN)
 
 // for combo, 41, 4
@@ -78,7 +78,7 @@
 #define MAX86141_LEDCFG_TLV_SIZE            (3 + MAX86141_LEDCFG_TLV_LEN)
 
 #define MAX86141_SPO_ROUGU_DATA_SIZE        24 // 32
-#define MAX86141_SPO_ROUGU_TLV_TYPE         0xf5
+#define MAX86141_SPO_ROUGU_TLV_TYPE         0xE9
 #define MAX86141_SPO_ROUGU_TLV_LEN          (MAX86141_NUM_OF_SPO_SAMPLES * MAX86141_SPO_ROUGU_DATA_SIZE)
 #define MAX86141_SPO_ROUGU_TLV_SIZE         (3 + MAX86141_SPO_ROUGU_TLV_LEN)
 
@@ -170,11 +170,11 @@ typedef struct __attribute__((packed)) {
     uint16_t sensor_id;
     uint8_t instance_id;
     uint8_t version;
-    uint8_t ppg1_led;
-    uint8_t ppg2_led;
-    uint8_t ppf_prox;
-    uint8_t low_power;
-    uint8_t num_of_samples;
+//    uint8_t ppg1_led;
+//    uint8_t ppg2_led;
+//    uint8_t ppf_prox;
+//    uint8_t low_power;
+//    uint8_t num_of_samples;
 } max86141_brief_tlv_t;
 
 STATIC_ASSERT(sizeof(max86141_brief_tlv_t) == MAX86141_BRIEF_TLV_SIZE);

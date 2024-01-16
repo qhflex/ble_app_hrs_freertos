@@ -57,6 +57,8 @@
 #include "ble_nus.h"
 #include "ble_nus_tx.h"
 
+#include "sens-proto.h"
+
 // #include "m601z.h"
 #include "qma6110p.h"
 #include "ads1292r.h"
@@ -109,6 +111,7 @@
 #define OSTIMER_WAIT_FOR_QUEUE              2                                       /**< Number of ticks to wait for the timer queue to be ready */
 
 #define POWER_ON_PIN                        29 // P0.29
+#define OLED_RST_PIN                        11
 
 /*********************************************************************
  * TYPEDEFS
@@ -357,11 +360,33 @@ static void nrf_qwr_error_handler(uint32_t nrf_error)
  * @param[in] p_evt       Nordic UART Service event.
  */
 /**@snippet [Handling the data received over BLE] */
+extern void get_abp_coeff(void);
+extern void set_abp_coeff(uint8_t * ptr);
+
 static void nus_data_handler(ble_nus_evt_t * p_evt)
 {
+    char buf[16];
+    
     // TODO
     if (p_evt->type == BLE_NUS_EVT_RX_DATA)
-    {
+    {        
+        uint8_t type = p_evt->params.rx_data.p_data[0];
+        if (type == 2)
+        {
+            get_abp_coeff();
+        }
+        else if (type == 3 && p_evt->params.rx_data.length == 17)
+        {
+            ieee754_t coeffs[4];
+            const uint8_t *payload = &p_evt->params.rx_data.p_data[1];
+            for (int i = 0; i < 4; i++)
+            {
+                coeffs[i].u = (uint32_t)payload[i * 4] + (((uint32_t)payload[i * 4 + 1]) << 8) + (((uint32_t)payload[i * 4 + 2]) << 16) + (((uint32_t)payload[i * 4 + 3]) << 24);
+                sprintf(buf, "%9.6f", coeffs[i].f);
+                SEGGER_RTT_printf(0, "%s\r\n", buf);                
+            }
+            set_abp_coeff((uint8_t *)coeffs);
+        }   
     }
     else if (p_evt->type == BLE_NUS_EVT_TX_RDY) 
     {
@@ -843,6 +868,8 @@ int main(void)
     
     nrfx_gpiote_out_config_t power_on_pin_config = NRFX_GPIOTE_CONFIG_OUT_SIMPLE(true);
     nrfx_gpiote_out_init(POWER_ON_PIN, &power_on_pin_config);
+    nrfx_gpiote_out_config_t oled_rst_pin_config = NRFX_GPIOTE_CONFIG_OUT_SIMPLE(false);
+    nrfx_gpiote_out_init(OLED_RST_PIN, &oled_rst_pin_config);    
 
     // Do not start any interrupt that uses system functions before system initialisation.
     // The best solution is to start the OS before any other initalisation.

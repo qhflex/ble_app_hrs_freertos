@@ -61,12 +61,14 @@
 
 #include "FreeRTOS.h"
 #include "task.h"
+#include "SEGGER_RTT.h"
 
 #include "owuart.h"
 #include "sens-proto.h"
 #include "usbcdc.h"
 
 #include "ble_nus_tx.h"
+#include "oled.h"
 
 #define HIGH				    1
 #define LOW					    0
@@ -469,8 +471,14 @@ void owuart_task(void * pvParameters)
                 char buf[8];
                 int16_t *st = (int16_t*)temp;
                 float tempf = (float)(*st)/256 + 40;
+                
+                if (j == 0)
+                {
+                    oled_update_tmp(tempf);
+                }
+                
                 snprintf(buf, 8, "%.4f", tempf);
-                NRF_LOG_INFO("  T(%d): %s (%d)", j+1, buf, n);
+                SEGGER_RTT_printf(0, "  T(%d): %s (%d)\r\n", j+1, buf, n);
                 
                 m_m601z_packet_helper.p_templist->id_temp[j].temp[0] = temp[0];
                 m_m601z_packet_helper.p_templist->id_temp[j].temp[1] = temp[1];
@@ -479,7 +487,7 @@ void owuart_task(void * pvParameters)
             }
             else
             {
-                NRF_LOG_WARNING("    BAD CRC: %s", hexstr(temp, 9));
+                SEGGER_RTT_printf(0, "    BAD CRC: %s\r\n", hexstr(temp, 9));
             }
 
             fail:
@@ -510,7 +518,7 @@ void owuart_task(void * pvParameters)
             }
             else
             {
-                NRF_LOG_INFO("nus tx no available buffer?");
+                SEGGER_RTT_printf(0, "nus tx no available buffer?\r\n");
             }
         }
 //        else
