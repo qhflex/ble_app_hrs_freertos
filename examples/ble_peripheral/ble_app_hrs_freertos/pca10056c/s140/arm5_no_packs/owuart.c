@@ -60,6 +60,8 @@
 #include "nrfx_uart.h"
 #include "nrfx_saadc.h"
 
+#include "nrf_twi_mngr.h"
+
 #include "FreeRTOS.h"
 #include "task.h"
 #include "SEGGER_RTT.h"
@@ -419,12 +421,53 @@ typedef struct __attribute__((packed)) ble_adc_pac
     uint16_t    len;
     uint8_t     type;           // 5
     uint8_t     seq;            // not used
-    uint8_t		resolution;		// 0 8bit, [1 10bit], 2 12bit, 3 14bit
-    uint8_t 	oversample;		// 0, 1 2x, 2 4x, 3 8x, ...
-	uint16_t	value;			// 
+    float       voltage;
 } ble_adc_pac_t;
 
 STATIC_ASSERT(sizeof(ble_adc_pac_t) == 8);
+
+// These pins are not changed from previous (hard pcb) version
+#define QMA6110P_SCL_PIN            7   // QMA-SCL-P0.07
+#define QMA6110P_SDA_PIN            6   // QMA-SDA-P0.06
+#define QMA6110P_INT_PIN            8   // QMA-INT1-P0.08
+
+#define TWI_INSTANCE_ID             0
+
+#define MAX_PENDING_TRANSACTIONS    5
+#define QMA6110P_ADDR               (0x12) // ad0 grounded in schematic
+
+static uint8_t twi_readbuf[16] = {0};
+
+NRF_TWI_MNGR_DEF(m_nrf_twi_mngr, MAX_PENDING_TRANSACTIONS, TWI_INSTANCE_ID);
+nrf_twi_mngr_transfer_t qma6110p_twi_xfers[] = {
+    NRF_TWI_MNGR_WRITE(QMA6110P_ADDR, 0x00, 1, NRF_TWI_MNGR_NO_STOP),
+    NRF_TWI_MNGR_READ (QMA6110P_ADDR, twi_readbuf, 7, 0)
+};
+
+static void qma6110p_twi_config(void) 
+{
+  uint32_t err_code;
+
+  nrf_drv_twi_config_t const config = {
+      .scl = QMA6110P_SCL_PIN,
+      .sda = QMA6110P_SDA_PIN,
+      .frequency = NRF_DRV_TWI_FREQ_400K,
+      .interrupt_priority = APP_IRQ_PRIORITY_LOWEST,
+      .clear_bus_init = false
+  };
+
+  err_code = nrf_twi_mngr_init(&m_nrf_twi_mngr, &config);
+  APP_ERROR_CHECK(err_code);
+}
+
+
+typedef union
+{
+    int16_t value;
+    uint8_t bytes[2];
+} int16_ut;
+
+STATIC_ASSERT(sizeof(int16_ut) == 2);
 
 void owuart_task(void * pvParameters)
 {
@@ -433,6 +476,8 @@ void owuart_task(void * pvParameters)
     // see NRFX_SAADC_ENABLED section in sdk_config.h
     // !!! noticing there are both SAADC_ENABLED and NRFX_SAADC_ENABLED
     // https://devzone.nordicsemi.com/f/nordic-q-a/88240/nrfx_check-nrfx_saadc_enabled-doesn-t-find-nrfx_saadc_enabled-although-set-to-1-in-sdk_config-h-sdk_17-0-2
+    // resolution is 10bit, NRFX_SAADC_CONFIG_RESOLUTION
+    // oversample is 8x, NRFX_SAADC_CONFIG_OVERSAMPLE
     nrfx_saadc_config_t saadc_config = NRFX_SAADC_DEFAULT_CONFIG;
     
     ret = nrfx_saadc_init(&saadc_config, saadc_callback);
@@ -440,10 +485,17 @@ void owuart_task(void * pvParameters)
 
     // PRJ-IFET-RAPM-V1.0.pdf
     // VBAT ---- 1M resistor ---- VADC-P0.28/AIN4 ---- 300K resistor ---- GND
+    // NRF_SAADC_GAIN1_6, gain factor is 1/6
+    // NRF_SAADC_REFERENCE_INTERNAL, use internal reference 0.6V
+    //
+    // so (VBAT / 13) * 3 / 6 = value / 1024 * 0.6V
+    //     VBAT = value * 26 * 0.6 / 1024 = value * 0.015234375
+    // when powered by usb, value is typically around 333, which translates to 5.073V
     nrf_saadc_channel_config_t saadc_channel_config = NRFX_SAADC_DEFAULT_CHANNEL_CONFIG_SE(NRF_SAADC_INPUT_AIN4);
     ret = nrfx_saadc_channel_init(0, &saadc_channel_config);
     APP_ERROR_CHECK(ret);
    
+    qma6110p_twi_config();
     
     onewire_probe();
     m_m601z_packet_helper.num_of_devices = m_device_count;
@@ -458,7 +510,8 @@ void owuart_task(void * pvParameters)
         nrf_saadc_value_t saadc_value;
         if (NRFX_SUCCESS == nrfx_saadc_sample_convert(0, &saadc_value))
         {
-            SEGGER_RTT_printf(0, "adc %d\r\n", saadc_value);
+            float voltage = (float)saadc_value * (float)0.015234375;
+            SEGGER_RTT_printf(0, "adc %d, volt (x10000) %d\r\n", saadc_value, (int)(voltage * 10000.0f));
             if (ble_nus_tx_running())
             {
                 ble_nus_tx_buf_t* buf = ble_nus_tx_alloc();
@@ -468,9 +521,7 @@ void owuart_task(void * pvParameters)
                     pac->len = sizeof(ble_adc_pac_t) - sizeof(uint16_t);
                     pac->type = 5;
                     pac->seq = 0;
-                    pac->resolution = NRFX_SAADC_CONFIG_RESOLUTION;
-                    pac->oversample = NRFX_SAADC_CONFIG_OVERSAMPLE;
-                    pac->value = saadc_value;
+                    pac->voltage = voltage;
                     ble_nus_tx_send(buf);
                 }
                 else
@@ -479,6 +530,44 @@ void owuart_task(void * pvParameters)
                 }                
             }
         }        
+        
+        ret = nrf_twi_mngr_perform(&m_nrf_twi_mngr, 
+                                   NULL,
+                                   qma6110p_twi_xfers,
+                                   sizeof(qma6110p_twi_xfers) / sizeof(qma6110p_twi_xfers[0]),
+                                   NULL);
+        APP_ERROR_CHECK(ret);
+        
+        //
+        int16_ut ut;
+        int chip_id = twi_readbuf[0];
+        ut.bytes[0] = twi_readbuf[1];
+        ut.bytes[1] = twi_readbuf[2];
+        int16_t imu_x = ut.value;
+        ut.bytes[0] = twi_readbuf[3];
+        ut.bytes[1] = twi_readbuf[4];
+        int16_t imu_y = ut.value;
+        ut.bytes[0] = twi_readbuf[5];
+        ut.bytes[1] = twi_readbuf[6];
+        int16_t imu_z = ut.value;                                   
+        
+        SEGGER_RTT_printf(0, "qma6110p chip id: %d, xyz %d %d %d\r\n", chip_id, imu_x, imu_y, imu_z);
+        if (ble_nus_tx_running())
+        {
+            ble_nus_tx_buf_t* buf = ble_nus_tx_alloc();
+            if (buf) 
+            {
+                buf->len = 1 + 1 + 7; // type, seq, chip id, xyz
+                buf->type = 6;
+                buf->seq = 0;
+                memcpy(buf->data, twi_readbuf, 7);
+                ble_nus_tx_send(buf);
+            }
+            else
+            {
+                SEGGER_RTT_printf(0, "nus tx no available buffer?\r\n");
+            }                            
+        }
         
         for (int j = 0; j < m_device_count; j++)
         {
