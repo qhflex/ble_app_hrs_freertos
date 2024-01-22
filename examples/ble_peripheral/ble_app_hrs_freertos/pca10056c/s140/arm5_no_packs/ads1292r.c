@@ -779,25 +779,22 @@ static nrf_spi_mngr_transaction_t rdatac_trans = {
 
 static void ads1292r_drdy_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
+    void * p = NULL;
+    atomic_increment();
 
-  void * p = NULL;
-  // int avail = uxQueueSpacesAvailable(p_records_idle);
-  // NRF_LOG_INFO("avail %d", avail);
+    if (pdTRUE == xQueueReceiveFromISR(p_records_idle, &p, NULL))
+    {
+        // NRF_LOG_INFO("get %p in isr", p);
+        rdatac_xfers[0].p_rx_data = p;
+    }
+    else
+    {
+        // DON'T remove or comment this line
+        SEGGER_RTT_printf(0, "---- ecg xqecv err ----\r\n");
+        rdatac_xfers[0].p_rx_data = rxbuf;
+    }
 
-  atomic_increment();
-
-  if (pdTRUE == xQueueReceiveFromISR(p_records_idle, &p, NULL))
-  {
-    // NRF_LOG_INFO("get %p in isr", p);
-    rdatac_xfers[0].p_rx_data = p;
-  }
-  else
-  {
-    SEGGER_RTT_printf(0, "--------------- xqecv err\r\n");
-    rdatac_xfers[0].p_rx_data = rxbuf;
-  }
-
-  nrf_spi_mngr_schedule(&m_nrf_spi_mngr, &rdatac_trans);
+    nrf_spi_mngr_schedule(&m_nrf_spi_mngr, &rdatac_trans);
 }
 
 static void ads1292r_cs_low(void)
