@@ -131,8 +131,8 @@ static void ble_nus_tx_init(void);
 /*********************************************************************
  * LOCAL VARIABLES
  */
- 
-BLE_NUS_DEF(m_nus, NRF_SDH_BLE_TOTAL_LINK_COUNT);                                   /**< BLE NUS service instance. */ 
+
+BLE_NUS_DEF(m_nus, NRF_SDH_BLE_TOTAL_LINK_COUNT);                                   /**< BLE NUS service instance. */
 
 NRF_BLE_GATT_DEF(m_gatt);                                                           /**< GATT module instance. */
 NRF_BLE_QWR_DEF(m_qwr);                                                             /**< Context for the Queued Write module.*/
@@ -284,10 +284,10 @@ extern void set_abp_coeff(uint8_t * ptr);
 static void nus_data_handler(ble_nus_evt_t * p_evt)
 {
     char buf[16];
-    
+
     // TODO
     if (p_evt->type == BLE_NUS_EVT_RX_DATA)
-    {        
+    {
         uint8_t type = p_evt->params.rx_data.p_data[0];
         if (type == 2)
         {
@@ -301,25 +301,25 @@ static void nus_data_handler(ble_nus_evt_t * p_evt)
             {
                 coeffs[i].u = (uint32_t)payload[i * 4] + (((uint32_t)payload[i * 4 + 1]) << 8) + (((uint32_t)payload[i * 4 + 2]) << 16) + (((uint32_t)payload[i * 4 + 3]) << 24);
                 sprintf(buf, "%9.6f", coeffs[i].f);
-                SEGGER_RTT_printf(0, "%s\r\n", buf);                
+                SEGGER_RTT_printf(0, "%s\r\n", buf);
             }
             set_abp_coeff((uint8_t *)coeffs);
-        }   
+        }
     }
-    else if (p_evt->type == BLE_NUS_EVT_TX_RDY) 
+    else if (p_evt->type == BLE_NUS_EVT_TX_RDY)
     {
 
 // #define NOT_INSIDE_ISR          (( SCB->ICSR & SCB_ICSR_VECTACTIVE_Msk ) == 0 )
 // #define INSIDE_ISR              (!(NOT_INSIDE_ISR))
-//         NRF_LOG_INFO("BLE_NUS_EVT_TX_RDY, %s", INSIDE_ISR ? "in_isr" : "not_in_isr");        
+//         NRF_LOG_INFO("BLE_NUS_EVT_TX_RDY, %s", INSIDE_ISR ? "in_isr" : "not_in_isr");
         xQueueSend(ble_nus_tx_idle, &m_ble_nus_tx_sending, 0);
         m_ble_nus_tx_sending = NULL;
-        
+
         if (pdTRUE == xQueueReceive(ble_nus_tx_pending, &m_ble_nus_tx_sending, 0))
         {
             ble_nus_data_send(&m_nus, &m_ble_nus_tx_sending->type, &m_ble_nus_tx_sending->len, m_conn_handle);
         }
-    } 
+    }
     else if (p_evt->type == BLE_NUS_EVT_COMM_STARTED)
     {
         m_ble_nus_tx_running = true;
@@ -337,18 +337,18 @@ static void nus_data_handler(ble_nus_evt_t * p_evt)
 //uint32_t ble_nus_comm_send(uint8_t *p_data, uint16_t *p_length)
 //{
 //    int ret_code = 0;
-//    
+//
 //    if (ble_nus_comm_started)
 //    {
-//        if (m_ble_nus_sending) 
+//        if (m_ble_nus_sending)
 //        {
 //            ble_nus_outgoing_t outgoing = { .p = p_data, .size = *p_length };
 //            if (errQUEUE_FULL == xQueueSend(outgoing_queue, &outgoing, 0))
 //            {
 //                NRF_LOG_INFO("ble outgoing queue full");
 //            }
-//        } 
-//        else 
+//        }
+//        else
 //        {
 //            ret_code = ble_nus_data_send(&m_nus, p_data, p_length, m_conn_handle);
 //            if (ret_code == NRF_SUCCESS)
@@ -362,7 +362,7 @@ static void nus_data_handler(ble_nus_evt_t * p_evt)
 //            }
 //        }
 //    }
-//    
+//
 //    return ret_code;
 //}
 
@@ -384,9 +384,9 @@ static void services_init(void)
 
     // biosens_init();
     memset(&nus_init, 0, sizeof(nus_init));
-        
+
     nus_init.data_handler = nus_data_handler;
-    
+
     err_code = ble_nus_init(&m_nus, &nus_init);
     APP_ERROR_CHECK(err_code);
 }
@@ -504,7 +504,7 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
 static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
 {
     uint32_t err_code;
-    
+
     // TODO see ble_app_uart as example
 
     switch (p_ble_evt->header.evt_id)
@@ -522,14 +522,14 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             SEGGER_RTT_printf(0, "[BLE] Disconnected\r\n");
             m_conn_handle = BLE_CONN_HANDLE_INVALID;
 // bool m_ble_nus_tx_running = false;
-// ble_nus_tx_buf_t* m_ble_nus_tx_sending = NULL;        
+// ble_nus_tx_buf_t* m_ble_nus_tx_sending = NULL;
             m_ble_nus_tx_running = false;
             // ble_nus_comm_started = false;
-            if (m_ble_nus_tx_sending) 
+            if (m_ble_nus_tx_sending)
             {
                 xQueueSend(ble_nus_tx_idle, &m_ble_nus_tx_sending, 0);
                 m_ble_nus_tx_sending = NULL;
-                
+
                 ble_nus_tx_buf_t * buf;
                 while (pdTRUE == xQueueReceive(ble_nus_tx_pending, &buf, 0))
                 {
@@ -613,19 +613,19 @@ static void peer_manager_init(void)
 
     err_code = pm_register(pm_evt_handler);
     APP_ERROR_CHECK(err_code);
-#endif    
+#endif
 }
 
 
 /**@brief Clear bond information from persistent storage. */
 static void delete_bonds(void)
 {
-#if PEER_MANAGER_ENABLED == 1    
+#if PEER_MANAGER_ENABLED == 1
     ret_code_t err_code;
     // NRF_LOG_INFO("Erase bonds!");
     err_code = pm_peers_delete();
     APP_ERROR_CHECK(err_code);
-#endif    
+#endif
 }
 
 
@@ -728,10 +728,10 @@ int main(void)
 {
     ret_code_t err_code;
     bool erase_bonds;
-    
+
 //    err_code = nrf_mem_init();
 //    APP_ERROR_CHECK(err_code);
-    
+
     ble_nus_tx_init();
 
     // Initialize modules.
@@ -741,7 +741,7 @@ int main(void)
 
     err_code = nrf_drv_power_init(NULL);
     APP_ERROR_CHECK(err_code);
-    
+
     // nrfx_systick_init();
 
     clock_init();
@@ -750,11 +750,11 @@ int main(void)
     // APP_ERROR_CHECK(err_code);
 
     nrfx_gpiote_init();
-    
+
     nrfx_gpiote_out_config_t power_on_pin_config = NRFX_GPIOTE_CONFIG_OUT_SIMPLE(true);
     nrfx_gpiote_out_init(POWER_ON_PIN, &power_on_pin_config);
     nrfx_gpiote_out_config_t oled_rst_pin_config = NRFX_GPIOTE_CONFIG_OUT_SIMPLE(false);
-    nrfx_gpiote_out_init(OLED_RST_PIN, &oled_rst_pin_config);    
+    nrfx_gpiote_out_init(OLED_RST_PIN, &oled_rst_pin_config);
 
     // Do not start any interrupt that uses system functions before system initialisation.
     // The best solution is to start the OS before any other initalisation.
@@ -786,7 +786,7 @@ int main(void)
     app_ads1292r_freertos_init();
     app_max86141_freertos_init();
     app_usbcdc_freertos_init();
-    
+
     SEGGER_RTT_printf(0, "Program started\r\n.");
 
     // Start FreeRTOS scheduler.
@@ -803,13 +803,13 @@ static void ble_nus_tx_init()
     // outgoing_queue =xQueueCreate(16, sizeof(ble_nus_outgoing_t));
     ble_nus_tx_idle = xQueueCreate(16, sizeof(ble_nus_tx_buf_t *));
     ble_nus_tx_pending = xQueueCreate(16, sizeof(ble_nus_tx_buf_t *));
-    
+
     for (int i = 0; i < 16; i++)
     {
         ble_nus_tx_buf_t *buf = &ble_nus_tx_buffer[i];
         xQueueSend(ble_nus_tx_idle, &buf, 0);
     }
-    
+
 //    NRF_LOG_INFO("ble_nus_tx_idle waiting %d", uxQueueMessagesWaiting(ble_nus_tx_idle));
 //    ble_nus_tx_buf_t* buf = NULL;
 //    uint8_t x = xQueueReceive(ble_nus_tx_idle, &buf, 0);
@@ -824,7 +824,7 @@ bool ble_nus_tx_running()
 void ble_nus_tx_send(ble_nus_tx_buf_t *buf)
 {
     APP_ERROR_CHECK_BOOL(m_ble_nus_tx_running == true);
-    
+
     if (m_ble_nus_tx_sending)
     {
         // put into pending queue
@@ -864,7 +864,7 @@ void vApplicationStackOverflowHook( TaskHandle_t xTask,
                                     signed char *pcTaskName )
 {
     volatile int i = 0;
-    for (;;) 
+    for (;;)
     {
         i++;
     }
@@ -908,7 +908,7 @@ void app_error_fault_handler(uint32_t id, uint32_t pc, uint32_t info)
                               "[noname]", // nrf_strerror_get(p_info->err_code),
                               p_info->p_file_name,
                               p_info->line_num,
-                              pc);            
+                              pc);
             SEGGER_RTT_printf(0, "End of error report\r\n");
             break;
         }

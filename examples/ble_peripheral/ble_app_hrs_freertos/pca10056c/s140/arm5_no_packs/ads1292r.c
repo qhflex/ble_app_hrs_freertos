@@ -1,16 +1,14 @@
-#include "FreeRTOSConfig.h"
+/*******************************************************************************
+ * INCLUDES
+ */
+#include "SEGGER_RTT.h"
+
 #include "FreeRTOS.h"
 #include "task.h"
 #include "semphr.h"
 
 #include "nrfx_gpiote.h"
-
-#include "nrf_log.h"
-#include "nrf_assert.h"
-
 #include "nrf_spi_mngr.h"
-
-#include "SEGGER_RTT.h"
 
 #include "sens-proto.h"
 #include "ads1292r.h"
@@ -253,7 +251,7 @@ unsigned char kalam32_defconfig[15] = {
   0x00,         // 0x07 LOFF_SENS
   0x00,         // 0x08 LOFF_STAT
   0xf2,         // 0x09 RESP1 0b11110010
-  0x03,   // 0x0a RESP2 0b00000011
+  0x03,         // 0x0a RESP2 0b00000011
   0x0c          // 0x0b GPIO
 };
 
@@ -415,14 +413,14 @@ void Init_ADS1x9x_Resource(void)
 
 void Wake_Up_ADS1x9x(void)
 {
-  ADS1x9x_SPI_Command_Data(ADS1292R_CMD_WAKEUP);      // Send 0x02 to the ADS1x9x
-  NRF_LOG_INFO("[ads1292r] wakeup cmd sent");
+  ADS1x9x_SPI_Command_Data(ADS1292R_CMD_WAKEUP);            // Send 0x02 to the ADS1x9x
+  SEGGER_RTT_printf(0, "[ads1292r] wakeup cmd sent\r\n");
 }
 
 void Put_ADS1x9x_In_Sleep(void)
 {
-  ADS1x9x_SPI_Command_Data(ADS1292R_CMD_STANDBY);     // Send 0x04 to the ADS1x9x
-  NRF_LOG_INFO("[ads1292r] standby cmd sent");
+  ADS1x9x_SPI_Command_Data(ADS1292R_CMD_STANDBY);           // Send 0x04 to the ADS1x9x
+  SEGGER_RTT_printf(0, "[ads1292r] standby cmd sent\r\n");
 }
 
 void Soft_Reset_ADS1x9x(void)
@@ -431,7 +429,7 @@ void Soft_Reset_ADS1x9x(void)
   ADS1x9x_SPI_Command_Data (RESET);                   // Send 0x06 to the ADS1x9x
 #endif
   ADS1x9x_SPI_Command_Data(ADS1292R_CMD_RESET);       // Send 0x06 to the ADS1x9x
-  NRF_LOG_INFO("[ads1292r] reset cmd sent");
+  SEGGER_RTT_printf(0, "[ads1292r] reset cmd sent\r\n");
 }
 
 void Soft_Start_ReStart_ADS1x9x(void)
@@ -439,7 +437,7 @@ void Soft_Start_ReStart_ADS1x9x(void)
   ADS1x9x_SPI_Command_Data(ADS1292R_CMD_START);       // Send 0x08 to the ADS1x9x
   vTaskDelay(2);
   ads1292r_cs_high();
-  NRF_LOG_INFO("[ads1292r] start cmd sent and clear cs");
+  SEGGER_RTT_printf(0, "[ads1292r] start cmd sent and clear cs\r\n");
 }
 
 void Hard_Start_ReStart_ADS1x9x(void)
@@ -450,13 +448,13 @@ void Hard_Start_ReStart_ADS1x9x(void)
 void Soft_Start_ADS1x9x(void)
 {
   ADS1x9x_SPI_Command_Data(ADS1292R_CMD_START);       // Send 0x08 to the ADS1x9x
-  NRF_LOG_INFO("[ads1292r] start cmd sent");
+ SEGGER_RTT_printf(0, "[ads1292r] start cmd sent\r\n");
 }
 
 void Soft_Stop_ADS1x9x (void)
 {
   ADS1x9x_SPI_Command_Data(ADS1292R_CMD_STOP);       // Send 0x0A to the ADS1x9x
-  NRF_LOG_INFO("[ads1292r] stop cmd sent");
+  SEGGER_RTT_printf(0, "[ads1292r] stop cmd sent\r\n");
 }
 
 // This is the same with ADS1x9x_Disable_Start, delay more,
@@ -469,13 +467,13 @@ void Hard_Stop_ADS1x9x (void)
 void Stop_Read_Data_Continuous (void)
 {
   ADS1x9x_SPI_Command_Data(ADS1292R_CMD_SDATAC);    // Send 0x11 to the ADS1x9x
-  NRF_LOG_INFO("[ads1292r] sdatac (stop read data continuously) cmd sent");
+  SEGGER_RTT_printf(0, "[ads1292r] sdatac (stop read data continuously) cmd sent\r\n");
 }
 
 void Start_Read_Data_Continuous (void)
 {
   ADS1x9x_SPI_Command_Data(ADS1292R_CMD_RDATAC);    // Send 0x10 to the ADS1x9x
-  NRF_LOG_INFO("[ads1292r] rdatac (read data continuouesly) cmd sent");
+  SEGGER_RTT_printf(0, "[ads1292r] rdatac (read data continuouesly) cmd sent\r\n");
 }
 
 void Start_Data_Conv_Command (void)
@@ -549,7 +547,7 @@ void ADS1x9x_Reg_Write (unsigned char READ_WRITE_ADDRESS, unsigned char DATA)
   };
 
   APP_ERROR_CHECK(nrf_spi_mngr_perform(&m_nrf_spi_mngr, NULL, xfers, sizeof(xfers) / sizeof(xfers[0]), NULL));
-  NRF_LOG_INFO("[ads1292r] write %d to reg %d", txbuf[2], READ_WRITE_ADDRESS);
+  SEGGER_RTT_printf(0, "[ads1292r] write %d to reg %d\r\n", txbuf[2], READ_WRITE_ADDRESS);
 
   Clear_ADS1x9x_Chip_Enable();            // Disable chip select
 }
@@ -567,7 +565,7 @@ unsigned char ADS1x9x_Reg_Read(unsigned char Reg_address)
   };
 
   APP_ERROR_CHECK(nrf_spi_mngr_perform(&m_nrf_spi_mngr, NULL, xfers, sizeof(xfers) / sizeof(xfers[0]), NULL));
-  NRF_LOG_INFO("[ads1292r] read reg: %d, ret %d", Reg_address, rxbuf[2]);
+  SEGGER_RTT_printf(0, "[ads1292r] read reg: %d, ret %d\r\n", Reg_address, rxbuf[2]);
   Clear_ADS1x9x_Chip_Enable();                // Disable chip select
   return rxbuf[2];
 }
@@ -686,7 +684,7 @@ static void spi_rdatac_end_callback(ret_code_t result, void * p_user_data)
         err_count++;
         if (err_count % 1000 == 0)
         {
-            NRF_LOG_INFO("[ads1292r] rxbuf used as rdatac buffer, bad thing happends!");
+            SEGGER_RTT_printf(0, "[ads1292r] rxbuf used as rdatac buffer, bad thing happends!\r\n");
         }
   }
   else
@@ -822,10 +820,10 @@ static void ads1292r_task(void * pvParameters)
     }
     NRF_LOG_INFO("---- formatted print test end ----");
 #endif
-    
+
     vTaskDelay(1000);
 
-    NRF_LOG_INFO("ads129x_brief_tlv_t size: %d", sizeof(ads129x_brief_tlv_t));
+    SEGGER_RTT_printf(0, "ads129x_brief_tlv_t size: %d\r\n", sizeof(ads129x_brief_tlv_t));
 
     p_current_packet = next_packet();
     init_rdatac_records();
@@ -975,7 +973,7 @@ static void ads1292r_task(void * pvParameters)
                 // NRF_LOG_INFO("rog qrs detected, hr %d, delay %d, qrs count %d", rog_hr, delay, rog_qrs_count);
                 rog_qrs_count++;
             }
-            
+
             rog_last_hr = rog_hr;
             rog_hr_sum += rog_hr;
 
@@ -989,31 +987,31 @@ static void ads1292r_task(void * pvParameters)
         }
 
         m_packet_helper.num_of_samples += 1;
-        
+
         // sample tlv is ready
         if (m_packet_helper.num_of_samples == ADS129X_NUM_OF_SAMPLES)
         {
             // SEGGER_RTT_printf(0, "ecg hr, last: %d, avg: %d\r\n", rog_last_hr, rog_hr_sum / ADS129X_NUM_OF_SAMPLES);
             // int hr = 19;
-            int hr = rog_last_hr; 
+            int hr = rog_last_hr;
             // int hr = rog_hr_sum / ADS129X_NUM_OF_SAMPLES;
-            
+
             rog_hr_sum = 0;
-            
+
             m_packet_helper.p_brief->heart_rate = hr;
             oled_update_ecg(hr);
-            
+
             // type 2
             // seq TODO
             // data[0] -> heart rate
-            // data[1] -> 
+            // data[1] ->
             // data[2] ->
             // data[3] ->
             // data[4] <= 5 sample avg ecg
             if (ble_nus_tx_running())
             {
                 ble_nus_tx_buf_t* buf = ble_nus_tx_alloc();
-                if (buf) 
+                if (buf)
                 {
                     buf->type = 2;
                     buf->seq = 0;
@@ -1021,7 +1019,7 @@ static void ads1292r_task(void * pvParameters)
                     buf->data[1] = 0;
                     buf->data[2] = 0;
                     buf->data[3] = 0;
-                    
+
                     int *pint = (int *)(&buf->data[4]);
                     for (int i = 0; i < ADS129X_NUM_OF_SAMPLES / 5; i++)
                     {
@@ -1032,22 +1030,22 @@ static void ads1292r_task(void * pvParameters)
                             int num_of_samples = i * 5 + j;
                             int sample_start = sizeof(rdatac_record_t) * num_of_samples;
                             rdatac_record_t* p_rec = (rdatac_record_t *)&m_packet_helper.p_sample->value[sample_start];
-                            
+
                             ecg = (int)(p_rec->octet[6] << 24 | p_rec->octet[7] << 16 | p_rec->octet[8] << 8);
                             ecg = ecg / 256;
-                            
+
                             sum += ecg;
                         }
-                        
+
                         pint[i] = sum / 5;
                         sum = 0;
                     }
-                    
+
                     buf->len = 2 + 4 + sizeof(int) * ADS129X_NUM_OF_SAMPLES / 5;
                     ble_nus_tx_send(buf);
                 }
             }
-   
+
             if (cdc_acm_port_open())
             {
                 // fill reg tlv
@@ -1070,7 +1068,7 @@ static void ads1292r_task(void * pvParameters)
 
         if (i % 5000 == 0)
         {
-            NRF_LOG_INFO("ads1292r: %d samples", i);
+            SEGGER_RTT_printf(0, "ads1292r: %d samples\r\n", i);
         }
     }
 }
@@ -1150,13 +1148,12 @@ void app_ads1292r_freertos_init(void)
                                        &m_ads1292r_thread);
     if (xReturned != pdPASS)
     {
-        NRF_LOG_ERROR("[ads1292r] task not created.");
+        SEGGER_RTT_printf(0, "[ads1292r] task not created.\r\n");
         APP_ERROR_HANDLER(NRF_ERROR_NO_MEM);
     }
     else
     {
-        NRF_LOG_INFO("[ads1292r] task created.");
-        SEGGER_RTT_printf(0, "ads1292 task created\r\n");
+        SEGGER_RTT_printf(0, "[ads1292r] task created.\r\n");
     }
 }
 
@@ -1181,12 +1178,16 @@ static sens_packet_t * next_packet(void)
 
         initialized = true;
 
-        NRF_LOG_INFO("ads129x packets initialized, payload length: %d, packet size: %d, %d samples per packet",
-            m_packet_helper.payload_len,
-            m_packet_helper.packet_size,
-            ADS129X_NUM_OF_SAMPLES);
-        
-        SEGGER_RTT_printf(0, "ecg pkt %d, pl %d, spp %d\r\n",  m_packet_helper.packet_size, m_packet_helper.payload_len, ADS129X_NUM_OF_SAMPLES);
+        // which one is better? TODO
+//        SEGGER_RTT_printf(0, "ads129x packets initialized, payload length: %d, packet size: %d, %d samples per packet\r\n",
+//                          m_packet_helper.payload_len,
+//                          m_packet_helper.packet_size,
+//                          ADS129X_NUM_OF_SAMPLES);
+
+        SEGGER_RTT_printf(0, "ecg pkt %d, pl %d, spp %d\r\n",
+                          m_packet_helper.packet_size,
+                          m_packet_helper.payload_len,
+                          ADS129X_NUM_OF_SAMPLES);
     }
 
     // init next packet
