@@ -13,8 +13,6 @@
 
 #include "app_error.h"
 
-#include "nrf_log.h"
-#include "nrf_log_ctrl.h"
 #include "app_util_platform.h"
 #include "nrf_strerror.h"
 
@@ -47,13 +45,8 @@
 #include "nrfx_gpiote.h"
 #include "nrfx_uart.h"
 
-#include "nrf_log.h"
-#include "nrf_log_ctrl.h"
-#include "nrf_log_default_backends.h"
-
 #include "app_usbd_serial_num.h"
 
-// #include "ble_bios.h"
 #include "ble_nus.h"
 #include "ble_nus_tx.h"
 
@@ -140,9 +133,7 @@ static void ble_nus_tx_init(void);
  */
  
 BLE_NUS_DEF(m_nus, NRF_SDH_BLE_TOTAL_LINK_COUNT);                                   /**< BLE NUS service instance. */ 
- 
-// BLE_BIOSENS_DEF(m_biosens);
-// BLE_SPP_DEF(m_spp);
+
 NRF_BLE_GATT_DEF(m_gatt);                                                           /**< GATT module instance. */
 NRF_BLE_QWR_DEF(m_qwr);                                                             /**< Context for the Queued Write module.*/
 BLE_ADVERTISING_DEF(m_advertising);                                                 /**< Advertising module instance. */
@@ -165,10 +156,6 @@ static ble_uuid_t m_adv_uuids[] =                                               
 };
 #endif
 
-#if NRF_LOG_ENABLED
-static TaskHandle_t m_logger_thread;                                                /**< Definition of Logger thread. */
-#endif
-
 
 /*********************************************************************
  * LOCAL FUNCTIONS
@@ -182,79 +169,10 @@ static void advertising_start(void * p_erase_bonds);
 /*********************************************************************
  * PROFILE FUNCTIONS AND CALLBACKS
  */
-// static void on_spp_evt(ble_spp_t * p_eeg, ble_spp_evt_t * p_evt) {};
-// static void spp_command_handler (uint16_t conn_handle, ble_spp_t * p_spp, uint8_t new_sps);
 
 /**********************************************************************
  * PUBLIC FUNCTIONS
  */
-/**
-static void spp_command_handler (uint16_t conn_handle, ble_spp_t * p_spp, uint8_t new_sps)
-{
-    ret_code_t err_code;
-    ble_gatts_value_t gatts_value;
-
-    if (new_sps > 1) return;
-
-    gatts_value.len = sizeof(uint8_t);
-    gatts_value.offset = 0;
-    gatts_value.p_value = &new_sps;
-
-    err_code = sd_ble_gatts_value_set(conn_handle, p_spp->sps_handles.value_handle, &gatts_value);
-    if (err_code != NRF_SUCCESS)
-    {
-      NRF_LOG_WARNING("failed to write sps value, error code: %d", err_code);
-    }
-    else
-    {
-      m_spp.sps_shadow = new_sps;
-      NRF_LOG_INFO("sps set to %d", new_sps);
-    }
-}
-
-static void spp_sample_notification_enabled()
-{
-    m_spp.sample_notifying = true;
-//    BottomEvent_t be = {
-//        .type = BE_NOTIFICATION_ENABLED,
-//    };
-//    xQueueSendFromISR(m_beq, &be, NULL);
-}
-
-static void spp_sample_notification_disabled()
-{
-    if (m_spp.sample_notifying == true) {
-//        BottomEvent_t be = {
-//            .type = BE_NOTIFICATION_DISABLED,
-//        };
-
-//        xQueueSendFromISR(m_beq, &be, NULL);
-        m_spp.sample_notifying = false;
-    }
-}
-
-static bool spp_sample_notifying()
-{
-    return m_spp.sample_notifying;
-}
-
-static void spp_init(void)
-{
-    ret_code_t      err_code;
-    ble_spp_init_t  spp_init_obj;
-
-    memset(&spp_init_obj, 0, sizeof(spp_init_obj));
-
-    spp_init_obj.evt_handler          = on_spp_evt;
-    spp_init_obj.initial_sps          = 1;
-
-    spp_init_obj.command_handler = spp_command_handler;
-    spp_init_obj.sample_notification_enabled = spp_sample_notification_enabled;
-    spp_init_obj.sample_notification_disabled = spp_sample_notification_disabled;
-
-    err_code = ble_spp_init(&m_spp, &spp_init_obj);
-    APP_ERROR_CHECK(err_code);
-} */
 
 /**@brief Callback function for asserts in the SoftDevice.
  *
@@ -405,12 +323,12 @@ static void nus_data_handler(ble_nus_evt_t * p_evt)
     else if (p_evt->type == BLE_NUS_EVT_COMM_STARTED)
     {
         m_ble_nus_tx_running = true;
-        NRF_LOG_INFO("BLE_NUS_EVT_COMM_STARTED");
+        SEGGER_RTT_printf(0, "BLE_NUS_EVT_COMM_STARTED\r\n");
     }
     else if (p_evt->type == BLE_NUS_EVT_COMM_STOPPED)
     {
         m_ble_nus_tx_running = false; // TODO should this be updated when disconnect directly?
-        NRF_LOG_INFO("BLE_NUS_EVT_COMM_STOPPED");
+        SEGGER_RTT_printf(0, "BLE_NUS_EVT_COMM_STOPPED\r\n");
     }
     else
     {}
@@ -592,7 +510,7 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
     switch (p_ble_evt->header.evt_id)
     {
         case BLE_GAP_EVT_CONNECTED:
-            NRF_LOG_INFO("[BLE] Connected");
+            SEGGER_RTT_printf(0, "[BLE] Connected\r\n");
             m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
             err_code = nrf_ble_qwr_conn_handle_assign(&m_qwr, m_conn_handle);
             APP_ERROR_CHECK(err_code);
@@ -601,7 +519,7 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             break;
 
         case BLE_GAP_EVT_DISCONNECTED:
-            NRF_LOG_INFO("[BLE] Disconnected");
+            SEGGER_RTT_printf(0, "[BLE] Disconnected\r\n");
             m_conn_handle = BLE_CONN_HANDLE_INVALID;
 // bool m_ble_nus_tx_running = false;
 // ble_nus_tx_buf_t* m_ble_nus_tx_sending = NULL;        
@@ -624,7 +542,7 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
 
         case BLE_GAP_EVT_PHY_UPDATE_REQUEST:
         {
-            NRF_LOG_DEBUG("[BLE] PHY update request.");
+            SEGGER_RTT_printf(0, "[BLE] PHY update request.\r\n");
             ble_gap_phys_t const phys =
             {
                 .rx_phys = BLE_GAP_PHY_AUTO,
@@ -636,7 +554,7 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
 
         case BLE_GATTC_EVT_TIMEOUT:
             // Disconnect on GATT Client timeout event.
-            NRF_LOG_DEBUG("[BLE] GATT Client Timeout.");
+            SEGGER_RTT_printf(0, "[BLE] GATT Client Timeout.\r\n");
             err_code = sd_ble_gap_disconnect(p_ble_evt->evt.gattc_evt.conn_handle,
                                              BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
             APP_ERROR_CHECK(err_code);
@@ -644,7 +562,7 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
 
         case BLE_GATTS_EVT_TIMEOUT:
             // Disconnect on GATT Server timeout event.
-            NRF_LOG_DEBUG("[BLE] GATT Server Timeout.");
+            SEGGER_RTT_printf(0, "[BLE] GATT Server Timeout.\r\n");
             err_code = sd_ble_gap_disconnect(p_ble_evt->evt.gatts_evt.conn_handle,
                                              BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
             APP_ERROR_CHECK(err_code);
@@ -741,17 +659,6 @@ static void advertising_init(void)
     ble_advertising_conn_cfg_tag_set(&m_advertising, APP_BLE_CONN_CFG_TAG);
 }
 
-
-/**@brief Function for initializing the nrf log module.
- */
-//static void log_init(void)
-//{
-//    ret_code_t err_code = NRF_LOG_INIT(NULL);
-//    APP_ERROR_CHECK(err_code);
-
-//    NRF_LOG_DEFAULT_BACKENDS_INIT();
-//}
-
 /**@brief Function for starting advertising. */
 static void advertising_start(void * p_erase_bonds)
 {
@@ -768,28 +675,6 @@ static void advertising_start(void * p_erase_bonds)
         APP_ERROR_CHECK(err_code);
     }
 }
-
-
-#if NRF_LOG_ENABLED
-/**@brief Thread for handling the logger.
- *
- * @details This thread is responsible for processing log entries if logs are deferred.
- *          Thread flushes all log entries and suspends. It is resumed by idle task hook.
- *
- * @param[in]   arg   Pointer used for passing some arbitrary information (context) from the
- *                    osThreadCreate() call to the thread.
- */
-static void logger_thread(void * arg)
-{
-    UNUSED_PARAMETER(arg);
-
-    while (1)
-    {
-        NRF_LOG_FLUSH();
-        vTaskSuspend(NULL); // Suspend myself
-    }
-}
-#endif //NRF_LOG_ENABLED
 
 /*
  * https://devzone.nordicsemi.com/f/nordic-q-a/95398/nrf52840-correct-freertos-logging-using-nrf_log-module
@@ -874,14 +759,6 @@ int main(void)
     // Do not start any interrupt that uses system functions before system initialisation.
     // The best solution is to start the OS before any other initalisation.
 
-#if NRF_LOG_ENABLED
-    // Start execution.
-    if (pdPASS != xTaskCreate(logger_thread, "LOGGER", 256, NULL, 1, &m_logger_thread))
-    {
-        APP_ERROR_HANDLER(NRF_ERROR_NO_MEM);
-    }
-#endif
-
     // Activate deep sleep mode.
     SCB->SCR |= SCB_SCR_SLEEPDEEP_Msk;
 
@@ -903,11 +780,6 @@ int main(void)
     // The task will run advertising_start() before entering its loop.
     nrf_sdh_freertos_init(advertising_start, &erase_bonds);
 
-#if defined MIMIC_ROUGU && MIMIC_ROUGU == 1
-    app_max86141_freertos_init();
-    app_usbcdc_freertos_init();
-    NRF_LOG_INFO("Program started in mimic_rougu mode.");
-#else
     // app_qma6110p_freertos_init();
     app_oled_freertos_init();
     owuart_freertos_init();
@@ -916,10 +788,6 @@ int main(void)
     app_usbcdc_freertos_init();
     
     SEGGER_RTT_printf(0, "Program started\r\n.");
-
-#endif
-
-    // onewire_probe();
 
     // Start FreeRTOS scheduler.
     vTaskStartScheduler();
@@ -982,13 +850,12 @@ ble_nus_tx_buf_t* ble_nus_tx_alloc(void)
     ble_nus_tx_buf_t* buf = NULL;
     if (pdTRUE == xQueueReceive(ble_nus_tx_idle, &buf, 0))
     {
-        // NRF_LOG_INFO("xQueueReceive succeeded");
         APP_ERROR_CHECK_BOOL(buf != NULL);
         return buf;
     }
     else
     {
-        NRF_LOG_INFO("xQueueReceive failed?");
+        SEGGER_RTT_printf(0, "ble_nus_tx_alloc, xQueueReceive failed\r\n");
         return NULL;
     }
 }
@@ -1011,50 +878,42 @@ void vApplicationStackOverflowHook( TaskHandle_t xTask,
 void app_error_fault_handler(uint32_t id, uint32_t pc, uint32_t info)
 {
     __disable_irq();
-    NRF_LOG_FINAL_FLUSH();
 
 #ifndef DEBUG
-    NRF_LOG_ERROR("Fatal error");
+    SEGGER_RTT_printf(0, "Fatal error\r\n");
 #else
     switch (id)
     {
 #if defined(SOFTDEVICE_PRESENT) && SOFTDEVICE_PRESENT
         case NRF_FAULT_ID_SD_ASSERT:
-            NRF_LOG_ERROR("SOFTDEVICE: ASSERTION FAILED");
-            SEGGER_RTT_printf(0, "SOFTDEVICE: ASSERTION FAILED");
+            SEGGER_RTT_printf(0, "SOFTDEVICE: ASSERTION FAILED\r\n");
             break;
         case NRF_FAULT_ID_APP_MEMACC:
-            NRF_LOG_ERROR("SOFTDEVICE: INVALID MEMORY ACCESS");
+            SEGGER_RTT_printf(0, "SOFTDEVICE: INVALID MEMORY ACCESS\r\n");
             break;
 #endif
         case NRF_FAULT_ID_SDK_ASSERT:
         {
             assert_info_t * p_info = (assert_info_t *)info;
-            NRF_LOG_ERROR("ASSERTION FAILED at %s:%u",
-                          p_info->p_file_name,
-                          p_info->line_num);
+            SEGGER_RTT_printf(0, "ASSERTION FAILED at %s:%u\r\n",
+                              p_info->p_file_name,
+                              p_info->line_num);
             break;
         }
         case NRF_FAULT_ID_SDK_ERROR:
         {
             error_info_t * p_info = (error_info_t *)info;
-            NRF_LOG_ERROR("ERROR %u [%s] at %s:%u\r\nPC at: 0x%08x",
-                          p_info->err_code,
-                          nrf_strerror_get(p_info->err_code),
-                          p_info->p_file_name,
-                          p_info->line_num,
-                          pc);
-            SEGGER_RTT_printf(0, "ERROR %u [%s] at %s:%u\r\nPC at: 0x%08x",
-                          p_info->err_code,
-                          "[noname]", // nrf_strerror_get(p_info->err_code),
-                          p_info->p_file_name,
-                          p_info->line_num,
-                          pc);            
-             NRF_LOG_ERROR("End of error report");
+            SEGGER_RTT_printf(0, "ERROR %u [%s] at %s:%u\r\nPC at: 0x%08x\r\n",
+                              p_info->err_code,
+                              "[noname]", // nrf_strerror_get(p_info->err_code),
+                              p_info->p_file_name,
+                              p_info->line_num,
+                              pc);            
+            SEGGER_RTT_printf(0, "End of error report\r\n");
             break;
         }
         default:
-            NRF_LOG_ERROR("UNKNOWN FAULT at 0x%08X", pc);
+            SEGGER_RTT_printf(0, "UNKNOWN FAULT at 0x%08X\r\n", pc);
             break;
     }
 #endif
@@ -1063,7 +922,7 @@ void app_error_fault_handler(uint32_t id, uint32_t pc, uint32_t info)
     // On assert, the system can only recover with a reset.
 
 #ifndef DEBUG
-    NRF_LOG_WARNING("System reset");
+    SEGGER_RTT_printf(0, "System reset\r\n");
     NVIC_SystemReset();
 #else
     app_error_save_and_stop(id, pc, info);
