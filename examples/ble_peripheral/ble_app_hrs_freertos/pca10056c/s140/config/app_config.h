@@ -47,8 +47,6 @@
 // check this: 
 // https://devzone.nordicsemi.com/f/nordic-q-a/82192/freertos-configtick_source
 
-// Timer 1 is used by m601z (old module)
-// Timer 2 is used by usbcdc (deprecated)
 // ==== TIMER ====
 #define NRFX_TIMER_ENABLED                          1
 #define NRFX_TIMER1_ENABLED                         1
@@ -58,6 +56,7 @@
 #define TIMER2_ENABLED                              1
 
 #define MAX86141_TIMER_INDEX                        1
+#define ADS1292R_TIMER_INDEX                        2
 
 // ====  SPI  ====
 #define NRFX_SPIM_ENABLED                           1

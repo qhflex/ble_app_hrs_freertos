@@ -8,6 +8,7 @@
 #include "semphr.h"
 
 #include "nrfx_gpiote.h"
+#include "nrf_drv_timer.h"
 #include "nrf_spi_mngr.h"
 
 #include "sens-proto.h"
@@ -20,6 +21,40 @@
 
 #include "ble_nus_tx.h"
 #include "oled.h"
+
+/**
+ * a timer is not required for business logic. it is used to measure spi interrupt
+ */
+static const nrf_drv_timer_t m_ads1292r_timer = NRF_DRV_TIMER_INSTANCE(ADS1292R_TIMER_INDEX);
+static void ads1292r_timer_callback(nrf_timer_event_t event_type, void *p_context)
+{
+    static int count = 0;
+    SEGGER_RTT_printf(0, "ecg timer fired %d\r\n", count++);
+}
+
+static void ads1292r_timer_init(void)
+{
+    ret_code_t err_code;
+    
+    nrf_drv_timer_config_t timer_cfg = NRF_DRV_TIMER_DEFAULT_CONFIG;
+    timer_cfg.frequency = NRF_TIMER_FREQ_31250Hz;
+    timer_cfg.bit_width = NRF_TIMER_BIT_WIDTH_16;
+    
+    err_code = nrf_drv_timer_init(&m_ads1292r_timer, &timer_cfg, ads1292r_timer_callback);
+    APP_ERROR_CHECK(err_code);
+}
+
+static void ads1292r_timer_start(void)
+{
+    nrf_drv_timer_extended_compare(&m_ads1292r_timer,
+                                   NRF_TIMER_CC_CHANNEL0,
+                                   31250,
+                                   NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK,
+                                   true);
+    nrf_drv_timer_enable(&m_ads1292r_timer);
+    
+    SEGGER_RTT_printf(0, "ads1292r timer started\r\n");
+}
 
 #define SENS_PACKET_POOL_SIZE       4
 
@@ -42,6 +77,8 @@
 // #define SPI0_ENABLED             1
 // #define SPI0_USE_EASY_DMA 0      0           // TODO try dma
 NRF_SPI_MNGR_DEF(m_nrf_spi_mngr, MAX_PENDING_TRANSACTIONS, SPI_INSTANCE_ID);
+
+
 
 // forward declaration
 static void ads1292r_cs_low(void);
@@ -824,6 +861,9 @@ static void ads1292r_task(void * pvParameters)
     vTaskDelay(1000);
 
     SEGGER_RTT_printf(0, "ads129x_brief_tlv_t size: %d\r\n", sizeof(ads129x_brief_tlv_t));
+    
+    ads1292r_timer_init();
+    ads1292r_timer_start();
 
     p_current_packet = next_packet();
     init_rdatac_records();
