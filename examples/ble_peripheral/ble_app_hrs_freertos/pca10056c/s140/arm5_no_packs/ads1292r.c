@@ -7,6 +7,7 @@
 #include "task.h"
 #include "semphr.h"
 
+#include "nrfx_atomic.h"
 #include "nrfx_gpiote.h"
 #include "nrf_drv_timer.h"
 #include "nrf_spi_mngr.h"
@@ -23,23 +24,35 @@
 #include "oled.h"
 
 /**
+ * atomic counter
+ */
+static nrfx_atomic_u32_t m_atomic_count = 0;
+
+static void atomic_increment(void)
+{
+    nrfx_atomic_u32_add(&m_atomic_count, 1);
+}
+
+/**
  * a timer is not required for business logic. it is used to measure spi interrupt
  */
 static const nrf_drv_timer_t m_ads1292r_timer = NRF_DRV_TIMER_INSTANCE(ADS1292R_TIMER_INDEX);
 static void ads1292r_timer_callback(nrf_timer_event_t event_type, void *p_context)
 {
-    static int count = 0;
-    SEGGER_RTT_printf(0, "ecg timer fired %d\r\n", count++);
+    // static int count = 0;
+    // SEGGER_RTT_printf(0, "ecg timer fired %d\r\n", count++);
+    uint32_t prev = nrfx_atomic_u32_fetch_store(&m_atomic_count, 0);
+    SEGGER_RTT_printf(0, "ecg atomic %d\r\n", prev);
 }
 
 static void ads1292r_timer_init(void)
 {
     ret_code_t err_code;
-    
+
     nrf_drv_timer_config_t timer_cfg = NRF_DRV_TIMER_DEFAULT_CONFIG;
     timer_cfg.frequency = NRF_TIMER_FREQ_31250Hz;
     timer_cfg.bit_width = NRF_TIMER_BIT_WIDTH_16;
-    
+
     err_code = nrf_drv_timer_init(&m_ads1292r_timer, &timer_cfg, ads1292r_timer_callback);
     APP_ERROR_CHECK(err_code);
 }
@@ -52,7 +65,7 @@ static void ads1292r_timer_start(void)
                                    NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK,
                                    true);
     nrf_drv_timer_enable(&m_ads1292r_timer);
-    
+
     SEGGER_RTT_printf(0, "ads1292r timer started\r\n");
 }
 
@@ -87,7 +100,7 @@ static void ads1292r_cs_high(void);
 // a rdatac sample, 9 bytes
 typedef struct __attribute__((packed)) rdatac_record
 {
-  uint8_t octet[9];
+    uint8_t octet[9];
 } rdatac_record_t;
 
 // a string buffer for printing rdatac sample in hex mode
@@ -122,7 +135,12 @@ static sens_packet_t *p_current_packet;
 
 static sens_packet_t *next_packet(void);
 
-static rdatac_record_t rdatac_records[8];
+/**
+ *
+ */
+#define NUM_OF_RECORDS                  16
+
+static rdatac_record_t rdatac_records[NUM_OF_RECORDS];
 QueueHandle_t p_records_idle = NULL;
 QueueHandle_t p_records_pending = NULL;
 
@@ -766,6 +784,8 @@ static void ads1292r_drdy_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t a
   // int avail = uxQueueSpacesAvailable(p_records_idle);
   // NRF_LOG_INFO("avail %d", avail);
 
+  atomic_increment();
+
   if (pdTRUE == xQueueReceiveFromISR(p_records_idle, &p, NULL))
   {
     // NRF_LOG_INFO("get %p in isr", p);
@@ -773,7 +793,7 @@ static void ads1292r_drdy_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t a
   }
   else
   {
-    // NRF_LOG_INFO("2");
+    SEGGER_RTT_printf(0, "--------------- xqecv err\r\n");
     rdatac_xfers[0].p_rx_data = rxbuf;
   }
 
@@ -861,7 +881,7 @@ static void ads1292r_task(void * pvParameters)
     vTaskDelay(1000);
 
     SEGGER_RTT_printf(0, "ads129x_brief_tlv_t size: %d\r\n", sizeof(ads129x_brief_tlv_t));
-    
+
     ads1292r_timer_init();
     ads1292r_timer_start();
 
@@ -1239,12 +1259,12 @@ static sens_packet_t * next_packet(void)
 
 static void init_rdatac_records(void)
 {
-    p_records_idle = xQueueCreate(8, sizeof(void*));
+    p_records_idle = xQueueCreate(NUM_OF_RECORDS, sizeof(void*));
     ASSERT(p_records_idle != NULL);
-    p_records_pending = xQueueCreate(8, sizeof(void*));
+    p_records_pending = xQueueCreate(NUM_OF_RECORDS, sizeof(void*));
     ASSERT(p_records_pending != NULL);
 
-    for (int i = 0; i < 8; i++)
+    for (int i = 0; i < NUM_OF_RECORDS; i++)
     {
         rdatac_record_t * p_rec = &rdatac_records[i];
         APP_ERROR_CHECK_BOOL(pdTRUE == xQueueSend(p_records_idle, &p_rec, 0));

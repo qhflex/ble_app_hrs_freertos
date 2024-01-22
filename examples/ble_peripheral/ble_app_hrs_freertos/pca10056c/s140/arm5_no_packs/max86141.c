@@ -51,7 +51,7 @@ int watchout = 0;
 
 /*********************************************************************
  * TYPEDEFS
- */ 
+ */
 // obsolete
 typedef struct __attribute__((packed)) max_ble_pac
 {
@@ -83,7 +83,7 @@ typedef struct __attribute__((packed)) max_ble_spo_pac
 STATIC_ASSERT(sizeof(max_ble_spo_pac_t) == 92);
 
 /**
- * for abp, sampling rate is 2048 and each packet contains 256 samples, which means 
+ * for abp, sampling rate is 2048 and each packet contains 256 samples, which means
  * 8 packets per second. 1 of them have feature / bp data.
  * for ble, we have 2 samples per packet.
  */
@@ -1369,7 +1369,7 @@ static void max86141_run_spo(void)
 {
     // 120 packets per minute
     int max_pkts = 3 * 60 * 50 / MAX86141_NUM_OF_SPO_SAMPLES;
-    
+
     sens_packet_t *p_pkt = NULL;
     sens_packet_t *p_cfgpkt = NULL;
 
@@ -1378,9 +1378,9 @@ static void max86141_run_spo(void)
     // int cfgpkt_size = 0;
     bool cfgpkt_sent = false;
     int sample_in_pkt = 0;
-    
+
     int spo_pkt_count = 0;
-    
+
     int saO2_sum = 0;
     int hr_sum = 0;
     int ir_sum[10] = {0};
@@ -1402,7 +1402,7 @@ static void max86141_run_spo(void)
     helper.has_ppgcfg = true;
     helper.has_ledcfg = true;
     helper.instance_id = 0; // cfgpkt only
-    
+
     APP_ERROR_CHECK_BOOL(true == sens_format_max86141_packet(&helper, p_cfgpkt, MAX86141_SPO_CFGPKT_SIZE));
     APP_ERROR_CHECK_BOOL(MAX86141_SPO_CFGPKT_SIZE == helper.packet_size);
     read_registers(&spo_ctx, 0x10, 7, helper.p_ppgcfg->value);
@@ -1476,15 +1476,15 @@ static void max86141_run_spo(void)
             {
                 int saO2_avg = saO2_sum / MAX86141_NUM_OF_SPO_SAMPLES;
                 int hr_avg = hr_sum / MAX86141_NUM_OF_SPO_SAMPLES;
-                
+
                 oled_update_spo(saO2_avg);
-                
+
                 if (cdc_acm_port_open() && cfgpkt_sent)
                 {
                     simple_crc((uint8_t *)&p_pkt->type, &helper.p_crc[0], &helper.p_crc[1]);
                     cdc_acm_send_packet((uint8_t *)p_pkt, helper.packet_size);
                 }
-                
+
                 if (ble_nus_tx_running())
                 {
                     ble_nus_tx_buf_t *buf = ble_nus_tx_alloc();
@@ -1496,13 +1496,13 @@ static void max86141_run_spo(void)
                         pac->seq = 0;
                         pac->saO2 = saO2_avg; // blood_result.saO2;
                         pac->heartRate = hr_avg; // blood_result.heartRate;
-                        
+
                         for (int i = 0; i < 10; i++)
                         {
                             pac->ir1[i] = ir_sum[i] / 5;
                             pac->rd1[i] = rd_sum[i] / 5;
                         }
-                        
+
                         ble_nus_tx_send(buf);
                     }
                 }
@@ -1510,9 +1510,9 @@ static void max86141_run_spo(void)
                 spo_pkt_count++;
                 if (spo_pkt_count % 2 == 0)
                 {
-                    SEGGER_RTT_printf(0, "spo %d pkts (%d)\r\n", spo_pkt_count, helper.packet_size); 
+                    SEGGER_RTT_printf(0, "spo %d pkts (%d)\r\n", spo_pkt_count, helper.packet_size);
                 }
-                
+
                 if (spo_pkt_count == max_pkts)
                 {
                     // there are dual loops, single break insufficient
@@ -1524,7 +1524,7 @@ static void max86141_run_spo(void)
                 saO2_sum = 0;
                 hr_sum = 0;
                 sample_in_pkt = 0;
-                for (int i = 0; i < 10; i++) 
+                for (int i = 0; i < 10; i++)
                 {
                     ir_sum[i] = 0;
                     rd_sum[i] = 0;
@@ -1535,7 +1535,7 @@ static void max86141_run_spo(void)
         }
 
         xQueueSend(q_smpl_idle, &p_raw, portMAX_DELAY);
-        
+
         handle_abp_coeff_req();
     }
 
@@ -1609,7 +1609,7 @@ static void max86141_run_abp(void)
 {
     // 16 packets per second for 128 samples per packet, 16 * 60 = 960
     int max_pkts = 3 * 60 * 2048 / MAX86141_NUM_OF_ABP_SAMPLES;
-    
+
     sens_packet_t *p_pkt = NULL;
     sens_packet_t *p_cfgpkt = NULL;
 
@@ -1623,11 +1623,11 @@ static void max86141_run_abp(void)
     reset_smpl_queue();
 
     CFeatureExtractor fe;
-    CFeatureExtractorInit(&fe, 
-                          2048, // fs, 
-                          500,  // max_peaks, 
+    CFeatureExtractorInit(&fe,
+                          2048, // fs,
+                          500,  // max_peaks,
                           0.05, // pair_thresh,
-                          5,    // warmup_sec, 
+                          5,    // warmup_sec,
                           1);   // output_freq); this is the frequency of feature output.
 //  for (I32 i = 0; i < MIN(VSIZE(sig), 2048 * 10); i++) {
 //    CFeature feature;
@@ -1640,7 +1640,7 @@ static void max86141_run_abp(void)
 //             feature.imin);
 //    }
 //  }
-//  CFeatureExtractorDestroy(&fe);    
+//  CFeatureExtractorDestroy(&fe);
 
     max86141_config(&abp_ctx);
 
@@ -1653,7 +1653,7 @@ static void max86141_run_abp(void)
     helper.has_ledcfg = true;
     // helper.has_abp_coeff = true;
     helper.instance_id = 1; // cfgpkt only
-    
+
     APP_ERROR_CHECK_BOOL(true == sens_format_max86141_packet(&helper, p_cfgpkt, MAX86141_ABP_CFGPKT_SIZE));
     APP_ERROR_CHECK_BOOL(MAX86141_ABP_CFGPKT_SIZE == helper.packet_size);
     read_registers(&spo_ctx, 0x10, 7, helper.p_ppgcfg->value);
@@ -1665,13 +1665,13 @@ static void max86141_run_abp(void)
 //    helper.p_abp_coeff->dbp[0].u = m_pref.dbp[0].u;
 //    helper.p_abp_coeff->dbp[1].u = m_pref.dbp[1].u;
 //    helper.p_abp_coeff->dbp[2].u = m_pref.dbp[2].u;
-//    helper.p_abp_coeff->dbp[3].u = m_pref.dbp[3].u;    
+//    helper.p_abp_coeff->dbp[3].u = m_pref.dbp[3].u;
     simple_crc((uint8_t *)&p_cfgpkt->type, &helper.p_crc[0], &helper.p_crc[1]);
 
     // prepare packet
     p_pkt = prepare_abp_packet(&helper, NULL);
     sample_in_pkt = 0;
-    
+
     uint32_t ir1sum[2] = {0};
     uint32_t ir2sum[2] = {0};
 
@@ -1692,7 +1692,7 @@ static void max86141_run_abp(void)
 
     int loop;
     for (loop = 0;; loop++)
-    {   
+    {
         if (!cdc_acm_port_open())
         {
             cfgpkt_sent = false;
@@ -1723,14 +1723,14 @@ static void max86141_run_abp(void)
 
             // calc a result TODO
             uint32_t ir1int = (((unsigned int)(src[0] & 0x07)) << 16) + (((unsigned int)src[1]) << 8) + (unsigned int)src[2];
-            uint32_t ir2int = (((unsigned int)(src[3] & 0x07)) << 16) + (((unsigned int)src[4]) << 8) + (unsigned int)src[5];            
-            
+            uint32_t ir2int = (((unsigned int)(src[3] & 0x07)) << 16) + (((unsigned int)src[4]) << 8) + (unsigned int)src[5];
+
             ir1sum[sample_in_pkt / 128] += ir1int;
             ir2sum[sample_in_pkt / 128] += ir2int;
-            
+
             double ir1 = (double)ir1int;
             double ir2 = (double)ir2int;
-            
+
             CFeature feature;
             // SEGGER_RTT_printf(0, "b %d\r\n", sample_in_pkt);
             CFeatureExtractorApply(&fe, ir1, ir2, &feature);
@@ -1739,34 +1739,34 @@ static void max86141_run_abp(void)
             if (feature.valid)
             {
                 F64 coeffs[2];
-                
+
                 // SEGGER_RTT_printf(0, "feat valid\r\n");
                 helper.p_abp_feature->index = sample_in_pkt;
                 helper.p_abp_feature->ptt.f = (float)feature.ptt;
                 // helper.p_abp_feature->idc.f = (float)feature.idc;
                 // helper.p_abp_feature->imin.f = (float)feature.imin;
                 // helper.p_abp_feature->imax.f = (float)feature.imax;
-                
+
                 coeffs[0] = m_pref.sbp[0].f;
                 coeffs[1] = m_pref.sbp[1].f;
                 // coeffs[2] = m_pref.sbp[2].f;
                 // coeffs[3] = m_pref.sbp[3].f;
                 helper.p_abp_feature->sbp.f = (float)CPressureCompute(feature, coeffs);
-                
+
                 coeffs[0] = m_pref.dbp[0].f;
                 coeffs[1] = m_pref.dbp[1].f;
                 // coeffs[2] = m_pref.dbp[2].f;
                 // coeffs[3] = m_pref.dbp[3].f;
                 helper.p_abp_feature->dbp.f = (float)CPressureCompute(feature, coeffs);
-                
-                oled_update_abp(helper.p_abp_feature->sbp.f, helper.p_abp_feature->dbp.f);                
-            }   
+
+                oled_update_abp(helper.p_abp_feature->sbp.f, helper.p_abp_feature->dbp.f);
+            }
 
             // increment cursor
             sample_in_pkt++;
 
             if (sample_in_pkt == MAX86141_NUM_OF_ABP_SAMPLES)
-            {  
+            {
                 if (cdc_acm_port_open() && cfgpkt_sent)
                 {
                     // seal variadic length packet TODO
@@ -1776,7 +1776,7 @@ static void max86141_run_abp(void)
 
                     // SEGGER_RTT_printf(0, "max abp pkt size %d sent\r\n", helper.packet_size);
                 }
-                
+
                 if (ble_nus_tx_running())
                 {
                     ble_nus_tx_buf_t *buf = ble_nus_tx_alloc();
@@ -1798,23 +1798,23 @@ static void max86141_run_abp(void)
                             pac->sbp = -1;
                             pac->dbp = -1;
                         }
-                        
+
                         pac->ir1[0] = ir1sum[0] / 128;
                         pac->ir1[1] = ir1sum[1] / 128;
                         pac->ir2[0] = ir2sum[0] / 128;
                         pac->ir2[1] = ir2sum[1] / 128;
-                        
+
                         ble_nus_tx_send(buf);
                     }
                 }
 
                 abp_pkt_count++;
-                
+
                 if (abp_pkt_count % 16 == 0)
                 {
                     SEGGER_RTT_printf(0, "abp %d pkts (%d)\r\n", abp_pkt_count, helper.packet_size);
-                }                             
-                
+                }
+
                 if (abp_pkt_count == max_pkts)
                 {
                     SEGGER_RTT_printf(0, "abp %d pkts (max)\r\n", abp_pkt_count);
@@ -1826,16 +1826,16 @@ static void max86141_run_abp(void)
                 ir1sum[1] = 0;
                 ir2sum[0] = 0;
                 ir2sum[1] = 0;
-                
+
                 p_pkt = prepare_abp_packet(&helper, p_pkt);
                 // SEGGER_RTT_printf(0, "next abp pkt, %p, size %d\r\n", p_pkt, helper.packet_size);
             }
-        }           
+        }
 
         xQueueSend(q_smpl_idle, &p_raw, portMAX_DELAY);
-        
+
         handle_abp_coeff_req();
-        
+
 //        if (loop > 190)
 //        {
 //            SEGGER_RTT_printf(0, "loop %d\r\n", loop);
@@ -1843,14 +1843,14 @@ static void max86141_run_abp(void)
     }
 
     teardown:
-    
+
     // SEGGER_RTT_printf(0, "loop %d\r\n", loop);
 
     // spi read may occur after this operation, put buffers into queue, so a delay required.
     max86141_timer_stop();
     max86141_stop(&abp_ctx);
-    
-    CFeatureExtractorDestroy(&fe);    
+
+    CFeatureExtractorDestroy(&fe);
 
     vTaskDelay(1);
 
@@ -1961,11 +1961,11 @@ static void max86141_task(void * pvParameters)
 {
     // suppress compiler complaints
     (void)nrf5_flash_end_addr_get();
-    
+
     nrf_fstorage_api_t * p_fs_api =  &nrf_fstorage_sd;
     ret_code_t rc = nrf_fstorage_init(&fstorage, p_fs_api, NULL);
     APP_ERROR_CHECK(rc);
-    
+
     /*
      * erase unit:      4096 bytes
      * program unit:    4 bytes
@@ -1973,20 +1973,20 @@ static void max86141_task(void * pvParameters)
      */
     // SEGGER_RTT_printf(0, "erase unit: \t%d bytes\r\n",      fstorage.p_flash_info->erase_unit);
     // SEGGER_RTT_printf(0, "program unit: \t%d bytes\r\n",    fstorage.p_flash_info->program_unit);
-    
+
     /* It is possible to set the start and end addresses of an fstorage instance at runtime.
      * They can be set multiple times, should it be needed. The helper function below can
      * be used to determine the last address on the last page of flash memory available to
      * store data. */
     // SEGGER_RTT_printf(0, "flash end addr: \t0x%08x\r\n", nrf5_flash_end_addr_get());
-    
+
     rc = nrf_fstorage_read(&fstorage, PREF_PAGE_START, &m_pref, sizeof(m_pref));
     APP_ERROR_CHECK(rc);
-    
+
     if (m_pref.crc32 != crc32_compute((const uint8_t *)&m_pref, PREF_PAYLOAD_SIZE, NULL))
     {
         SEGGER_RTT_printf(0, "bad coeff crc\r\n");
-        for (int i = 0; i < 2; i++) 
+        for (int i = 0; i < 2; i++)
         {
             m_pref.sbp[i].f = 1.0;
             m_pref.dbp[i].f = 1.0;
@@ -1996,12 +1996,12 @@ static void max86141_task(void * pvParameters)
     {
         // TODO printf pref
     }
-    
+
     q_set_abp_coeff = xQueueCreate(2, 4 * sizeof(ieee754_t));
-    
+
     q_smpl_idle = xQueueCreate(NUM_OF_RAWBUF, 4);
     q_smpl_pend = xQueueCreate(NUM_OF_RAWBUF, 4);
-    
+
     max86141_spi_config();
     max86141_timer_init();
 
@@ -2409,13 +2409,13 @@ static void handle_abp_coeff_req(void)
 {
     // 14 + 12 + 35 = 61 as of this writing
 #define COEFF_PKT_SIZE (14 + MAX86141_BRIEF_TLV_SIZE + MAX86141_ABP_COEFF_TLV_SIZE)
-    
+
     static max86141_packet_helper_t helper;
     static uint8_t buf[COEFF_PKT_SIZE];
     static pref_t pref __attribute__((aligned(32)));
-    
+
     ret_code_t rc;
-    
+
     // process set request
     if (pdTRUE == xQueueReceive(q_set_abp_coeff, &pref, 0))
     {
@@ -2441,14 +2441,14 @@ static void handle_abp_coeff_req(void)
             SEGGER_RTT_printf(0, "flash erase err (%d)\r\n", rc);
         }
     }
-    
+
     // process get request
     if (m_get_abp_coeff)
     {
         m_get_abp_coeff = false;
-        
+
         SEGGER_RTT_printf(0, "handle get abp coeff\r\n");
-        
+
         if (ble_nus_tx_running())
         {
             ble_nus_tx_buf_t* buf = ble_nus_tx_alloc();
@@ -2462,19 +2462,19 @@ static void handle_abp_coeff_req(void)
                 pac->sbp[1].u = m_pref.sbp[1].u;
                 pac->dbp[0].u = m_pref.dbp[0].u;
                 pac->dbp[1].u = m_pref.dbp[1].u;
-                
+
                 ble_nus_tx_send(buf);
-                
+
                 SEGGER_RTT_printf(0, "ble abp coeff sent\r\n");
             }
         }
-        
+
         if (cdc_acm_port_open())
         {
             memset(&helper, 0, sizeof(helper));
             helper.has_abp_coeff = true;
             helper.instance_id = 1;
-            
+
             sens_packet_t * p_pkt = (sens_packet_t *)buf;
             if (sens_format_max86141_packet(&helper, p_pkt, COEFF_PKT_SIZE))
             {
@@ -2485,8 +2485,8 @@ static void handle_abp_coeff_req(void)
                 helper.p_abp_coeff->dbp[0] = m_pref.dbp[0];
                 helper.p_abp_coeff->dbp[1] = m_pref.dbp[1];
                 // helper.p_abp_coeff->dbp[2] = m_pref.dbp[2];
-                // helper.p_abp_coeff->dbp[3] = m_pref.dbp[3];                
-                
+                // helper.p_abp_coeff->dbp[3] = m_pref.dbp[3];
+
                 simple_crc((uint8_t *)&p_pkt->type, &helper.p_crc[0], &helper.p_crc[1]);
                 cdc_acm_send_packet((uint8_t *)p_pkt, helper.packet_size);
             }
