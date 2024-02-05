@@ -121,7 +121,9 @@
 bool m_ble_nus_tx_running = false;
 ble_nus_tx_buf_t* m_ble_nus_tx_sending = NULL;
 
-ble_nus_tx_buf_t ble_nus_tx_buffer[16];
+#define NUM_OF_BLE_BUF              32
+
+ble_nus_tx_buf_t ble_nus_tx_buffer[NUM_OF_BLE_BUF];
 
 QueueHandle_t ble_nus_tx_idle;
 QueueHandle_t ble_nus_tx_pending;
@@ -801,10 +803,10 @@ int main(void)
 static void ble_nus_tx_init()
 {
     // outgoing_queue =xQueueCreate(16, sizeof(ble_nus_outgoing_t));
-    ble_nus_tx_idle = xQueueCreate(16, sizeof(ble_nus_tx_buf_t *));
-    ble_nus_tx_pending = xQueueCreate(16, sizeof(ble_nus_tx_buf_t *));
+    ble_nus_tx_idle = xQueueCreate(NUM_OF_BLE_BUF, sizeof(ble_nus_tx_buf_t *));
+    ble_nus_tx_pending = xQueueCreate(NUM_OF_BLE_BUF, sizeof(ble_nus_tx_buf_t *));
 
-    for (int i = 0; i < 16; i++)
+    for (int i = 0; i < NUM_OF_BLE_BUF; i++)
     {
         ble_nus_tx_buf_t *buf = &ble_nus_tx_buffer[i];
         xQueueSend(ble_nus_tx_idle, &buf, 0);

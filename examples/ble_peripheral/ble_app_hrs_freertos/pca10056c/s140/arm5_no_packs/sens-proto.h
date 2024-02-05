@@ -77,7 +77,7 @@
 #define MAX86141_LEDCFG_TLV_LEN             12
 #define MAX86141_LEDCFG_TLV_SIZE            (3 + MAX86141_LEDCFG_TLV_LEN)
 
-#define MAX86141_SPO_ROUGU_DATA_SIZE        24 // 32
+#define MAX86141_SPO_ROUGU_DATA_SIZE        28
 #define MAX86141_SPO_ROUGU_TLV_TYPE         0xE9
 #define MAX86141_SPO_ROUGU_TLV_LEN          (MAX86141_NUM_OF_SPO_SAMPLES * MAX86141_SPO_ROUGU_DATA_SIZE)
 #define MAX86141_SPO_ROUGU_TLV_SIZE         (3 + MAX86141_SPO_ROUGU_TLV_LEN)
@@ -184,14 +184,13 @@ STATIC_ASSERT(sizeof(max86141_brief_tlv_t) == MAX86141_BRIEF_TLV_SIZE);
  */
 typedef struct __attribute__((packed)) max86141_rougu_data
 {
-    // int ir;
-    // int rd;
     int irdc;
     int rddc;
     int irFilt;
     int rdFilt;
     int spo;
     int hr;
+    float rHandled; // value from BO
 } max86141_rougu_data_t;
 
 STATIC_ASSERT(sizeof(max86141_rougu_data_t) == MAX86141_SPO_ROUGU_DATA_SIZE);

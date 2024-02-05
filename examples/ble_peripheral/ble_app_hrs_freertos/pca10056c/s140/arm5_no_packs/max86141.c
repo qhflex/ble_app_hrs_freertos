@@ -253,7 +253,7 @@ static uint32_t nrf5_flash_end_addr_get(void)
 #define SENS_PACKET_POOL_SIZE               4
 
 #define NUM_OF_PKTBUF                       2
-#define PKTBUF_SIZE                         1600 // 1596 for abp
+#define PKTBUF_SIZE                         1800 // 1596 for abp, 1727 for latest spo 
 
 #define NUM_OF_RAWBUF                       4
 #define MAX_FIFO_READ_ITEM_COUNT            84
@@ -1417,8 +1417,6 @@ static void max86141_run_spo(void)
     max86141_start(&spo_ctx);
     max86141_timer_start(450 * 1000);
 
-    // SEGGER_RTT_printf(0, "timer started\r\n");
-
     for (;;)
     {
         if (!cdc_acm_port_open())
@@ -1466,6 +1464,7 @@ static void max86141_run_spo(void)
             p_rougu->rdFilt = blood_result.filterRd;
             p_rougu->spo = blood_result.saO2;
             p_rougu->hr = blood_result.heartRate;
+            p_rougu->rHandled = (float)blood_result.rHandled;
 
             // increment cursor
             saO2_sum += blood_result.saO2;

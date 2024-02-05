@@ -138,7 +138,7 @@ static sens_packet_t *next_packet(void);
 /**
  *
  */
-#define NUM_OF_RECORDS                  16
+#define NUM_OF_RECORDS                  24
 
 static rdatac_record_t rdatac_records[NUM_OF_RECORDS];
 QueueHandle_t p_records_idle = NULL;
