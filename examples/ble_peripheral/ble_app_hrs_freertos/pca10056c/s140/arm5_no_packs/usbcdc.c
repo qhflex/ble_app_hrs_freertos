@@ -466,6 +466,8 @@ bool cdc_acm_port_open()
 
 static void usbcdc_task(void * pvParameters)
 {
+    vTaskDelay(1000);
+    
     ret_code_t err_code;
 
 //    m_pending_queue = xQueueCreate(8, sizeof(pending_item_t));

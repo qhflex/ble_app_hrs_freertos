@@ -89,6 +89,8 @@
 
 #define SENS_PACKET_POOL_SIZE   2
 
+extern bool allowTempMeasure;
+
 static TaskHandle_t m_owuart_thread;
 
 static uint8_t  OW_DeviceROMCodes[OWROMTOTALBITS * 16];
@@ -448,11 +450,12 @@ STATIC_ASSERT(sizeof(ble_imu_pac_t) == 10);
 #define MAX_PENDING_TRANSACTIONS    5
 #define QMA6110P_ADDR               (0x12) // ad0 grounded in schematic
 
+static uint8_t twi_writebuf[8] = { 0x01, 0, 0, 0, 0, 0, 0, 0 };
 static uint8_t twi_readbuf[6] = {0xa5, 0xa5, 0xa5, 0xa5, 0xa5, 0xa5};
 
 NRF_TWI_MNGR_DEF(m_nrf_twi_mngr, MAX_PENDING_TRANSACTIONS, TWI_INSTANCE_ID);
 nrf_twi_mngr_transfer_t qma6110p_twi_xfers[] = {
-    NRF_TWI_MNGR_WRITE(QMA6110P_ADDR, 0x01, 1, NRF_TWI_MNGR_NO_STOP),
+    NRF_TWI_MNGR_WRITE(QMA6110P_ADDR, twi_writebuf, 1, NRF_TWI_MNGR_NO_STOP),
     NRF_TWI_MNGR_READ (QMA6110P_ADDR, twi_readbuf, 6, 0)
 };
 
@@ -474,6 +477,8 @@ static void qma6110p_twi_config(void)
 
 void owuart_task(void * pvParameters)
 {
+    vTaskDelay(2000);
+    
     int ret;
     
     // see NRFX_SAADC_ENABLED section in sdk_config.h
@@ -549,7 +554,7 @@ void owuart_task(void * pvParameters)
         int16_t imu_y = *((int16_t*)(&twi_readbuf[2])) / 4;
         int16_t imu_z = *((int16_t*)(&twi_readbuf[4])) / 4;
         
-        SEGGER_RTT_printf(0, "qma6110p x %d, y %d, z %d\r\n", imu_x, imu_y, imu_z);
+        SEGGER_RTT_printf(0, "imu x %d, y %d, z %d\r\n", imu_x, imu_y, imu_z);
         if (ble_nus_tx_running())
         {
             ble_nus_tx_buf_t* buf = ble_nus_tx_alloc();
@@ -570,75 +575,99 @@ void owuart_task(void * pvParameters)
             }                            
         }
         
-        for (int j = 0; j < m_device_count; j++)
+        if (allowTempMeasure)
         {
-            OW_CHECK(onewire_reset());
-            if (ret == 0) goto fail;
-            OW_CHECK(onewire_writebyte(0x55));
-            OW_CHECK(onewire_writebyte(m_device_serial[j][0]));
-            OW_CHECK(onewire_writebyte(m_device_serial[j][1]));
-            OW_CHECK(onewire_writebyte(m_device_serial[j][2]));
-            OW_CHECK(onewire_writebyte(m_device_serial[j][3]));
-            OW_CHECK(onewire_writebyte(m_device_serial[j][4]));
-            OW_CHECK(onewire_writebyte(m_device_serial[j][5]));
-            OW_CHECK(onewire_writebyte(m_device_serial[j][6]));
-            OW_CHECK(onewire_writebyte(m_device_serial[j][7]));        
-            OW_CHECK(onewire_writebyte(0x44));  // convert T
-            
-            // nrfx_systick_delay_ms(10);
-            vTaskDelay(12);
-            
-            OW_CHECK(onewire_reset());
-            if (ret == 0) goto fail;
-
-            OW_CHECK(onewire_writebyte(0x55));
-            OW_CHECK(onewire_writebyte(m_device_serial[j][0]));
-            OW_CHECK(onewire_writebyte(m_device_serial[j][1]));
-            OW_CHECK(onewire_writebyte(m_device_serial[j][2]));
-            OW_CHECK(onewire_writebyte(m_device_serial[j][3]));
-            OW_CHECK(onewire_writebyte(m_device_serial[j][4]));
-            OW_CHECK(onewire_writebyte(m_device_serial[j][5]));
-            OW_CHECK(onewire_writebyte(m_device_serial[j][6]));
-            OW_CHECK(onewire_writebyte(m_device_serial[j][7]));
-            OW_CHECK(onewire_writebyte(0xBE));
-            
-            OW_CHECK(onewire_m601z_readtemp(temp));
-
-            if (CRC8(temp, 9) == 0)
+            for (int j = 0; j < m_device_count; j++)
             {
-                char buf[8];
-                int16_t *st = (int16_t*)temp;
-                float tempf = (float)(*st)/256 + 40;
+                OW_CHECK(onewire_reset());
+                if (ret == 0) goto fail;
+                OW_CHECK(onewire_writebyte(0x55));
+                OW_CHECK(onewire_writebyte(m_device_serial[j][0]));
+                OW_CHECK(onewire_writebyte(m_device_serial[j][1]));
+                OW_CHECK(onewire_writebyte(m_device_serial[j][2]));
+                OW_CHECK(onewire_writebyte(m_device_serial[j][3]));
+                OW_CHECK(onewire_writebyte(m_device_serial[j][4]));
+                OW_CHECK(onewire_writebyte(m_device_serial[j][5]));
+                OW_CHECK(onewire_writebyte(m_device_serial[j][6]));
+                OW_CHECK(onewire_writebyte(m_device_serial[j][7]));        
+                OW_CHECK(onewire_writebyte(0x44));  // convert T
                 
-                if (j == 0)
+                // nrfx_systick_delay_ms(10);
+                vTaskDelay(12);
+                
+                OW_CHECK(onewire_reset());
+                if (ret == 0) goto fail;
+
+                OW_CHECK(onewire_writebyte(0x55));
+                OW_CHECK(onewire_writebyte(m_device_serial[j][0]));
+                OW_CHECK(onewire_writebyte(m_device_serial[j][1]));
+                OW_CHECK(onewire_writebyte(m_device_serial[j][2]));
+                OW_CHECK(onewire_writebyte(m_device_serial[j][3]));
+                OW_CHECK(onewire_writebyte(m_device_serial[j][4]));
+                OW_CHECK(onewire_writebyte(m_device_serial[j][5]));
+                OW_CHECK(onewire_writebyte(m_device_serial[j][6]));
+                OW_CHECK(onewire_writebyte(m_device_serial[j][7]));
+                OW_CHECK(onewire_writebyte(0xBE));
+                
+                OW_CHECK(onewire_m601z_readtemp(temp));
+
+                if (CRC8(temp, 9) == 0)
                 {
-                    oled_update_tmp(tempf);
+                    char buf[8];
+                    int16_t *st = (int16_t*)temp;
+                    float tempf = (float)(*st)/256 + 40;
+                    
+    //                double tempff = 0.0;
+    //                
+    //                if (temp[0] & (0x01 << 0)) tempff += 0.00390625;
+    //                if (temp[0] & (0x01 << 1)) tempff += 0.0078125;
+    //                if (temp[0] & (0x01 << 2)) tempff += 0.015625;
+    //                if (temp[0] & (0x01 << 3)) tempff += 0.03125;
+    //                if (temp[0] & (0x01 << 4)) tempff += 0.0625;
+    //                if (temp[0] & (0x01 << 5)) tempff += 0.125;
+    //                if (temp[0] & (0x01 << 6)) tempff += 0.25;
+    //                if (temp[0] & (0x01 << 7)) tempff += 0.5;
+    //                
+    //                if (temp[1] & (0x01 << 0)) tempff += 1.0;
+    //                if (temp[1] & (0x01 << 1)) tempff += 2.0;
+    //                if (temp[1] & (0x01 << 2)) tempff += 4.0;
+    //                if (temp[1] & (0x01 << 3)) tempff += 8.0;
+    //                if (temp[1] & (0x01 << 4)) tempff += 16.0;
+    //                if (temp[1] & (0x01 << 5)) tempff += 32.0;
+    //                if (temp[1] & (0x01 << 6)) tempff += 64.0;
+    //                if (temp[1] & (0x01 << 7)) tempff -= 128.0;                
+    //                
+    //                float tempf = (float)tempff + 40;
+                    
+                    if (j == 0)
+                    {
+                        oled_update_tmp(tempf);
+                    }
+                    
+                    snprintf(buf, 8, "%.4f", tempf);
+                    SEGGER_RTT_printf(0, "  T(%d): %s (%d)\r\n", j+1, buf, n);
+                    
+                    m_m601z_packet_helper.p_templist->id_temp[j].temp[0] = temp[0];
+                    m_m601z_packet_helper.p_templist->id_temp[j].temp[1] = temp[1];
+                    
+                    continue;
                 }
-                
-                snprintf(buf, 8, "%.4f", tempf);
-                SEGGER_RTT_printf(0, "  T(%d): %s (%d)\r\n", j+1, buf, n);
-                
-                m_m601z_packet_helper.p_templist->id_temp[j].temp[0] = temp[0];
-                m_m601z_packet_helper.p_templist->id_temp[j].temp[1] = temp[1];
-                
-                continue;
-            }
-            else
-            {
-                SEGGER_RTT_printf(0, "    BAD CRC: %s\r\n", hexstr(temp, 9));
-            }
+                else
+                {
+                    SEGGER_RTT_printf(0, "    BAD CRC: %s\r\n", hexstr(temp, 9));
+                }
 
-            fail:
-            m_m601z_packet_helper.p_templist->id_temp[j].temp[0] = 0xff;
-            m_m601z_packet_helper.p_templist->id_temp[j].temp[1] = 0xff;
-        }
-
+                fail:
+                m_m601z_packet_helper.p_templist->id_temp[j].temp[0] = 0xff;
+                m_m601z_packet_helper.p_templist->id_temp[j].temp[1] = 0xff;
+            }
+        }   // end of allowTempMeasurement
+        
         if (cdc_acm_port_open())
         {
             simple_crc((uint8_t *)&p_current_m601z_packet->type, &m_m601z_packet_helper.p_crc[0], &m_m601z_packet_helper.p_crc[1]);
             cdc_acm_send_packet((uint8_t *)p_current_m601z_packet, m_m601z_packet_helper.packet_size);
-        }
-        
+        }        
 
         if (ble_nus_tx_running())
         {

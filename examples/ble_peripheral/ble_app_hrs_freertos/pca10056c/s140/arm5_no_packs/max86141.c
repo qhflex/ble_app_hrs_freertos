@@ -45,6 +45,8 @@
  */
 int watchout = 0;
 
+bool allowTempMeasure = false;
+
 /**********************************************************************
  * CONSTANTS
  */
@@ -82,6 +84,19 @@ typedef struct __attribute__((packed)) max_ble_spo_pac
 
 STATIC_ASSERT(sizeof(max_ble_spo_pac_t) == 92);
 
+typedef struct __attribute__((packed)) max_ble_spo_pac2
+{
+    uint16_t len;
+    uint8_t type;           // 3
+    uint8_t seq;            // not used
+    uint32_t saO2;          // 50 values avg
+    uint32_t heartRate;     // 50 values avg
+    uint16_t ir1[50];
+    uint16_t rd1[50];
+} max_ble_spo_pac2_t;        // 90 bytes in total (packet size), 1 packet per second
+
+STATIC_ASSERT(sizeof(max_ble_spo_pac2_t) == 212);
+
 /**
  * for abp, sampling rate is 2048 and each packet contains 256 samples, which means
  * 8 packets per second. 1 of them have feature / bp data.
@@ -99,6 +114,19 @@ typedef struct __attribute__((packed)) max_ble_abp_pac
 } max_ble_abp_pac_t;
 
 STATIC_ASSERT(sizeof(max_ble_abp_pac_t) == 28);
+
+typedef struct __attribute__((packed)) max_ble_abp_pac2
+{
+    uint16_t    len;
+    uint8_t     type;           // 4
+    uint8_t     seq;            // not used
+    int         sbp;            // -1 for invalid
+    int         dbp;            // -1 for invalid
+    uint16_t    ir1[16];        // 16-avg * 16
+    uint16_t    ir2[16];        // 16-avg * 16
+} max_ble_abp_pac2_t;
+
+STATIC_ASSERT(sizeof(max_ble_abp_pac2_t) == 64 + 12);
 
 typedef struct __attribute__((packed)) max_ble_abp_coeff
 {
@@ -208,8 +236,8 @@ static uint32_t nrf5_flash_end_addr_get(void)
 #define PRINT_REGISTERS                     0
 #define WRITE_READBACK                      0
 
-#define TSK_MAX86141_STACK_SIZE             (256 * 10)       // 9KBytes
-#define TSK_MAX86141_PRIORITY               2
+#define TSK_MAX86141_STACK_SIZE             (256 * 22)
+#define TSK_MAX86141_PRIORITY               1
 
 #define SPI_INSTANCE_ID                     2
 
@@ -623,13 +651,13 @@ const static max86141_cfg_t abp_maxcfg = {
                                 // 0b10  93mA
                                 // 0b11 124mA
     },
-    .led1pa             = 0x30, // lsb =  0.12 when rge is 00 (0b00)
+    .led1pa             = 0x28, // lsb =  0.12 when rge is 00 (0b00)
                                 //        0.24 when rge is 01 (0b01)
                                 //        0.36 when rge is 02 (0b10)
                                 //        0.48 when rge is 03 (0b11)
 
 //  .led2pa             = 0x30,
-    .led3pa             = 0x30,
+    .led3pa             = 0x28,
 
     .ledseq1 = {
         .ledc135        = 5,    // 0101 LED1 + LED3
@@ -1367,7 +1395,9 @@ static sens_packet_t* prepare_abp_packet(max86141_packet_helper_t *p_helper, sen
 
 static void max86141_run_spo(void)
 {
-    // 120 packets per minute
+    SEGGER_RTT_printf(0, ">>>> spo enter >>>>\r\n");
+    
+    // TESTED, 3 minutes for 3 * 60 * 50 / MAX86141_NUM_OF_SPO_SAMPLES (=50)
     int max_pkts = 3 * 60 * 50 / MAX86141_NUM_OF_SPO_SAMPLES;
 
     sens_packet_t *p_pkt = NULL;
@@ -1383,8 +1413,8 @@ static void max86141_run_spo(void)
 
     int saO2_sum = 0;
     int hr_sum = 0;
-    int ir_sum[10] = {0};
-    int rd_sum[10] = {0};
+    // int ir_sum[10] = {0};
+    // int rd_sum[10] = {0};
 
     // reset_pkts_queue();
     reset_smpl_queue();
@@ -1451,9 +1481,9 @@ static void max86141_run_spo(void)
 
             // calc a result
             light_data.ir = (((unsigned int)(src[0] & 0x07)) << 16) + (((unsigned int)src[1]) << 8) + (unsigned int)src[2];
-            ir_sum[sample_in_pkt / 5] += light_data.ir;
+            // ir_sum[sample_in_pkt / 5] += light_data.ir;
             light_data.rd = (((unsigned int)(src[3] & 0x07)) << 16) + (((unsigned int)src[4]) << 8) + (unsigned int)src[5];
-            rd_sum[sample_in_pkt / 5] += light_data.rd;
+            // rd_sum[sample_in_pkt / 5] += light_data.rd;
             getBOResult(light_data, &blood_result);
 
             // fill rougu data
@@ -1489,18 +1519,24 @@ static void max86141_run_spo(void)
                     ble_nus_tx_buf_t *buf = ble_nus_tx_alloc();
                     if (buf)
                     {
-                        max_ble_spo_pac_t *pac = (max_ble_spo_pac_t *)buf;
-                        pac->len = sizeof(max_ble_spo_pac_t) - sizeof(uint16_t);
+                        max_ble_spo_pac2_t *pac = (max_ble_spo_pac2_t *)buf;
+                        pac->len = sizeof(max_ble_spo_pac2_t) - sizeof(uint16_t);
                         pac->type = 3;
                         pac->seq = 0;
                         pac->saO2 = saO2_avg; // blood_result.saO2;
                         pac->heartRate = hr_avg; // blood_result.heartRate;
-
-                        for (int i = 0; i < 10; i++)
+                        
+                        uint8_t* p = helper.p_spo_sample->value;
+                        for (int i = 0; i < MAX86141_NUM_OF_SPO_SAMPLES; i++)
                         {
-                            pac->ir1[i] = ir_sum[i] / 5;
-                            pac->rd1[i] = rd_sum[i] / 5;
+                            pac->ir1[i] = (((uint16_t)(p[i * 6 + 0] & 0x07)) << 13) + (((uint16_t)p[i * 6 + 1]) << 5) + ((uint16_t)p[i * 6 + 2] >> 3);
+                            pac->rd1[i] = (((uint16_t)(p[i * 6 + 3] & 0x07)) << 13) + (((uint16_t)p[i * 6 + 4]) << 5) + ((uint16_t)p[i * 6 + 5] >> 3);;
                         }
+//                        for (int i = 0; i < 10; i++)
+//                        {
+//                            pac->ir1[i] = ir_sum[i] / 5;
+//                            pac->rd1[i] = rd_sum[i] / 5;
+//                        }
 
                         ble_nus_tx_send(buf);
                     }
@@ -1523,11 +1559,11 @@ static void max86141_run_spo(void)
                 saO2_sum = 0;
                 hr_sum = 0;
                 sample_in_pkt = 0;
-                for (int i = 0; i < 10; i++)
-                {
-                    ir_sum[i] = 0;
-                    rd_sum[i] = 0;
-                }
+//                for (int i = 0; i < 10; i++)
+//                {
+//                    ir_sum[i] = 0;
+//                    rd_sum[i] = 0;
+//                }
                 p_pkt = prepare_spo_packet(&helper, p_pkt);
                 // SEGGER_RTT_printf(0, "next spo pkt, %p, size %d\r\n", p_pkt, helper.packet_size);
             }
@@ -1546,7 +1582,7 @@ static void max86141_run_spo(void)
 
     vTaskDelay(1);
 
-    SEGGER_RTT_printf(0, "spo stopped\r\n");
+    SEGGER_RTT_printf(0, "<<<< spo end <<<<\r\n");
 
 #if 0
         int spo_count = read_reg(&spo_ctx, REG_FIFO_DATA_COUNT);
@@ -1671,8 +1707,8 @@ static void max86141_run_abp(void)
     p_pkt = prepare_abp_packet(&helper, NULL);
     sample_in_pkt = 0;
 
-    uint32_t ir1sum[2] = {0};
-    uint32_t ir2sum[2] = {0};
+    uint32_t ir1sum[16] = {0};
+    uint32_t ir2sum[16] = {0};
 
     max86141_start(&abp_ctx);
 
@@ -1724,9 +1760,11 @@ static void max86141_run_abp(void)
             uint32_t ir1int = (((unsigned int)(src[0] & 0x07)) << 16) + (((unsigned int)src[1]) << 8) + (unsigned int)src[2];
             uint32_t ir2int = (((unsigned int)(src[3] & 0x07)) << 16) + (((unsigned int)src[4]) << 8) + (unsigned int)src[5];
 
-            ir1sum[sample_in_pkt / 128] += ir1int;
-            ir2sum[sample_in_pkt / 128] += ir2int;
-
+            // ir1sum[sample_in_pkt / 128] += ir1int;
+            // ir2sum[sample_in_pkt / 128] += ir2int;
+            ir1sum[sample_in_pkt / 16] += ir1int;
+            ir2sum[sample_in_pkt / 16] += ir2int;
+            
             double ir1 = (double)ir1int;
             double ir2 = (double)ir2int;
 
@@ -1781,8 +1819,8 @@ static void max86141_run_abp(void)
                     ble_nus_tx_buf_t *buf = ble_nus_tx_alloc();
                     if (buf)
                     {
-                        max_ble_abp_pac_t *pac = (max_ble_abp_pac_t *)buf;
-                        pac->len = sizeof(max_ble_abp_pac_t) - sizeof(uint16_t);
+                        max_ble_abp_pac2_t *pac = (max_ble_abp_pac2_t *)buf;
+                        pac->len = sizeof(max_ble_abp_pac2_t) - sizeof(uint16_t);
                         pac->type = 4;
                         // pac->seq = 0;
                         if (helper.p_abp_feature->index != -1)
@@ -1798,10 +1836,16 @@ static void max86141_run_abp(void)
                             pac->dbp = -1;
                         }
 
-                        pac->ir1[0] = ir1sum[0] / 128;
-                        pac->ir1[1] = ir1sum[1] / 128;
-                        pac->ir2[0] = ir2sum[0] / 128;
-                        pac->ir2[1] = ir2sum[1] / 128;
+//                        pac->ir1[0] = ir1sum[0] / 128;
+//                        pac->ir1[1] = ir1sum[1] / 128;
+//                        pac->ir2[0] = ir2sum[0] / 128;
+//                        pac->ir2[1] = ir2sum[1] / 128;
+                        
+                        for (int i = 0; i < 16; i++)
+                        {
+                            pac->ir1[i] = (uint16_t)((ir1sum[i] / 16) >> 3);
+                            pac->ir2[i] = (uint16_t)((ir2sum[i] / 16) >> 3);
+                        }
 
                         ble_nus_tx_send(buf);
                     }
@@ -1821,10 +1865,16 @@ static void max86141_run_abp(void)
                 }
 
                 sample_in_pkt = 0;
-                ir1sum[0] = 0;
-                ir1sum[1] = 0;
-                ir2sum[0] = 0;
-                ir2sum[1] = 0;
+//                ir1sum[0] = 0;
+//                ir1sum[1] = 0;
+//                ir2sum[0] = 0;
+//                ir2sum[1] = 0;
+                
+                for (int i = 0; i < 16; i++)
+                {
+                    ir1sum[i] = 0;
+                    ir2sum[i] = 0;
+                }
 
                 p_pkt = prepare_abp_packet(&helper, p_pkt);
                 // SEGGER_RTT_printf(0, "next abp pkt, %p, size %d\r\n", p_pkt, helper.packet_size);
@@ -1958,6 +2008,8 @@ const pref_t default_pref2 = {
 
 static void max86141_task(void * pvParameters)
 {
+    vTaskDelay(4000);
+    
     // suppress compiler complaints
     (void)nrf5_flash_end_addr_get();
 
@@ -2003,14 +2055,29 @@ static void max86141_task(void * pvParameters)
 
     max86141_spi_config();
     max86141_timer_init();
-
+    
+    // allow temperature measurement twice at the very beginning
+    allowTempMeasure = true;
+    vTaskDelay(5 * 1000);
+    allowTempMeasure = false;
+    
     for (;;)
     {
         max86141_run_spo();
-        vTaskDelay(64);
+        vTaskDelay(500);
+        SEGGER_RTT_printf(0, " - min heap (after spo) %d\r\n", xPortGetMinimumEverFreeHeapSize());
+
+        // wait 60 seconds for cooling down
+        vTaskDelay(60 * 1000);
+        
+        // allow temperature measurement for 60 seconds
+        allowTempMeasure = true;
+        vTaskDelay(60 * 1000);
+        allowTempMeasure = false;
+        
         max86141_run_abp();
-        vTaskDelay(64);
-        SEGGER_RTT_printf(0, " - freertos min heap %d\r\n", xPortGetMinimumEverFreeHeapSize());
+        vTaskDelay(500);
+        SEGGER_RTT_printf(0, " - min heap (after abp) %d\r\n", xPortGetMinimumEverFreeHeapSize());        
     }
 }
 

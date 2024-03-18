@@ -47,6 +47,7 @@ static void ads1292r_timer_callback(nrf_timer_event_t event_type, void *p_contex
 
 static void ads1292r_timer_init(void)
 {
+    (void)ads1292r_timer_init;
     ret_code_t err_code;
 
     nrf_drv_timer_config_t timer_cfg = NRF_DRV_TIMER_DEFAULT_CONFIG;
@@ -59,6 +60,7 @@ static void ads1292r_timer_init(void)
 
 static void ads1292r_timer_start(void)
 {
+    (void)ads1292r_timer_start;
     nrf_drv_timer_extended_compare(&m_ads1292r_timer,
                                    NRF_TIMER_CC_CHANNEL0,
                                    31250,
@@ -138,7 +140,7 @@ static sens_packet_t *next_packet(void);
 /**
  *
  */
-#define NUM_OF_RECORDS                  24
+#define NUM_OF_RECORDS                          80
 
 static rdatac_record_t rdatac_records[NUM_OF_RECORDS];
 QueueHandle_t p_records_idle = NULL;
@@ -790,7 +792,7 @@ static void ads1292r_drdy_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t a
     else
     {
         // DON'T remove or comment this line
-        SEGGER_RTT_printf(0, "---- ecg xqecv err ----\r\n");
+        SEGGER_RTT_printf(0, "--- ecg q err ---\r\n");
         rdatac_xfers[0].p_rx_data = rxbuf;
     }
 
@@ -875,12 +877,12 @@ static void ads1292r_task(void * pvParameters)
     NRF_LOG_INFO("---- formatted print test end ----");
 #endif
 
-    vTaskDelay(1000);
+    vTaskDelay(3000);
 
     SEGGER_RTT_printf(0, "ads129x_brief_tlv_t size: %d\r\n", sizeof(ads129x_brief_tlv_t));
 
-    ads1292r_timer_init();
-    ads1292r_timer_start();
+    // ads1292r_timer_init();
+    // ads1292r_timer_start();
 
     p_current_packet = next_packet();
     init_rdatac_records();

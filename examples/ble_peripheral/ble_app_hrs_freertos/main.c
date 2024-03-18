@@ -865,11 +865,16 @@ ble_nus_tx_buf_t* ble_nus_tx_alloc(void)
 void vApplicationStackOverflowHook( TaskHandle_t xTask,
                                     signed char *pcTaskName )
 {
+#ifndef DEBUG
+    SEGGER_RTT_printf(0, "System reset\r\n");
+    NVIC_SystemReset();
+#else
     volatile int i = 0;
     for (;;)
     {
         i++;
     }
+#endif // DEBUG    
 }
 
 /*lint -save -e14 */
