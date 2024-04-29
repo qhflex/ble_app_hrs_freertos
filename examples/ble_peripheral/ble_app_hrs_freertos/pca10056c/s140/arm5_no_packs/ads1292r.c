@@ -297,6 +297,10 @@ unsigned char ADS1x9xR_Default_Register_Settings[15] = {
             // GPIOD2/1 = 00 (read input or write output)
 };
 
+// kalam32 is a dev board from Protocentral
+// see https://github.com/Protocentral/kalam32
+// ads1292r sensor board
+// https://github.com/Protocentral/protocentral-ads1292r-arduino/blob/main/src/protocentralAds1292r.cpp
 unsigned char kalam32_defconfig[15] = {
   0x00,         // 0x00
   0x00,         // 0x01 CONFIG1, 125sps
@@ -357,7 +361,7 @@ unsigned char adjusted_config[15] = {
                 // rld not connected to any input
     0x0f,       // lead-off detect disabled for all inputs
     0x00,       // lead-off stat,
-    0x02,       // resp1, resp modulation/demodulation on, phase 135 degree,
+    0xf2,       // resp1, resp modulation/demodulation on, phase 135 degree,
                 // internal respiration with internal clock
     0x03,       // resp2, calib off, resp_freq = 32kHz, RLDREF_INT = 1 (internal reference)
     0x0c,       // gpio, two gpio pins are input
